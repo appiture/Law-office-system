@@ -1,0 +1,179 @@
+/* ================= ADD CLIENT FORM ================= */
+
+.add-client-form {
+  background: #ffffff;
+  padding: 35px;
+  border-radius: 18px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+  margin: 40px auto;
+  max-width: 750px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 18px;
+}
+
+.edit-client-modal {
+  width: min(980px, 95vw);
+  max-height: 90vh;
+  overflow-y: auto;
+}
+
+.edit-client-modal .add-client-form {
+  margin: 0;
+  max-width: 100%;
+}
+
+.add-client-form h2 {
+  grid-column: 1 / -1;
+  margin-bottom: 10px;
+}
+
+.add-client-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.add-client-field label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #334155;
+}
+
+.form-disabled-wrapper {
+  border: 0;
+  margin: 0;
+  padding: 0;
+  display: contents;
+}
+
+.add-client-form input {
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid #d1d5db;
+  font-size: 14px;
+  transition: 0.2s ease;
+}
+
+.add-client-form input:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+}
+
+.add-client-buttons {
+  grid-column: 1 / -1;
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.add-client-buttons button {
+  padding: 10px 18px;
+  border-radius: 10px;
+  border: none;
+  font-weight: 500;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+
+.btn-save {
+  background: #2563eb;
+  color: white;
+}
+
+.btn-save:hover {
+  background: #1d4ed8;
+}
+
+.btn-cancel {
+  background: #e5e7eb;
+  color: #374151;
+}
+
+.btn-cancel:hover {
+  background: #d1d5db;
+}
+/* ================= PAYMENT MODAL ================= */
+
+.payment-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.45);
+  backdrop-filter: blur(4px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
+}
+
+.payment-modal {
+  background: #ffffff;
+  padding: 35px;
+  border-radius: 18px;
+  width: 450px;
+  max-width: 95%;
+  box-shadow: 0 20px 50px rgba(0,0,0,0.15);
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  animation: modalFade 0.2s ease;
+}
+
+@keyframes modalFade {
+  from {
+    transform: translateY(15px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.payment-modal h3 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.payment-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.payment-field label {
+  font-size: 12px;
+  font-weight: 700;
+  color: #334155;
+}
+
+.payment-modal input,
+.payment-modal select,
+.payment-modal textarea {
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: 1px solid #d1d5db;
+  font-size: 14px;
+  transition: 0.2s ease;
+}
+
+.payment-modal input:focus,
+.payment-modal select:focus,
+.payment-modal textarea:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37,99,235,0.1);
+}
+
+.payment-modal textarea {
+  resize: none;
+  min-height: 90px;
+}
+
+.payment-modal-buttons {
+  display: flex;
+  justify-content: flex-end;
+  gap: 12px;
+}
