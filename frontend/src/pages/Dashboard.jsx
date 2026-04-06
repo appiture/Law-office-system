@@ -171,6 +171,10 @@ function Dashboard() {
   };
 
   const todayKey = useMemo(() => formatDateKey(now), [now]);
+  const startOfToday = useMemo(
+    () => new Date(now.getFullYear(), now.getMonth(), now.getDate()),
+    [now]
+  );
   const tomorrowKey = useMemo(() => {
     const date = new Date(now);
     date.setDate(date.getDate() + 1);
@@ -284,14 +288,14 @@ function Dashboard() {
 
   const overdueClients = useMemo(() => {
     return clients.filter((client) => {
-      // Match the exact logic from Clients.jsx
+      const dueDate = parseDateValue(client?.dueDate);
       return (
-        client.balanceAmount > 0 &&
-        client.dueDate &&
-        new Date(client.dueDate) < new Date()
+        Number(client?.balanceAmount || 0) > 0 &&
+        dueDate &&
+        dueDate.getTime() < startOfToday.getTime()
       );
     }).length;
-  }, [clients]);
+  }, [clients, startOfToday]);
 
   const allPaymentUpdates = useMemo(() => {
     return clients
