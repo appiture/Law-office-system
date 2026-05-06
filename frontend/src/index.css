@@ -1,40 +1,269 @@
-/* GLOBAL RESET */
+:root {
+  /* Light Mode (Default) */
+  --color-primary: #3A5BA0; /* Slate Blue */
+  --color-bg: #F4F6F8; /* Light Gray */
+  --color-card: #FFFFFF; /* White */
+  --color-accent: #6C8EDC; /* Soft Blue */
+  --color-text: #1A1A1A; /* Charcoal */
+  
+  --color-primary-hover: #2d4680;
+  --color-text-secondary: #4A5568;
+  --color-text-tertiary: #718096;
+  --color-border: rgba(0, 0, 0, 0.08);
+  --color-border-hover: rgba(58, 91, 160, 0.3);
+  --color-bg-secondary: rgba(58, 91, 160, 0.08);
+  --color-bg-tertiary: rgba(0, 0, 0, 0.03);
+
+  /* Status Colors (Consistent) */
+  --color-success: #22C55E;
+  --color-success-bg: rgba(34, 197, 94, 0.1);
+  --color-warning: #F59E0B;
+  --color-warning-bg: rgba(245, 158, 11, 0.1);
+  --color-error: #EF4444;
+  --color-error-bg: rgba(239, 68, 68, 0.1);
+  --color-status-waiting: #8B5CF6;
+  --color-status-closed: #6B7280;
+
+  /* Chart Colors */
+  --chart-1: #3A5BA0;
+  --chart-2: #6C8EDC;
+  --chart-3: #C9A34E;
+  --chart-4: #22C55E;
+  --chart-5: #F59E0B;
+  --chart-6: #EF4444;
+
+  --color-shadow: rgba(0, 0, 0, 0.08);
+  --color-shadow-strong: rgba(0, 0, 0, 0.15);
+
+  --transition-speed: 0.3s;
+}
+
+.dark {
+  /* Dark Mode */
+  --color-primary: #0B1F3A; /* Deep Navy */
+  --color-secondary: #C9A34E; /* Gold */
+  --color-bg: #0F172A; /* Dark base */
+  --color-card: #1E293B; /* Dark card surface */
+  --color-text: #E5E7EB; /* Light text */
+
+  --color-primary-hover: #152b4d;
+  --color-accent: #C9A34E; /* In dark mode, gold is our accent */
+  --color-text-secondary: #94A3B8;
+  --color-text-tertiary: #64748B;
+  --color-border: rgba(255, 255, 255, 0.08);
+  --color-border-hover: rgba(201, 163, 78, 0.3);
+  --color-bg-secondary: rgba(201, 163, 78, 0.08);
+  --color-bg-tertiary: rgba(255, 255, 255, 0.03);
+
+  /* Chart Colors (Dark Optimized) */
+  --chart-1: #6C8EDC;
+  --chart-2: #C9A34E;
+  --chart-3: #3A5BA0;
+  --chart-4: #4ADE80;
+  --chart-5: #FBBF24;
+  --chart-6: #F87171;
+
+  /* Status colors stay consistent */
+  --color-success-bg: rgba(34, 197, 94, 0.15);
+  --color-warning-bg: rgba(245, 158, 11, 0.15);
+  --color-error-bg: rgba(239, 68, 68, 0.15);
+
+  --color-shadow: rgba(0, 0, 0, 0.5);
+  --color-shadow-strong: rgba(0, 0, 0, 0.8);
+}
+
 * {
   margin: 0;
   padding: 0;
+  box-sizing: border-box;
+  transition: background-color var(--transition-speed) ease, 
+              color var(--transition-speed) ease, 
+              border-color var(--transition-speed) ease, 
+              box-shadow var(--transition-speed) ease,
+              fill var(--transition-speed) ease,
+              stroke var(--transition-speed) ease;
 }
 
-/* ROOT FULL WIDTH */
 html, body, #root {
   width: 100%;
   height: 100%;
   min-height: 100vh;
 }
 
-/* REMOVE FLEX CENTERING */
 body {
-  font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
-  background-color: #f5f6fa;
+  font-family: "Inter", "Segoe UI", "Helvetica Neue", sans-serif;
+  color: var(--color-text);
+  background-color: var(--color-bg);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
 }
 
-/* LINKS */
 a {
   text-decoration: none;
   color: inherit;
 }
 
-/* BUTTON BASE STYLE */
 button {
-  border-radius: 6px;
-  border: black;
-  padding: 10px 14px;
-  font-size: 14px;
-  cursor: pointer;
-  background-color: #2d7ff9;
-  color: white;
-  transition: 0.2s ease;
+  font: inherit;
+  color: inherit;
 }
 
-button:hover {
-  opacity: 0.85;
+/* Custom Scrollbar for both modes */
+::-webkit-scrollbar {
+  width: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-tertiary);
+}
+
+/* Traditional Footer */
+.page-footer {
+  text-align: center;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--color-text-secondary);
+  padding: 24px 0;
+  margin-top: auto; /* Pushes to bottom in flex containers */
+}
+
+.page-footer p {
+  margin: 0;
+}
+
+.footer-logo {
+  height: 16px;
+  width: auto;
+  opacity: 0.5;
+  filter: grayscale(1) brightness(0.8);
+  transition: all 0.3s ease;
+}
+
+.dark .footer-logo {
+  filter: grayscale(1) brightness(1.5);
+}
+
+.page-footer a {
+  color: var(--color-primary);
+  font-weight: 700;
+  text-decoration: none;
+  transition: opacity 0.2s ease;
+}
+
+.page-footer a:hover {
+  text-decoration: underline;
+  opacity: 0.8;
+}
+
+/* Footer overrides for the login screen (which has a hardcoded dark background) */
+.login-footer {
+  position: relative;
+  margin-top: auto;
+  padding: 40px 20px 24px;
+  color: rgba(255, 255, 255, 0.4);
+  z-index: 1;
+  width: 100%;
+  text-align: center;
+}
+
+.login-footer a {
+  color: #FBBF24;
+  opacity: 0.8;
+}
+
+.login-footer a:hover {
+  opacity: 1;
+}
+
+.login-footer-brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+.login-footer-logo {
+  height: 20px;
+  width: auto;
+  opacity: 0.6;
+  filter: grayscale(1) brightness(2);
+}
+
+/* Global Utility Buttons */
+.login-screen {
+  position: relative;
+  overflow-x: hidden;
+  overflow-y: auto;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 20px;
+  box-sizing: border-box;
+}
+
+.login-screen .glass-panel {
+  margin: auto;
+}
+.btn-gold {
+  background: linear-gradient(135deg, #c9a34e 0%, #b38d3a 100%);
+  color: #fff !important;
+  border: none;
+  padding: 10px 20px;
+  border-radius: 10px;
+  font-weight: 700;
+  font-size: 14px;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  transition: all 0.3s ease;
+  box-shadow: 0 4px 15px rgba(201, 163, 78, 0.3);
+  cursor: pointer;
+}
+
+.btn-gold:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(201, 163, 78, 0.4);
+  filter: brightness(1.1);
+}
+
+.btn-edit-section {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--color-text-secondary);
+  text-decoration: none;
+  padding: 5px 10px;
+  background: var(--color-bg-tertiary);
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
+  transition: all 0.2s ease;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  cursor: pointer;
+}
+
+.btn-edit-section:hover {
+  color: var(--color-primary);
+  border-color: var(--color-primary);
+  background: var(--color-bg-secondary);
+  transform: translateY(-1px);
+}
+
+.dark .btn-edit-section:hover {
+  color: var(--color-secondary);
+  border-color: var(--color-secondary);
 }

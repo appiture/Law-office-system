@@ -56,11 +56,11 @@ public class JwtUtil {
 
     // ================= TOKEN GENERATION =================
 
-    public String generateToken(String email, String role) {
-        return generateToken(email, role, false);
+    public String generateToken(String email, String role, Long orgId) {
+        return generateToken(email, role, orgId, false);
     }
 
-    public String generateToken(String email, String role, boolean rememberMe) {
+    public String generateToken(String email, String role, Long orgId, boolean rememberMe) {
         String normalizedRole = normalizeRole(role);
         long tokenLifetime = rememberMe && rememberExpirationTime > 0
                 ? rememberExpirationTime
@@ -69,6 +69,7 @@ public class JwtUtil {
         return Jwts.builder()
                 .subject(email)
                 .claim("role", normalizedRole)
+                .claim("orgId", orgId)
                 .issuedAt(new Date())
                 .expiration(new Date(System.currentTimeMillis() + tokenLifetime))
                 .signWith(key)
@@ -96,6 +97,14 @@ public class JwtUtil {
         return normalizeRole(
                 extractAllClaims(token).get("role", String.class)
         );
+    }
+
+    public Long extractOrganizationId(String token) {
+        Object orgId = extractAllClaims(token).get("orgId");
+        if (orgId instanceof Number) {
+            return ((Number) orgId).longValue();
+        }
+        return null;
     }
 
     // ================= AUTHORITIES =================

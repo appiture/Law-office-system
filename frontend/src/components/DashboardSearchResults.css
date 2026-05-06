@@ -1,0 +1,290 @@
+/* ══════════════════════════════════════════════════════════════
+   DASHBOARD SEARCH RESULTS — PREMIUM STYLING
+   ══════════════════════════════════════════════════════════════ */
+
+   .global-search-results {
+    padding: 20px;
+    width: 100%;
+    animation: fadeIn 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  }
+  
+  .search-results-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 24px;
+  padding-bottom: 16px;
+  border-bottom: 1px solid var(--color-border);
+}
+  
+  .search-results-header h2 {
+    font-size: 22px;
+    font-weight: 800;
+    color: var(--color-text);
+    margin: 0;
+  }
+  
+  .results-badge {
+    background: var(--color-primary);
+    color: white;
+    padding: 4px 10px;
+    border-radius: 20px;
+    font-size: 12px;
+    font-weight: 800;
+    letter-spacing: 0.05em;
+  }
+
+.dark .results-badge {
+  background: var(--color-secondary);
+  color: var(--color-text);
+}
+  
+  .search-sections-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 24px;
+  }
+  
+  /* Empty State */
+  .search-results-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 20px;
+  text-align: center;
+  background: var(--color-bg-tertiary);
+  border: 2px dashed var(--color-border);
+  border-radius: 16px;
+  margin: 20px;
+  color: var(--color-text);
+}
+  
+  .search-results-empty .empty-icon {
+    font-size: 48px;
+    margin-bottom: 16px;
+    opacity: 0.5;
+  }
+  
+  .search-results-empty h3 {
+    font-size: 18px;
+    font-weight: 700;
+    color: var(--color-text);
+    margin-bottom: 8px;
+  }
+  
+  .search-results-empty p {
+    color: var(--color-text);
+    opacity: 0.6;
+    font-size: 14px;
+    max-width: 400px;
+  }
+  
+  /* Sections */
+  .search-section {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+  
+  .section-title {
+    font-size: 14px;
+    font-weight: 800;
+    color: var(--color-text);
+    opacity: 0.7;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  
+  .results-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+  
+  /* Result Cards */
+  .result-card {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 16px;
+  border-radius: 12px;
+  text-decoration: none;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.02);
+}
+
+.result-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+  border-color: var(--color-accent);
+}
+  
+  .result-main {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    min-width: 0; /* Enable truncation */
+  }
+  
+  .result-main strong {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--color-text);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  
+  .result-sub {
+    font-size: 13px;
+    color: var(--color-text);
+    opacity: 0.6;
+    margin: 0;
+  }
+  
+  .result-card.compact-doc {
+    padding: 8px 12px;
+    align-items: center;
+  }
+  
+  .result-card.compact-doc .result-main strong {
+    font-size: 13px;
+  }
+  
+  .result-card.compact-doc .result-sub {
+    font-size: 11px;
+  }
+  
+  .result-card.compact-doc .file-pill {
+    padding: 2px 6px;
+    font-size: 10px;
+  }
+  
+  .cutoff-text {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    line-height: 1.4;
+  }
+  
+  .result-meta {
+    display: flex;
+    gap: 12px;
+    font-size: 12px;
+    color: var(--color-text);
+    opacity: 0.5;
+    margin-top: 4px;
+  }
+  
+  .result-meta span {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  
+  .result-side {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    flex-shrink: 0;
+    margin-left: 16px;
+  }
+  
+  /* Badges & Pills */
+  .count-pill {
+  background: var(--color-bg-secondary);
+  color: var(--color-text);
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+}
+
+.date-pill {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-accent);
+  background: var(--color-bg-secondary);
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+  
+.file-pill {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-status-waiting);
+  background: var(--color-status-waiting-bg);
+  padding: 4px 8px;
+  border-radius: 6px;
+  text-transform: uppercase;
+}
+
+.amount-pill {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-success);
+  background: var(--color-success-bg);
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.status-badge {
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  background: var(--color-bg-secondary);
+  color: var(--color-text);
+  opacity: 0.8;
+}
+
+.status-badge.RUNNING { background: rgba(59, 130, 246, 0.1); color: var(--color-primary); }
+.status-badge.PENDING { background: rgba(245, 158, 11, 0.1); color: var(--color-warning); }
+.status-badge.WAITING { background: var(--color-status-waiting-bg); color: var(--color-status-waiting); }
+.status-badge.CLOSED_WON { background: var(--color-success-bg); color: var(--color-success); }
+.status-badge.CLOSED_LOST { background: var(--color-error-bg); color: var(--color-error); }
+.status-badge.ON_HOLD { background: var(--color-warning-bg); color: var(--color-warning); }
+.status-badge.COMPLETED { background: var(--color-success-bg); color: var(--color-success); }
+.status-badge.PARTIAL { background: var(--color-warning-bg); color: var(--color-warning); }
+.status-badge.PAID { background: var(--color-success-bg); color: var(--color-success); }
+.status-badge.OVERDUE { background: var(--color-error-bg); color: var(--color-error); }
+  
+  /* Responsive */
+  @media (max-width: 1024px) {
+    .search-sections-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+  
+  @media (max-width: 640px) {
+    .global-search-results {
+      padding: 12px;
+    }
+    
+    .search-results-header {
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 8px;
+    }
+    
+    .result-card {
+      flex-direction: column;
+      gap: 12px;
+    }
+    
+    .result-side {
+      margin-left: 0;
+      width: 100%;
+      align-items: flex-start;
+    }
+  }

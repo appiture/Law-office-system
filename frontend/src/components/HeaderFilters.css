@@ -1,0 +1,360 @@
+/* â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+   HEADER FILTERS COMPONENT â€” PREMIUM REDESIGN
+   Supports the "Drag Down" panel for advanced filtering
+   â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â• */
+
+.header-filters-container {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  position: relative;
+  width: 100%;
+  z-index: 2000; /* Higher than content cards */
+}
+
+.header-filters-top {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  z-index: 1001; /* Stay above the panel */
+}
+
+/* â”€â”€ Premium Search Box â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.premium-search-box {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--color-card);
+  border: 1.5px solid var(--color-border);
+  border-radius: 12px;
+  padding: 8px 14px;
+  min-width: 240px;
+  flex: 1;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 2px 6px rgba(0,0,0,0.02);
+}
+
+.premium-search-box:focus-within {
+  border-color: var(--color-primary);
+  box-shadow: 0 4px 15px var(--color-border);
+}
+
+.dark .premium-search-box:focus-within {
+  border-color: var(--color-secondary);
+}
+
+.search-icon {
+  font-size: 14px;
+  color: var(--color-text);
+  opacity: 0.5;
+  flex-shrink: 0;
+}
+
+.search-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--color-text);
+  font-family: inherit;
+  min-width: 0;
+}
+
+.search-input::placeholder {
+  color: var(--color-text);
+  opacity: 0.4;
+}
+
+.search-clear-btn {
+  background: var(--color-bg);
+  border: none;
+  border-radius: 50%;
+  width: 18px;
+  height: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-text);
+  opacity: 0.6;
+  font-size: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.search-clear-btn:hover {
+  background: var(--color-error);
+  color: white;
+  opacity: 1;
+}
+
+/* â”€â”€ Filter Toggle Button â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.filter-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--color-card);
+  border: 1.5px solid var(--color-border);
+  border-radius: 12px;
+  padding: 8px 16px;
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--color-text);
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.02);
+}
+
+.dark .filter-toggle-btn {
+  border-color: var(--color-border);
+}
+
+.filter-toggle-btn:hover {
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+.filter-toggle-btn.active {
+  background: var(--color-primary);
+  border-color: var(--color-primary);
+  color: white;
+}
+
+.dark .filter-toggle-btn.active {
+  background: var(--color-secondary);
+  border-color: var(--color-secondary);
+  color: #0F172A;
+}
+
+.filter-toggle-btn.has-active {
+  border-color: var(--color-primary);
+  background: rgba(58, 91, 160, 0.05);
+  color: var(--color-primary);
+}
+
+.dark .filter-toggle-btn.has-active {
+  border-color: var(--color-secondary);
+  background: rgba(201, 163, 78, 0.05);
+  color: var(--color-secondary);
+}
+
+.filter-toggle-btn.has-active.active {
+  background: var(--color-primary);
+  color: white;
+}
+
+.dark .filter-toggle-btn.has-active.active {
+  background: var(--color-secondary);
+  color: #0F172A;
+}
+
+.filter-badge {
+  background: var(--color-primary);
+  color: white;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  font-size: 10px;
+  font-weight: 900;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.dark .filter-badge {
+  background: var(--color-secondary);
+  color: #0F172A;
+}
+
+.chevron-icon {
+  font-size: 10px;
+  opacity: 0.6;
+}
+
+/* â”€â”€ Expandable Panel ("Drag Down") â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+.filter-expand-panel {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  width: 480px;
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  border-radius: 16px;
+  margin-top: 12px;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.15);
+  overflow: hidden;
+  max-height: 0;
+  opacity: 0;
+  visibility: hidden;
+  transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+  z-index: 9999; /* Ensure it stays on top of everything */
+}
+
+.dark .filter-expand-panel {
+  border-color: var(--color-border);
+}
+
+.filter-expand-panel.visible {
+  max-height: 500px;
+  opacity: 1;
+  visibility: visible;
+  margin-top: 16px;
+}
+
+.filter-panel-content {
+  padding: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.filter-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 16px;
+}
+
+.filter-item {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.filter-item-label {
+  font-size: 11px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--color-text);
+  opacity: 0.6;
+}
+
+.filter-item-select,
+.filter-item-input {
+  width: 100%;
+  padding: 10px 12px;
+  background: var(--color-bg);
+  border: 1.5px solid rgba(0, 0, 0, 0.05);
+  border-radius: 10px;
+  font-size: 13px;
+  color: var(--color-text);
+  font-family: inherit;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.dark .filter-item-select,
+.dark .filter-item-input {
+  border-color: rgba(255, 255, 255, 0.05);
+}
+
+.filter-item-select:focus,
+.filter-item-input:focus {
+  border-color: var(--color-primary);
+  background: var(--color-card);
+}
+
+.dark .filter-item-select:focus,
+.dark .filter-item-input:focus {
+  border-color: var(--color-secondary);
+}
+
+.filter-panel-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 20px;
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+  margin-top: 4px;
+}
+
+.dark .filter-panel-actions {
+  border-top-color: rgba(255, 255, 255, 0.05);
+}
+
+.filter-status-info {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text);
+  opacity: 0.5;
+}
+
+.filter-action-buttons {
+  display: flex;
+  gap: 10px;
+}
+
+.panel-clear-btn {
+  padding: 9px 16px;
+  background: var(--color-card);
+  border: 1.5px solid var(--color-error);
+  border-radius: 10px;
+  color: var(--color-error);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.panel-clear-btn:hover {
+  background: var(--color-error);
+  color: white;
+}
+
+.panel-close-btn {
+  padding: 9px 18px;
+  background: var(--color-primary);
+  border: none;
+  border-radius: 10px;
+  color: white;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.dark .panel-close-btn {
+  background: var(--color-secondary);
+  color: #0F172A;
+}
+
+.panel-close-btn:hover {
+  filter: brightness(1.1);
+  transform: translateY(-1px);
+}
+
+/* â”€â”€ Responsive â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+@media (max-width: 980px) {
+  .header-filters-container {
+    align-items: stretch;
+  }
+  
+  .premium-search-box {
+    min-width: 0;
+  }
+}
+
+@media (max-width: 768px) {
+  .header-filters-top {
+    width: 100%;
+    justify-content: flex-start;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  
+  .filter-expand-panel {
+    width: calc(100vw - 40px);
+    right: -20px;
+    position: fixed;
+    top: auto;
+    bottom: 20px;
+    border-radius: 20px 20px 0 0;
+  }
+  
+  .filter-grid {
+    grid-template-columns: 1fr;
+  }
+}
+/* END OF FILTERS */

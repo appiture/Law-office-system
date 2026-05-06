@@ -1,0 +1,465 @@
+import { useState, useEffect, useRef, useCallback } from "react";
+import { createPortal } from "react-dom";
+import { useSearchParams } from "react-router-dom";
+import AppShell from "../components/AppShell";
+import CaseIdentityCard from "../components/CaseIdentityCard";
+import ControlledSearchPanel, { EmptyState, ErrorState, LoadingState, PaginationControls } from "../components/ControlledSearchPanel";
+import CaseCombobox from "../components/CaseCombobox";
+import { platformApi } from "../api/platform";
+import {
+  assertFollowUpPayload,
+  getApiErrorMessage,
+  normalizeFollowUpStatus,
+  resolveOtherSelection,
+  splitOtherSelection,
+} from "../lib/validation";
+import { formatDateTime, textOrDash } from "../utils/formatters";
+import "./formStyles.css";
+
+const EVENT_TYPES = ["HEARING", "DEADLINE", "JUDGMENT", "NOTE", "BAIL", "CHARGE", "SUBMISSION", "OTHER"];
+const PAGE_SIZE = 25;
+const emptyFilters = { date: "", clientName: "", caseNumber: "" };
+
+const ALERT_GROUPS = [
+  { key:"missed",   label:"⚠️ Missed / Needs Attention", color:"var(--color-error)" },
+  { key:"today",    label:"📅 Today",                    color:"var(--color-primary)" },
+  { key:"upcoming", label:"🔔 Upcoming",                  color:"var(--color-warning)" },
+  { key:"planned",  label:"📌 Planned",                   color:"var(--color-text-secondary)" },
+  { key:"completed",label:"✅ Completed",                  color:"var(--color-success)" },
+];
+
+const toDateTimeLocal = (v) => {
+  if (!v) return "";
+  const d = new Date(v);
+  if (isNaN(d)) return "";
+  return new Date(d - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
+};
+
+const emptyForm = {
+  type:"HEARING", title:"", scheduledAt:"", status:"PENDING",
+  notes:"", postponedTo:"", alertLevel:"", typeOther:"",
+};
+
+// ── FG helper ─────────────────────────────────────────────────
+function FG({ label, required, hint, className, children }) {
+  return (
+    <div className={`field-group${className ? " "+className : ""}`}>
+      <span className="field-label">{label}{required && <span className="required-star">*</span>}</span>
+      {children}
+      {hint && <span className="field-hint">{hint}</span>}
+    </div>
+  );
+}
+
+// ── Follow-up Event Modal ─────────────────────────────────────
+function EventModal({ caseId, editItem, cases: availableCases = [], onClose, onSaved }) {
+  const isEdit = Boolean(editItem);
+  const cases = availableCases;
+  const [form, setForm] = useState(() => isEdit ? {
+    caseId:      caseId || "",
+    type:        splitOtherSelection(editItem.type, EVENT_TYPES, "OTHER").selected || "HEARING",
+    typeOther:   splitOtherSelection(editItem.type, EVENT_TYPES, "OTHER").custom,
+    title:       editItem.title       || "",
+    scheduledAt: toDateTimeLocal(editItem.scheduledAt),
+    status:      normalizeFollowUpStatus(editItem.status),
+    notes:       editItem.notes       || "",
+    postponedTo: toDateTimeLocal(editItem.postponedTo),
+  } : { caseId: caseId || "", ...emptyForm });
+  const [saving, setSaving] = useState(false);
+  const [error,  setError]  = useState("");
+  const [toast,  setToast]  = useState(false);
+  const closeTimerRef = useRef(null);
+
+  useEffect(() => () => {
+    if (closeTimerRef.current) {
+      window.clearTimeout(closeTimerRef.current);
+    }
+  }, []);
+
+  const set = (f, v) => { setForm(p => ({ ...p, [f]: v })); setError(""); };
+
+  const save = async () => {
+    if (!form.caseId)          { setError("Please select a case.");         return; }
+    if (!form.title.trim())    { setError("Event title is required.");    return; }
+    if (!form.scheduledAt)     { setError("Scheduled date is required."); return; }
+    if (form.type === "OTHER" && !form.typeOther.trim()) {
+      setError("Please enter the custom event type."); return;
+    }
+    setSaving(true);
+    try {
+      const payload = {
+        type:        resolveOtherSelection(form.type, form.typeOther, "OTHER"),
+        title:       form.title,
+        scheduledAt: form.scheduledAt,
+        status:      normalizeFollowUpStatus(form.status),
+        notes:       form.notes || "",
+        postponedTo: normalizeFollowUpStatus(form.status) === "POSTPONED" ? (form.postponedTo || null) : null,
+      };
+      assertFollowUpPayload(payload);
+      if (isEdit) await platformApi.updateFollowUp(form.caseId, editItem.id, payload);
+      else        await platformApi.addFollowUp(form.caseId, payload);
+      setToast(true);
+      await onSaved();
+      closeTimerRef.current = window.setTimeout(() => { setToast(false); onClose(); }, 2400);
+    } catch (e) {
+      setError("Failed: " + getApiErrorMessage(e, "Unable to save the event."));
+    } finally { setSaving(false); }
+  };
+
+  return createPortal(
+    <div className="flow-modal-overlay" onClick={e => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="flow-modal flow-modal-sm">
+
+        <div className="flow-modal-header">
+          <div className="flow-modal-header-info">
+            <h3>{isEdit ? "✏️ Edit Timeline Event" : "➕ Add Timeline Event"}</h3>
+            <p>{isEdit ? "Update the event details" : "Select a case and log a hearing, deadline, judgment, or note"}</p>
+          </div>
+          <button className="flow-modal-close" onClick={onClose}>✕</button>
+        </div>
+
+        <div className="flow-modal-body">
+          {error && <div className="form-error-banner">⚠️ {error}</div>}
+
+          <div className="form-section">
+            <div className="form-section-title"><span>📌</span> Event Details</div>
+            <div className="form-section-grid">
+              <FG label="Select Case" required hint="Search and select a case by typing case number, client name, or case type">
+                <CaseCombobox
+                  value={form.caseId}
+                  onChange={(value) => set("caseId", value)}
+                  cases={cases}
+                  placeholder="Search and select case..."
+                />
+              </FG>
+              <FG label="Event Type" required>
+                <select value={form.type} onChange={e => set("type", e.target.value)}>
+                  {EVENT_TYPES.map(t => <option key={t}>{t}</option>)}
+                </select>
+              </FG>
+              {form.type === "OTHER" && (
+                <FG label="Custom Event Type" required>
+                  <input
+                    value={form.typeOther}
+                    onChange={e => set("typeOther", e.target.value)}
+                    placeholder="Enter the event type"
+                  />
+                </FG>
+              )}
+              <FG label="Status">
+                <select value={form.status} onChange={e => set("status", e.target.value)}>
+                  <option value="PENDING">Pending</option>
+                  <option value="COMPLETED">Completed</option>
+                  <option value="POSTPONED">Postponed</option>
+                </select>
+              </FG>
+              <FG label="Event Title" required className="fcol-full">
+                <input value={form.title} onChange={e => set("title", e.target.value)}
+                  placeholder="e.g. First Hearing, Evidence Submission Deadline, Bail Hearing" />
+              </FG>
+              <FG label="Scheduled Date & Time" required>
+                <input type="datetime-local" value={form.scheduledAt}
+                  onChange={e => set("scheduledAt", e.target.value)} />
+              </FG>
+              {normalizeFollowUpStatus(form.status) === "POSTPONED" && (
+                <FG label="Postponed To">
+                  <input type="datetime-local" value={form.postponedTo}
+                    onChange={e => set("postponedTo", e.target.value)} />
+                </FG>
+              )}
+              <FG label="Notes / Remarks" className="fcol-full">
+                <textarea value={form.notes} onChange={e => set("notes", e.target.value)} rows={3}
+                  placeholder="Any observations, instructions, or contextual notes…" />
+              </FG>
+            </div>
+          </div>
+        </div>
+
+        <div className="flow-modal-footer">
+           <button className="btn-neutral" style={{ color:"var(--color-error)" }} onClick={onClose}>Cancel</button>
+          <button className="btn-gold" onClick={() => void save()} disabled={saving}>
+            {saving ? "Saving…" : isEdit ? "💾 Update Event" : "➕ Add Event"}
+          </button>
+        </div>
+      </div>
+      {toast && <div className="success-toast"><span>✅</span> Timeline event saved!</div>}
+    </div>,
+    document.body
+  );
+}
+
+// ── Alert level status badge ───────────────────────────────────
+const ALERT_STYLES = {
+  missed:    { bg:"rgba(239, 68, 68, 0.1)",  color:"var(--color-error)", dot:"var(--color-error)"  },
+  today:     { bg:"rgba(59, 130, 246, 0.1)",  color:"var(--color-primary)", dot:"var(--color-primary)"  },
+  upcoming:  { bg:"rgba(245, 158, 11, 0.1)",   color:"var(--color-warning)", dot:"var(--color-warning)"  },
+  planned:   { bg:"rgba(107, 114, 128, 0.1)",  color:"var(--color-text-secondary)", dot:"var(--color-text-tertiary)"  },
+  completed: { bg:"rgba(34, 197, 94, 0.1)",  color:"var(--color-success)", dot:"var(--color-success)"  },
+};
+
+function TimelineNode({ item, onEdit, onComplete, onDelete }) {
+  const st = ALERT_STYLES[item.alertLevel] || ALERT_STYLES.planned;
+  return (
+    <div key={item.id} style={{
+      display:"grid", gridTemplateColumns:"14px 1fr", gap:12, position:"relative"
+    }}>
+      {/* Dot */}
+      <div style={{
+        width:14, height:14, borderRadius:"50%", background:st.dot,
+        marginTop:12, flexShrink:0, zIndex:1,
+        boxShadow:`0 0 0 3px ${st.dot}22`
+      }} />
+      {/* Content */}
+      <div style={{ background:st.bg, borderRadius:14, padding:"12px 14px", display:"flex", flexDirection:"column", gap:6 }}>
+        <div style={{ display:"flex", justifyContent:"space-between", flexWrap:"wrap", gap:8 }}>
+          <div>
+            <span style={{ fontSize:10, fontWeight:800, textTransform:"uppercase", letterSpacing:"0.08em", color:st.color }}>
+              {textOrDash(item.type)}
+            </span>
+            <div style={{ fontWeight:800, color:"#0f172a", fontSize:14, marginTop:2 }}>{item.title}</div>
+          </div>
+          <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+            {normalizeFollowUpStatus(item.status) !== "COMPLETED" && (
+              <button className="btn-edit-soft" onClick={() => onComplete(item)} style={{ fontSize:11 }}>
+                ✔ Mark Done
+              </button>
+            )}
+            <button className="btn-edit-soft" onClick={() => onEdit(item)} style={{ fontSize:11 }}>Edit</button>
+            <button className="btn-danger-soft" onClick={() => onDelete(item.id)} style={{ fontSize:11 }}>Remove</button>
+          </div>
+        </div>
+         <div style={{ fontSize:12, color:"var(--color-text-secondary)" }}>
+           {item.status} · {formatDateTime(item.scheduledAt)}
+           {item.postponedTo && <> · Postponed → {formatDateTime(item.postponedTo)}</>}
+         </div>
+         {item.notes && <p style={{ fontSize:13, color:"var(--color-text-secondary)", margin:0, lineHeight:1.5 }}>{item.notes}</p>}
+      </div>
+    </div>
+  );
+}
+
+// ── FollowUps Page ────────────────────────────────────────────
+function FollowUps() {
+  const [cases,      setCases]      = useState([]);
+  const [modalCases, setModalCases] = useState([]);
+  const [eventModal, setEventModal] = useState(null); // { caseId, editItem? }
+  const [searchParams] = useSearchParams();
+  const initialSearchCase = searchParams.get("searchCase") || "";
+  const [filters, setFilters] = useState({ ...emptyFilters, caseNumber: initialSearchCase });
+  const [hasLoaded, setHasLoaded] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [modalLoading, setModalLoading] = useState(false);
+  const [error, setError] = useState("");
+  const [page, setPage] = useState(1);
+  const [total, setTotal] = useState(0);
+  const [showAllMode, setShowAllMode] = useState(false);
+  const [initialSearchTriggered, setInitialSearchTriggered] = useState(false);
+
+  const loadData = useCallback(async ({ nextPage = page, showAll = showAllMode, nextFilters = filters } = {}) => {
+    setLoading(true);
+    setError("");
+    try {
+      const response = await platformApi.searchFollowUps({
+        filters: nextFilters,
+        showAll,
+        page: nextPage,
+        pageSize: PAGE_SIZE,
+      });
+      setCases(Array.isArray(response.items) ? response.items : []);
+      setTotal(Number(response.total || 0));
+      setPage(Number(response.page || nextPage));
+      setHasLoaded(true);
+      setShowAllMode(showAll);
+    } catch (err) {
+      console.error("Failed to load follow-ups:", err);
+      setError(err.message || "Failed to load follow-ups.");
+      setCases([]);
+      setTotal(0);
+      setHasLoaded(true);
+    } finally {
+      setLoading(false);
+    }
+  }, [filters, page, showAllMode]);
+
+  const ensureModalCases = async () => {
+    if (modalCases.length > 0) return true;
+    setModalLoading(true);
+    try {
+      const response = await platformApi.searchCases({ showAll: true, page: 1, pageSize: 500 });
+      setModalCases(Array.isArray(response.items) ? response.items : []);
+      return true;
+    } catch (err) {
+      console.error("Failed to load cases for event modal:", err);
+      setError(err.message || "Failed to load cases for the event modal.");
+      return false;
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
+  const openEventModal = async (payload = {}) => {
+    const ready = await ensureModalCases();
+    if (!ready) return;
+    setEventModal(payload);
+  };
+
+  const markCompleted = async (caseId, item) => {
+    await platformApi.updateFollowUp(caseId, item.id, {
+      type: item.type, title: item.title, scheduledAt: item.scheduledAt,
+      status: "COMPLETED", notes: item.notes || "", postponedTo: item.postponedTo || null,
+    });
+    await loadData();
+  };
+
+  const deleteEvent = async (caseId, followUpId) => {
+    if (!window.confirm("Remove this timeline event?")) return;
+    await platformApi.deleteFollowUp(caseId, followUpId);
+    await loadData();
+  };
+
+  const totalEvents = cases.reduce((sum, c) => sum + (c.followUps?.length || 0), 0);
+  const handleSearch = useCallback((nextFilters = filters) => {
+    setShowAllMode(false);
+    void loadData({ nextPage: 1, showAll: false, nextFilters });
+  }, [filters, loadData]);
+  
+  useEffect(() => {
+    if (initialSearchCase && !initialSearchTriggered) {
+      setInitialSearchTriggered(true);
+      handleSearch({ ...emptyFilters, caseNumber: initialSearchCase });
+    }
+  }, [initialSearchCase, initialSearchTriggered, handleSearch]);
+
+  const handleShowAll = () => {
+    setShowAllMode(true);
+    void loadData({ nextPage: 1, showAll: true });
+  };
+
+  return (
+    <AppShell
+      title="Follow-ups"
+      subtitle="Timeline of hearings, deadlines, judgments, and notes — colour-coded by urgency."
+      actions={
+        <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+          <button type="button" className="btn-gold" onClick={() => void openEventModal({})} disabled={modalLoading} style={{ whiteSpace: 'nowrap' }}>
+            {modalLoading ? "Loading..." : "+ Add Event"}
+          </button>
+        </div>
+      }
+    >
+      <ErrorState message={error} />
+      <ControlledSearchPanel
+        title="Search follow-ups"
+        description="Search by date, client name, or case number. Show All loads a paged timeline."
+        fields={[
+          { name: "date", label: "Date", type: "date" },
+          { name: "clientName", label: "Client name", placeholder: "Client name" },
+          { name: "caseNumber", label: "Case number", placeholder: "Case number" },
+        ]}
+        values={filters}
+        onChange={setFilters}
+        onSearch={handleSearch}
+        onShowAll={handleShowAll}
+        onClear={() => {
+          setFilters(emptyFilters);
+          setCases([]);
+          setTotal(0);
+          setHasLoaded(false);
+          setError("");
+        }}
+        loading={loading}
+        pageSize={PAGE_SIZE}
+      />
+
+      {hasLoaded && !loading && (
+         <div style={{ fontSize: 12, fontWeight: 700, color: "var(--color-text-secondary)", marginBottom: 12 }}>
+           {totalEvents} event{totalEvents !== 1 ? "s" : ""} in {total} case{total !== 1 ? "s" : ""}
+         </div>
+      )}
+
+      <section className="card-grid">
+        {!hasLoaded && <EmptyState label="Use the filters above to load follow-ups." />}
+        {loading && <LoadingState label="Loading follow-ups..." />}
+        {hasLoaded && !loading && cases.map(legalCase => (
+          <div key={legalCase.id}>
+            <CaseIdentityCard
+              item={legalCase}
+              className="case-card-premium"
+              detailsTarget={`/cases/${legalCase.id}#followups-card`}
+            >
+            <div className="mini-section">
+              <div className="section-heading">
+                 <div>
+                   <h4 style={{ margin:0, fontSize:13, fontWeight:800, color:"var(--color-text)" }}>
+                     📌 Timeline Events ({legalCase.followUps?.length ?? 0})
+                   </h4>
+                  <p className="section-copy">Hearings, deadlines, and key milestones</p>
+                </div>
+                <button className="btn-gold" style={{ fontSize:12, padding:"7px 12px" }}
+                  onClick={() => void openEventModal({ caseId: legalCase.id })}>
+                  + Add Event
+                </button>
+              </div>
+
+              {/* Alert group legend */}
+              <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+                {ALERT_GROUPS.map(g => {
+                  const count = legalCase.followUps?.filter(f => f.alertLevel === g.key).length ?? 0;
+                  return count > 0 ? (
+                    <span key={g.key} style={{ fontSize:11, fontWeight:700, color:g.color, background:`${g.color}15`, padding:"3px 9px", borderRadius:999 }}>
+                      {g.label} ({count})
+                    </span>
+                  ) : null;
+                })}
+              </div>
+
+              {/* Timeline */}
+              {legalCase.followUps?.length > 0 ? (
+                <div style={{ position:"relative", paddingLeft:8 }}>
+                  {/* Vertical line */}
+                   <div style={{ position:"absolute", left:5, top:0, bottom:0, width:2, background:"linear-gradient(180deg,var(--color-gold-light),var(--color-border))", borderRadius:999 }} />
+                  <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+                    {ALERT_GROUPS.flatMap(g =>
+                      (legalCase.followUps || [])
+                        .filter(f => f.alertLevel === g.key)
+                        .map(item => (
+                          <TimelineNode
+                            key={item.id}
+                            item={item}
+                            onEdit={editItem => void openEventModal({ caseId: legalCase.id, editItem })}
+                            onComplete={i => void markCompleted(legalCase.id, i)}
+                            onDelete={id => void deleteEvent(legalCase.id, id)}
+                          />
+                        ))
+                    )}
+                  </div>
+                </div>
+              ) : (
+                <div className="empty-box">
+                  No events yet. Add a hearing or deadline to start tracking.
+                </div>
+              )}
+            </div>
+          </CaseIdentityCard>
+          </div>
+        ))}
+
+        {hasLoaded && !loading && cases.length === 0 && <EmptyState label="No follow-ups match your filters." />}
+      </section>
+
+      <PaginationControls page={page} total={total} pageSize={PAGE_SIZE} onPageChange={(nextPage) => void loadData({ nextPage })} />
+
+      {eventModal && (
+        <EventModal
+          caseId={eventModal.caseId}
+          editItem={eventModal.editItem}
+          cases={modalCases}
+          onClose={() => setEventModal(null)}
+          onSaved={loadData}
+        />
+      )}
+    </AppShell>
+  );
+}
+
+export default FollowUps;

@@ -6,5 +6,6 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import java.util.List;
 
 public interface SharedTaskRepository extends JpaRepository<SharedTask, Long> {
-    List<SharedTask> findAllByOrderByUpdatedAtDescIdDesc();
+    List<SharedTask> findAllByOrganizationIdOrderByUpdatedAtDescIdDesc(Long organizationId);
+    java.util.Optional<SharedTask> findByIdAndOrganizationId(Long id, Long organizationId);
 }

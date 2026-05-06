@@ -1,198 +1,153 @@
 package com.lawoffice.backend.model;
 
-import jakarta.persistence.*;
-import java.math.BigDecimal;
-import java.time.LocalDate;
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import com.fasterxml.jackson.annotation.JsonIgnore;
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.FetchType;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.ManyToOne;
+import jakarta.persistence.OneToMany;
+import jakarta.persistence.Table;
+import org.hibernate.annotations.CreationTimestamp;
+
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.hibernate.annotations.CreationTimestamp;
-import com.fasterxml.jackson.annotation.JsonManagedReference;
 @Entity
 @Table(name = "clients")
+@JsonIgnoreProperties({"cases"})
 public class Client {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @Column(nullable = false)
+    @Column(nullable = false, length = 150)
     private String name;
 
-    @Column(nullable = false)
+    @Column(length = 500)
+    private String photoUrl;
+
+    @Column(length = 255)
+    private String photoPath;
+
+    @Column(nullable = false, length = 20)
     private String phone;
 
-    private String caseType;
+    @Column(length = 20)
+    private String altPhone;
 
-    @OneToMany(mappedBy = "client", cascade = CascadeType.ALL, fetch = FetchType.EAGER)
-    @JsonManagedReference
-    private List<Payment> payments = new ArrayList<>();
+    @Column(length = 150)
+    private String email;
 
-    @OneToMany(mappedBy = "client", cascade = CascadeType.ALL, fetch = FetchType.EAGER, orphanRemoval = true)
-    @JsonManagedReference
-    private List<CaseDetail> caseDetails = new ArrayList<>();
+    @Column(length = 255)
+    private String address;
 
-    @Column(nullable = false)
-    private BigDecimal totalAmount;
-
-    @Column(nullable = false)
-    private BigDecimal paidAmount = BigDecimal.ZERO;
-
-    @Column(name = "balance_amount")
-    private BigDecimal balanceAmount;
-
-    @Column(name = "due_date")
-    private LocalDate dueDate;
-
-    @Column(name = "next_due_date")
-    private LocalDate nextDueDate;
-
-    @Column(name = "next_due_remarks", length = 500)
-    private String nextDueRemarks;
-
-    @Column(name = "remarks", length = 1000)
-    private String remarks;
-
-    @Column(name = "follow_up_contacted")
-    private Boolean followUpContacted = false;
-
-    @Column(name = "follow_up_updated_by")
-    private String followUpUpdatedBy;
-
-    @Column(name = "follow_up_updated_at")
-    private LocalDateTime followUpUpdatedAt;
-
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private ClientStatus status;
-
-    @Column(nullable = false)
-    private Long createdBy;
+    @Column(length = 30)
+    private String gender;
 
     @Column
-    private String createdByName;
+    private java.time.LocalDate dateOfBirth;
+
+    @Column(length = 150)
+    private String occupation;
+
+    @Column(length = 120)
+    private String city;
+
+    @Column(length = 120)
+    private String state;
+
+    @Column(length = 6)
+    private String pinCode;
+
+    @Column(length = 100)
+    private String idProofType;
+
+    @Column(length = 150)
+    private String idProofNumber;
+
+    @Column(length = 500)
+    private String idProofFileUrl;
+
+    @Column(length = 255)
+    private String idProofFilePath;
+
+    @Column(length = 2000)
+    private String notes;
+
+    @Column(name = "is_draft")
+    private Boolean isDraft = false;
+
+    @Column(nullable = false, length = 150)
+    private String createdBy;
+
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "organization_id")
+    @JsonIgnore
+    private Organization organization;
 
     @CreationTimestamp
+    @Column(nullable = false, updatable = false)
     private LocalDateTime createdAt;
 
-    @Column(name = "image_url",length = 500)
-    private String imageUrl;
-
-    @Column(name = "image_public_id")
-    private String imagePublicId;
-
-    @PrePersist
-    @PreUpdate
-    public void calculateFinancials() {
-
-        if (totalAmount == null) {
-            totalAmount = BigDecimal.ZERO;
-        }
-
-        if (paidAmount == null) {
-            paidAmount = BigDecimal.ZERO;
-        }
-
-        if (followUpContacted == null) {
-            followUpContacted = false;
-        }
-
-        if (paidAmount.compareTo(BigDecimal.ZERO) < 0) {
-            paidAmount = BigDecimal.ZERO;
-        }
-
-        if (paidAmount.compareTo(totalAmount) > 0) {
-            paidAmount = totalAmount;
-        }
-
-        balanceAmount = totalAmount.subtract(paidAmount);
-
-        // If fully paid
-        if (balanceAmount.compareTo(BigDecimal.ZERO) == 0) {
-            status = ClientStatus.PAID;
-            dueDate = null;
-            nextDueDate = null;
-        }
-        // If due date is set and has passed - mark as OVERDUE
-        else if (dueDate != null && dueDate.isBefore(LocalDate.now())) {
-            status = ClientStatus.OVERDUE;
-        }
-        // If partially paid with balance remaining
-        else if (paidAmount.compareTo(BigDecimal.ZERO) > 0) {
-            status = ClientStatus.PARTIAL;
-        }
-        // Has balance but no due date - treat as PARTIAL (not OVERDUE)
-        else {
-            status = ClientStatus.PARTIAL;
-        }
-    }
-
-    // ================= GETTERS & SETTERS =================
+    @OneToMany(mappedBy = "client", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.LAZY)
+    private List<LegalCase> cases = new ArrayList<>();
 
     public Long getId() { return id; }
     public void setId(Long id) { this.id = id; }
-
     public String getName() { return name; }
     public void setName(String name) { this.name = name; }
-
+    public String getPhotoUrl() { return photoUrl; }
+    public void setPhotoUrl(String photoUrl) { this.photoUrl = photoUrl; }
+    public String getPhotoPath() { return photoPath; }
+    public void setPhotoPath(String photoPath) { this.photoPath = photoPath; }
     public String getPhone() { return phone; }
     public void setPhone(String phone) { this.phone = phone; }
+    public String getAltPhone() { return altPhone; }
+    public void setAltPhone(String altPhone) { this.altPhone = altPhone; }
+    public String getEmail() { return email; }
+    public void setEmail(String email) { this.email = email; }
+    public String getAddress() { return address; }
+    public void setAddress(String address) { this.address = address; }
+    public String getGender() { return gender; }
+    public void setGender(String gender) { this.gender = gender; }
+    public java.time.LocalDate getDateOfBirth() { return dateOfBirth; }
+    public void setDateOfBirth(java.time.LocalDate dateOfBirth) { this.dateOfBirth = dateOfBirth; }
+    public String getOccupation() { return occupation; }
+    public void setOccupation(String occupation) { this.occupation = occupation; }
+    public String getCity() { return city; }
+    public void setCity(String city) { this.city = city; }
+    public String getState() { return state; }
+    public void setState(String state) { this.state = state; }
+    public String getPinCode() { return pinCode; }
+    public void setPinCode(String pinCode) { this.pinCode = pinCode; }
+    public String getIdProofType() { return idProofType; }
+    public void setIdProofType(String idProofType) { this.idProofType = idProofType; }
+    public String getIdProofNumber() { return idProofNumber; }
+    public void setIdProofNumber(String idProofNumber) { this.idProofNumber = idProofNumber; }
+    public String getIdProofFileUrl() { return idProofFileUrl; }
+    public void setIdProofFileUrl(String idProofFileUrl) { this.idProofFileUrl = idProofFileUrl; }
+    public String getIdProofFilePath() { return idProofFilePath; }
+    public void setIdProofFilePath(String idProofFilePath) { this.idProofFilePath = idProofFilePath; }
+    public String getNotes() { return notes; }
+    public void setNotes(String notes) { this.notes = notes; }
+    public String getCreatedBy() { return createdBy; }
+    public void setCreatedBy(String createdBy) { this.createdBy = createdBy; }
 
-    public String getCaseType() { return caseType; }
-    public void setCaseType(String caseType) { this.caseType = caseType; }
-
-    public BigDecimal getTotalAmount() { return totalAmount; }
-    public void setTotalAmount(BigDecimal totalAmount) { this.totalAmount = totalAmount; }
-
-    public BigDecimal getPaidAmount() { return paidAmount; }
-    public void setPaidAmount(BigDecimal paidAmount) { this.paidAmount = paidAmount; }
-
-    public BigDecimal getBalanceAmount() {return balanceAmount;}
-    public void setBalanceAmount(BigDecimal balanceAmount) {this.balanceAmount = balanceAmount;}
-
-    public LocalDate getDueDate() { return dueDate; }
-    public void setDueDate(LocalDate dueDate) { this.dueDate = dueDate; }
-
-    public String getNextDueRemarks(){ return nextDueRemarks; }
-    public void setNextDueRemarks(String nextDueRemarks) { this.nextDueRemarks = nextDueRemarks; }
-
-    public Boolean getFollowUpContacted() { return followUpContacted; }
-    public void setFollowUpContacted(Boolean followUpContacted) { this.followUpContacted = followUpContacted; }
-
-    public String getFollowUpUpdatedBy() { return followUpUpdatedBy; }
-    public void setFollowUpUpdatedBy(String followUpUpdatedBy) { this.followUpUpdatedBy = followUpUpdatedBy; }
-
-    public LocalDateTime getFollowUpUpdatedAt() { return followUpUpdatedAt; }
-    public void setFollowUpUpdatedAt(LocalDateTime followUpUpdatedAt) { this.followUpUpdatedAt = followUpUpdatedAt; }
-
-    public LocalDate getNextDueDate() { return nextDueDate; }
-    public void setNextDueDate(LocalDate nextDueDate) { this.nextDueDate = nextDueDate; }
-
-    public ClientStatus getStatus() { return status; }
-    public void setStatus(ClientStatus status) { this.status = status; }
-
-    public String getCreatedByName(){ return createdByName; }
-    public void setCreatedByName(String createdByName) { this.createdByName = createdByName; }
-
-    public Long getCreatedBy() { return createdBy; }
-    public void setCreatedBy(Long createdBy) { this.createdBy = createdBy; }
+    public Organization getOrganization() { return organization; }
+    public void setOrganization(Organization organization) { this.organization = organization; }
 
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
-
-    public List<Payment> getPayments() { return payments; }
-    public void setPayments(List<Payment> payments){ this.payments = payments;}
-
-    public List<CaseDetail> getCaseDetails() { return caseDetails; }
-    public void setCaseDetails(List<CaseDetail> caseDetails) { this.caseDetails = caseDetails; }
-
-    public String getImageUrl() { return imageUrl; }
-    public void setImageUrl(String imageUrl) { this.imageUrl = imageUrl; }
-
-    public String getImagePublicId() { return imagePublicId; }
-    public void setImagePublicId(String imagePublicId) { this.imagePublicId = imagePublicId; }
-
-    public String getRemarks() { return remarks; }
-    public void setRemarks(String remarks) { this.remarks = remarks; }
+    public Boolean getIsDraft() { return isDraft; }
+    public void setIsDraft(Boolean isDraft) { this.isDraft = isDraft; }
+    public List<LegalCase> getCases() { return cases; }
+    public void setCases(List<LegalCase> cases) { this.cases = cases; }
 }

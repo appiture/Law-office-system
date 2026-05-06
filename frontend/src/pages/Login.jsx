@@ -1,288 +1,181 @@
-import "./Login.css";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "../api/axios";
+import { supabase } from "../lib/supabase";
+import { requiredText } from "../lib/validation";
 import {
   getRememberedEmail,
+  getWorkspaceAccessMessage,
   isAuthenticated,
-  isRememberEmailEnabled,
   setRememberedEmail,
-  storeAuthSession,
+  syncSupabaseSession,
 } from "../utils/auth";
-import loginScalePng from "../assets/image.png";
+import { checkMustResetPassword } from "../utils/admin";
+import DotGrid from "../components/ui/DotGrid/DotGrid";
+import appitureLogo from "../assets/appiture_logo.png";
+import "./Login.css";
+
+
+const SIGN_IN_TIMEOUT_MS = 45000;
+
+const withTimeout = (promise, timeoutMs, message) =>
+  Promise.race([
+    promise,
+    new Promise((_, reject) => {
+      window.setTimeout(() => reject(new Error(message)), timeoutMs);
+    }),
+  ]);
 
 function Login() {
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [otp, setOtp] = useState("");
-  const [otpChallengeId, setOtpChallengeId] = useState("");
-  const [otpExpiresAt, setOtpExpiresAt] = useState("");
-  const [showPassword, setShowPassword] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState("");
-  const [infoMsg, setInfoMsg] = useState("");
-  const [rememberMe, setRememberMe] = useState(false);
-
   const navigate = useNavigate();
-  const isOtpStep = Boolean(otpChallengeId);
+  const [email, setEmail] = useState(getRememberedEmail());
+  const [password, setPassword] = useState("");
+  const [rememberMe, setRememberMe] = useState(Boolean(getRememberedEmail()));
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (isAuthenticated()) {
+    if (!supabase) return;
+
+    let cancelled = false;
+    const hydrate = async () => {
+      try {
+        const session = await syncSupabaseSession();
+        if (!cancelled && session?.canAccessWorkspace && isAuthenticated()) {
+          navigate("/dashboard", { replace: true });
+        }
+      } catch {
+        // Keep the sign-in form visible if the session is not ready yet.
+      }
+    };
+
+    void hydrate();
+    return () => { cancelled = true; };
+  }, [navigate]);
+
+  const persistRememberedFields = () => {
+    setRememberedEmail(email, rememberMe);
+  };
+
+  const goToWorkspace = async () => {
+    const session = await syncSupabaseSession();
+    persistRememberedFields();
+
+    if (session?.canAccessWorkspace) {
+      // Check if this is a first-login account that must reset its password
+      try {
+        const mustReset = await checkMustResetPassword();
+        if (mustReset) {
+          navigate("/reset-password", { replace: true });
+          return;
+        }
+      } catch {
+        // Non-critical — let them into the workspace
+      }
       navigate("/dashboard", { replace: true });
       return;
     }
 
-    localStorage.removeItem("remember_password");
+    setError(getWorkspaceAccessMessage() || "Your account does not have an active workspace assigned.");
+  };
 
-    if (isRememberEmailEnabled()) {
-      const rememberedEmail = getRememberedEmail();
-      if (rememberedEmail) {
-        setEmail(rememberedEmail);
-        setRememberMe(true);
+  const handleSignIn = async (event) => {
+    event.preventDefault();
+    setLoading(true);
+    setError("");
+
+    try {
+      if (!requiredText(email)) {
+        throw new Error("Email is required.");
       }
-    }
-  }, [navigate]);
 
-  const persistLogin = (data, fallbackEmail) => {
-    storeAuthSession(data, fallbackEmail, rememberMe);
-    setRememberedEmail(data.email || fallbackEmail, rememberMe);
-    navigate("/dashboard", { replace: true });
-  };
+      if (!supabase) {
+        throw new Error(
+          "Supabase is not configured. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your .env file."
+        );
+      }
 
-  const extractErrorMessage = (error, fallback = "Login failed") => {
-    if (typeof error?.response?.data === "string") {
-      return error.response.data;
-    }
-    if (error?.response?.data?.details) {
-      return `${error.response.data.message || fallback} (${error.response.data.details})`;
-    }
-    return (
-      error?.response?.data?.message ||
-      error?.response?.data?.error ||
-      error?.message ||
-      fallback
-    );
-  };
+      const { error: authError } = await withTimeout(
+        supabase.auth.signInWithPassword({
+          email: email.trim(),
+          password,
+        }),
+        SIGN_IN_TIMEOUT_MS,
+        "Supabase sign-in timed out. Check your internet connection, Supabase URL, and Auth settings."
+      );
 
-  const requestOtp = async () => {
-    const response = await axios.post("/auth/login", {
-      email: email.trim(),
-      password: password.trim(),
-      rememberMe,
-    });
-
-    const payload = response?.data || {};
-
-    if (payload.token) {
-      persistLogin(payload, email);
-      return;
-    }
-
-    const challengeId =
-      payload.challengeId ||
-      payload.otpChallengeId ||
-      payload.challengeID ||
-      payload.challenge;
-    const otpRequired =
-      typeof payload.otpRequired === "boolean" ? payload.otpRequired : Boolean(challengeId);
-
-    if (!otpRequired || !challengeId) {
-      throw new Error("OTP setup failed. Please ensure email service is configured.");
-    }
-
-    setOtpChallengeId(challengeId);
-    setOtpExpiresAt(payload.expiresAt || "");
-    setOtp("");
-    setInfoMsg(payload.message || "OTP sent to approver email");
-  };
-
-  const handleCredentialsSubmit = async (e) => {
-    e.preventDefault();
-    if (loading) return;
-
-    setLoading(true);
-    setErrorMsg("");
-    setInfoMsg("");
-
-    try {
-      await requestOtp();
-    } catch (error) {
-      setErrorMsg(extractErrorMessage(error));
+      if (authError) throw authError;
+      await goToWorkspace();
+    } catch (authError) {
+      const message =
+        authError?.message ||
+        authError?.error_description ||
+        "Unable to sign in.";
+      setError(message);
     } finally {
       setLoading(false);
     }
-  };
-
-  const handleVerifyOtp = async (e) => {
-    e.preventDefault();
-    if (loading) return;
-
-    setLoading(true);
-    setErrorMsg("");
-
-    try {
-      const response = await axios.post("/auth/verify-otp", {
-        challengeId: otpChallengeId,
-        otp: otp.trim(),
-        rememberMe,
-      });
-      persistLogin(response.data, email);
-    } catch (error) {
-      setErrorMsg(extractErrorMessage(error, "OTP verification failed"));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleResendOtp = async () => {
-    if (loading) return;
-    setLoading(true);
-    setErrorMsg("");
-    setInfoMsg("");
-
-    try {
-      await requestOtp();
-      setInfoMsg("OTP resent to approver email");
-    } catch (error) {
-      setErrorMsg(extractErrorMessage(error, "Failed to resend OTP"));
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const resetToCredentials = () => {
-    if (loading) return;
-    setOtp("");
-    setOtpChallengeId("");
-    setOtpExpiresAt("");
-    setErrorMsg("");
-    setInfoMsg("");
   };
 
   return (
-    <div className="login-container">
-      <div className="login-left">
-        <div className="logo-circle">
-          <img src={loginScalePng} alt="Justice scale" className="login-logo-image" />
-        </div>
-        <h1>Law Office</h1>
-        <h2>Management System</h2>
-        <p>Manage your cases, clients and billing efficiently.</p>
+    <div className="login-screen" style={{ backgroundColor: "#0B1F3A" }}>
+      <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 0 }}>
+        <DotGrid
+          baseColor="#1E3A8A"
+          activeColor="#C9A34E"
+          dotSize={2}
+          gap={20}
+          proximity={150}
+          shockRadius={250}
+          shockStrength={5}
+          resistance={750}
+          returnDuration={1.5}
+        />
       </div>
 
-      <div className="login-right">
-        <form className="login-card" onSubmit={isOtpStep ? handleVerifyOtp : handleCredentialsSubmit}>
-          <h3>{isOtpStep ? "OTP Verification" : "Welcome Back"}</h3>
-          {isOtpStep && (
-            <p className="login-subtext">
-              OTP was sent to the approver email. Enter the 6-digit code to continue.
-            </p>
-          )}
+      <div className="glass-panel" style={{ position: "relative", zIndex: 1 }}>
+        <div>
+          <p className="glass-kicker">Secure Access</p>
+          <h1>Law Office Management Platform</h1>
+           <p className="glass-subtitle">
+             Sign in to access the active law office workspace.
+           </p>
+        </div>
 
-          {errorMsg && <div className="error-box">{errorMsg}</div>}
-          {infoMsg && <div className="info-box">{infoMsg}</div>}
+        <form className="glass-form" onSubmit={handleSignIn}>
+          <label>
+            Email
+            <input value={email} type="email" onChange={(event) => setEmail(event.target.value)} required placeholder="admin@example.com" />
+          </label>
 
-          {isOtpStep ? (
-            <>
-              <div className="login-field">
-                <label className="login-label" htmlFor="login-otp">
-                  OTP
-                </label>
-                <input
-                  id="login-otp"
-                  type="text"
-                  inputMode="numeric"
-                  autoComplete="one-time-code"
-                  maxLength={6}
-                  value={otp}
-                  onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
-                  required
-                  disabled={loading}
-                />
-              </div>
+          <label>
+            Password
+            <input value={password} type="password" onChange={(event) => setPassword(event.target.value)} required placeholder="••••••••" />
+          </label>
 
-              {otpExpiresAt && <p className="otp-expiry">Valid till: {new Date(otpExpiresAt).toLocaleString()}</p>}
+          <label className="inline-check">
+            <input type="checkbox" checked={rememberMe} onChange={(event) => setRememberMe(event.target.checked)} />
+            Remember email on this device
+          </label>
 
-              <button type="submit" disabled={loading || otp.length !== 6}>
-                {loading ? "Verifying..." : "Verify OTP"}
-              </button>
+          {error ? <div className="error-banner">{error}</div> : null}
 
-              <div className="otp-actions">
-                <button type="button" className="secondary-btn" onClick={handleResendOtp} disabled={loading}>
-                  Resend OTP
-                </button>
-                <button type="button" className="secondary-btn" onClick={resetToCredentials} disabled={loading}>
-                  Change Credentials
-                </button>
-              </div>
-            </>
-          ) : (
-            <>
-              <div className="login-field">
-                <label className="login-label" htmlFor="login-email">
-                  Email
-                </label>
-                <input
-                  id="login-email"
-                  type="email"
-                  autoComplete="username"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
-                  disabled={loading}
-                />
-              </div>
-
-              <div className="login-field">
-                <label className="login-label" htmlFor="login-password">
-                  Password
-                </label>
-                <div className="password-wrapper">
-                  <input
-                    id="login-password"
-                    type={showPassword ? "text" : "password"}
-                    autoComplete="current-password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    required
-                    disabled={loading}
-                  />
-                  <button
-                    type="button"
-                    className="password-toggle-btn"
-                    onClick={() => setShowPassword(!showPassword)}
-                    disabled={loading}
-                  >
-                    {showPassword ? "Hide" : "Show"}
-                  </button>
-                </div>
-              </div>
-
-              <div className="remember-me-field">
-                <label className="remember-me-label">
-                  <input
-                    type="checkbox"
-                    checked={rememberMe}
-                    onChange={(e) => setRememberMe(e.target.checked)}
-                    disabled={loading}
-                  />
-                  <span>Remember me</span>
-                </label>
-              </div>
-
-              <button type="submit" disabled={loading}>
-                {loading ? "Sending OTP..." : "Send OTP"}
-              </button>
-            </>
-          )}
+          <button type="submit" className="glass-button" disabled={loading}>
+            {loading ? "Working..." : "Sign in"}
+          </button>
         </form>
       </div>
 
-      <footer className="login-footmark">
-        <span className="footmark-logo" aria-hidden="true">
-          A
-        </span>
-        <span className="footmark-text">Developed by Appiture</span>
+      <footer className="login-footer">
+        <div className="login-footer-brand">
+          <img src={appitureLogo} alt="Appiture" className="login-footer-logo" />
+          <span>Developed by <strong>Appiture</strong></span>
+        </div>
+        <p>for queries contact <a href="https://www.appiture.in" target="_blank" rel="noopener noreferrer">www.appiture.in</a></p>
+        <p style={{ marginTop: 12, fontSize: 11, opacity: 0.35 }}>
+          <a href="/super-admin-login" style={{ color: "#FBBF24", textDecoration: "none" }}>
+            ⭐ Super Admin Portal
+          </a>
+        </p>
       </footer>
     </div>
   );

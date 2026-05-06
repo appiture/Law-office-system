@@ -73,6 +73,7 @@ $backendDir = Join-Path $PSScriptRoot "backend"
 $frontendDir = Join-Path $PSScriptRoot "frontend"
 
 Write-Host "Starting backend service..." -ForegroundColor Green
+$env:APP_DEV_MODE = "true"
 Start-DemoService -Name "Backend" -WorkingDirectory $backendDir -Command ".\mvnw.cmd spring-boot:run"
 
 Write-Host "Starting frontend service..." -ForegroundColor Green

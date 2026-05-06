@@ -9,11 +9,12 @@ import org.springframework.security.authentication.UsernamePasswordAuthenticatio
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.web.filter.OncePerRequestFilter;
+import org.springframework.stereotype.Component;
 
 import java.io.IOException;
 import java.util.Locale;
 
-// @Component
+@Component
 public class JwtAuthFilter extends OncePerRequestFilter {
 
     private final JwtUtil jwtUtil;
@@ -24,8 +25,7 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
     @Override
     protected boolean shouldNotFilter(HttpServletRequest request) {
-        String path = request.getServletPath();
-        return "/api/auth/login".equals(path) || "/api/auth/verify-otp".equals(path);
+        return false;
     }
 
     @Override
@@ -53,6 +53,9 @@ public class JwtAuthFilter extends OncePerRequestFilter {
                     return;
                 }
 
+                Long orgId = jwtUtil.extractOrganizationId(token);
+                TenantContext.setCurrentTenant(orgId);
+
                 String email = jwtUtil.extractEmail(token);
                 String role = jwtUtil.extractRole(token);
 
@@ -71,6 +74,10 @@ public class JwtAuthFilter extends OncePerRequestFilter {
             }
         }
 
-        filterChain.doFilter(request, response);
+        try {
+            filterChain.doFilter(request, response);
+        } finally {
+            TenantContext.clear();
+        }
     }
 }
