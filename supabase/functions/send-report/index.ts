@@ -1,0 +1,354 @@
+import { handleOptions, jsonResponse } from "../_shared/cors.ts";
+import { createAdminClient } from "../_shared/supabase.ts";
+import { appBaseUrl, emailFrom, requiredEnv, supportEmail } from "../_shared/config.ts";
+import {
+  assertOrganizationAdmin,
+  checkRateLimit,
+  getActorContext,
+  recordAuditEvent,
+} from "../_shared/auth.ts";
+
+// ---------------------------------------------------------------------------
+// Minimal XLSX builder (no external lib needed — pure Office Open XML)
+// Produces a valid multi-sheet .xlsx binary using JSZip-style zip encoding.
+// We use a simple approach: base64-encoded preset zip parts + dynamic XML.
+// ---------------------------------------------------------------------------
+
+/** Escape cell value for XML */
+const esc = (v: unknown) =>
+  String(v ?? "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+
+type Row = (string | number | null | undefined)[];
+type Sheet = { name: string; headers: string[]; rows: Row[] };
+
+/** Build a minimal xlsx ArrayBuffer with multiple sheets */
+async function buildXlsx(sheets: Sheet[]): Promise<Uint8Array> {
+  // Dynamic import of JSZip — available in Deno via esm.sh
+  const { default: JSZip } = await import("https://esm.sh/jszip@3.10.1");
+  const zip = new JSZip();
+
+  const sharedStrings: string[] = [];
+  const strIndex: Map<string, number> = new Map();
+
+  const si = (val: string): number => {
+    if (strIndex.has(val)) return strIndex.get(val)!;
+    const idx = sharedStrings.length;
+    sharedStrings.push(val);
+    strIndex.set(val, idx);
+    return idx;
+  };
+
+  const colLetter = (n: number) => {
+    let s = "";
+    while (n >= 0) { s = String.fromCharCode(65 + (n % 26)) + s; n = Math.floor(n / 26) - 1; }
+    return s;
+  };
+
+  const sheetXmls: string[] = [];
+
+  for (const sheet of sheets) {
+    const allRows: Row[] = [sheet.headers, ...sheet.rows];
+    let rowsXml = "";
+    allRows.forEach((row, rIdx) => {
+      let cellsXml = "";
+      row.forEach((val, cIdx) => {
+        const ref = `${colLetter(cIdx)}${rIdx + 1}`;
+        if (val === null || val === undefined || val === "") {
+          cellsXml += `<c r="${ref}"/>`;
+        } else if (typeof val === "number") {
+          cellsXml += `<c r="${ref}" t="n"><v>${val}</v></c>`;
+        } else {
+          cellsXml += `<c r="${ref}" t="s"><v>${si(String(val))}</v></c>`;
+        }
+      });
+      rowsXml += `<row r="${rIdx + 1}">${cellsXml}</row>`;
+    });
+    sheetXmls.push(
+      `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>${rowsXml}</sheetData></worksheet>`
+    );
+  }
+
+  // [Content_Types].xml
+  let ctParts = sheets
+    .map((_, i) => `<Override PartName="/xl/worksheets/sheet${i + 1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`)
+    .join("");
+  zip.file("[Content_Types].xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/sharedStrings.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sharedStrings+xml"/>${ctParts}</Types>`);
+
+  // _rels/.rels
+  zip.file("_rels/.rels", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`);
+
+  // xl/_rels/workbook.xml.rels
+  let wbRels = sheets
+    .map((_, i) => `<Relationship Id="rId${i + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i + 1}.xml"/>`)
+    .join("");
+  wbRels += `<Relationship Id="rId${sheets.length + 1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/sharedStrings" Target="sharedStrings.xml"/>`;
+  zip.file("xl/_rels/workbook.xml.rels", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${wbRels}</Relationships>`);
+
+  // xl/workbook.xml
+  const sheetsTag = sheets
+    .map((s, i) => `<sheet name="${esc(s.name)}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`)
+    .join("");
+  zip.file("xl/workbook.xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${sheetsTag}</sheets></workbook>`);
+
+  // xl/sharedStrings.xml
+  const ssXml = sharedStrings.map((s) => `<si><t xml:space="preserve">${esc(s)}</t></si>`).join("");
+  zip.file("xl/sharedStrings.xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><sst xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" count="${sharedStrings.length}" uniqueCount="${sharedStrings.length}">${ssXml}</sst>`);
+
+  // Worksheets
+  sheets.forEach((_, i) => {
+    zip.file(`xl/worksheets/sheet${i + 1}.xml`, sheetXmls[i]);
+  });
+
+  return await zip.generateAsync({ type: "uint8array", compression: "DEFLATE" });
+}
+
+// ---------------------------------------------------------------------------
+// Data collectors
+// ---------------------------------------------------------------------------
+
+async function collectOrgData(organizationId: string) {
+  const db = createAdminClient();
+
+  const [clients, cases, payments, followups, documents, members, invites] = await Promise.all([
+    db.from("clients").select("id,name,email,phone,created_at,status").eq("organization_id", organizationId).is("deleted_at", null).order("created_at", { ascending: false }),
+    db.from("cases").select("id,case_number,title,status,stage,created_at,client_id").eq("organization_id", organizationId).is("deleted_at", null).order("created_at", { ascending: false }),
+    db.from("payment_history").select("id,amount_paid,payment_date,charge_label,case_id,created_at").eq("organization_id", organizationId).order("created_at", { ascending: false }),
+    db.from("followups").select("id,title,type,status,scheduled_at,postponed_to,case_id,created_at").eq("organization_id", organizationId).order("scheduled_at", { ascending: true }),
+    db.from("documents").select("id,file_name,file_type,uploaded_at,case_id").eq("organization_id", organizationId).is("deleted_at", null).order("uploaded_at", { ascending: false }),
+    db.from("users").select("id,email,full_name,role,status,created_at").eq("organization_id", organizationId).is("deleted_at", null).order("created_at", { ascending: false }),
+    db.from("organization_invites").select("id,email,role,status,invite_type,sent_at,created_at").eq("organization_id", organizationId).order("created_at", { ascending: false }),
+  ]);
+
+  return {
+    clients: clients.data || [],
+    cases: cases.data || [],
+    payments: payments.data || [],
+    followups: followups.data || [],
+    documents: documents.data || [],
+    members: members.data || [],
+    invites: invites.data || [],
+  };
+}
+
+function buildSheets(data: Awaited<ReturnType<typeof collectOrgData>>, orgName: string, reportMonth: string): Sheet[] {
+  return [
+    {
+      name: "Summary",
+      headers: ["Section", "Count / Value"],
+      rows: [
+        ["Report Month", reportMonth],
+        ["Organization", orgName],
+        ["Total Clients", data.clients.length],
+        ["Total Cases", data.cases.length],
+        ["Total Payments Recorded", data.payments.length],
+        ["Total Revenue (₹)", data.payments.reduce((s, p) => s + Number(p.amount_paid || 0), 0).toFixed(2)],
+        ["Total Follow-Ups", data.followups.length],
+        ["Total Documents", data.documents.length],
+        ["Team Members", data.members.length],
+        ["Pending Invites", data.invites.filter((i) => i.status === "PENDING").length],
+      ],
+    },
+    {
+      name: "Clients",
+      headers: ["Name", "Email", "Phone", "Status", "Created"],
+      rows: data.clients.map((c) => [c.name, c.email, c.phone, c.status, c.created_at?.slice(0, 10)]),
+    },
+    {
+      name: "Cases",
+      headers: ["Case Number", "Title", "Status", "Stage", "Client ID", "Created"],
+      rows: data.cases.map((c) => [c.case_number, c.title, c.status, c.stage, c.client_id, c.created_at?.slice(0, 10)]),
+    },
+    {
+      name: "Payments",
+      headers: ["Amount (₹)", "Date", "Charge Label", "Case ID"],
+      rows: data.payments.map((p) => [Number(p.amount_paid || 0), p.payment_date?.slice(0, 10) || p.created_at?.slice(0, 10), p.charge_label, p.case_id]),
+    },
+    {
+      name: "Follow-Ups",
+      headers: ["Title", "Type", "Status", "Scheduled", "Case ID"],
+      rows: data.followups.map((f) => [f.title, f.type, f.status, (f.scheduled_at || f.postponed_to)?.slice(0, 10), f.case_id]),
+    },
+    {
+      name: "Documents",
+      headers: ["File Name", "Type", "Uploaded", "Case ID"],
+      rows: data.documents.map((d) => [d.file_name, d.file_type, d.uploaded_at?.slice(0, 10), d.case_id]),
+    },
+    {
+      name: "Team",
+      headers: ["Full Name", "Email", "Role", "Status", "Joined"],
+      rows: data.members.map((m) => [m.full_name, m.email, m.role, m.status, m.created_at?.slice(0, 10)]),
+    },
+  ];
+}
+
+// ---------------------------------------------------------------------------
+// Send via Resend with XLSX attachment
+// ---------------------------------------------------------------------------
+
+async function sendReportEmail(opts: {
+  to: string;
+  orgName: string;
+  reportMonth: string;
+  xlsxBytes: Uint8Array;
+  organizationId: string;
+}) {
+  const db = createAdminClient();
+  const fileName = `${opts.orgName.replace(/\s+/g, "_")}_report_${opts.reportMonth}.xlsx`;
+
+  // Convert to base64
+  let binary = "";
+  opts.xlsxBytes.forEach((b) => { binary += String.fromCharCode(b); });
+  const b64 = btoa(binary);
+
+  const html = `<!doctype html><html><head><meta charset="utf-8"></head>
+<body style="margin:0;background:#f6f8fb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f6f8fb;padding:28px 12px">
+<tr><td align="center">
+<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:600px;background:#ffffff;border:1px solid #e5e7eb;border-radius:18px;overflow:hidden">
+<tr><td style="background:#0B1F3A;padding:24px 28px;color:#ffffff">
+  <div style="font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#C9A34E;font-weight:800">Law Office Platform</div>
+  <div style="font-size:22px;font-weight:800;margin-top:6px">Monthly Report: ${esc(opts.reportMonth)}</div>
+  <div style="font-size:13px;color:#cbd5e1;margin-top:4px">${esc(opts.orgName)}</div>
+</td></tr>
+<tr><td style="padding:28px;color:#182235;font-size:15px;line-height:1.65">
+  <p>Hello,</p>
+  <p>Please find attached the monthly operations report for <strong>${esc(opts.orgName)}</strong> covering <strong>${esc(opts.reportMonth)}</strong>.</p>
+  <p>The Excel file contains the following sheets:</p>
+  <ul style="color:#374151;padding-left:20px">
+    <li>Summary — Key metrics at a glance</li>
+    <li>Clients — All client records</li>
+    <li>Cases — All matter records</li>
+    <li>Payments — Fee collection history</li>
+    <li>Follow-Ups — Scheduled hearings &amp; tasks</li>
+    <li>Documents — Uploaded files</li>
+    <li>Team — Active members</li>
+  </ul>
+  <p style="color:#64748b;font-size:13px">This report was generated on demand from the Law Office Platform dashboard.</p>
+</td></tr>
+<tr><td style="padding:18px 28px;border-top:1px solid #e5e7eb;color:#64748b;font-size:12px">
+  For support, contact <a href="mailto:${esc(supportEmail())}" style="color:#0B1F3A">${esc(supportEmail())}</a>.
+</td></tr>
+</table>
+</td></tr>
+</table></body></html>`;
+
+  // Log to email_events first
+  const { data: event, error: eventError } = await db
+    .from("email_events")
+    .insert({
+      organization_id: opts.organizationId,
+      recipient_email: opts.to,
+      email_type: "MONTHLY_REPORT_ORG",
+      subject: `${opts.orgName} — Monthly Report ${opts.reportMonth}`,
+      metadata: { reportMonth: opts.reportMonth, hasAttachment: true },
+    })
+    .select("id")
+    .single();
+  if (eventError) throw eventError;
+
+  const response = await fetch("https://api.resend.com/emails", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${requiredEnv("RESEND_API_KEY")}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      from: emailFrom(),
+      to: [opts.to],
+      subject: `${opts.orgName} — Monthly Report ${opts.reportMonth}`,
+      html,
+      reply_to: supportEmail(),
+      attachments: [
+        {
+          filename: fileName,
+          content: b64,
+          content_type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        },
+      ],
+    }),
+  });
+
+  const result = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    await db.from("email_events").update({ status: "FAILED", error_message: result?.message || `Resend ${response.status}` }).eq("id", event.id);
+    throw new Error(result?.message || `Resend failed (${response.status})`);
+  }
+
+  await db.from("email_events").update({ status: "SENT", provider_message_id: result?.id || null, sent_at: new Date().toISOString() }).eq("id", event.id);
+  return result?.id;
+}
+
+// ---------------------------------------------------------------------------
+// Handler
+// ---------------------------------------------------------------------------
+
+Deno.serve(async (request: Request): Promise<Response> => {
+  const options = handleOptions(request);
+  if (options) return options;
+
+  if (request.method !== "POST") return jsonResponse({ error: "Method not allowed" }, 405);
+
+  const db = createAdminClient();
+
+  try {
+    const actor = await getActorContext(request);
+    assertOrganizationAdmin(actor);
+    await checkRateLimit(actor.user.id, "send-report", actor.ipAddress, 3, 300);
+
+    const organizationId = actor.profile!.organization_id as string;
+    const body = await request.json().catch(() => ({}));
+    const now = new Date();
+    const reportMonth = body.reportMonth || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+
+    // Fetch org name and admin email
+    const { data: org, error: orgError } = await db.from("organizations").select("id,name").eq("id", organizationId).single();
+    if (orgError || !org) throw new Error("Organization not found.");
+
+    const adminEmail = actor.profile!.email || actor.user.email;
+    if (!adminEmail) throw new Error("Admin email not available.");
+
+    // Collect all org data
+    const data = await collectOrgData(organizationId);
+
+    // Build XLSX
+    const sheets = buildSheets(data, org.name, reportMonth);
+    const xlsxBytes = await buildXlsx(sheets);
+
+    // Send email with attachment
+    const messageId = await sendReportEmail({
+      to: adminEmail,
+      orgName: org.name,
+      reportMonth,
+      xlsxBytes,
+      organizationId,
+    });
+
+    await recordAuditEvent({
+      organizationId,
+      actorId: actor.user.id,
+      actorEmail: adminEmail,
+      action: "MONTHLY_REPORT_SENT",
+      targetType: "report",
+      severity: "INFO",
+      ipAddress: actor.ipAddress,
+      userAgent: actor.userAgent,
+      metadata: { reportMonth, messageId, recipientEmail: adminEmail },
+    });
+
+    return jsonResponse({
+      success: true,
+      reportMonth,
+      sentTo: adminEmail,
+      message: `Report sent to ${adminEmail}`,
+    });
+  } catch (error) {
+    return jsonResponse({
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+    }, 400);
+  }
+});

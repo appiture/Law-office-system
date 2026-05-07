@@ -574,7 +574,7 @@ class ExternalForce extends ShaderPass {
       Math.max(this.Mouse.coords.y, -1 + cursorSizeY + props.cellScale.y * 2),
       1 - cursorSizeY - props.cellScale.y * 2
     );
-    const uniforms = this.mouse.material.uniforms;
+    const { uniforms } = this.mouse.material;
     uniforms.force.value.set(forceX, forceY);
     uniforms.center.value.set(centerX, centerY);
     uniforms.scale.value.set(props.cursor_size, props.cursor_size);
@@ -924,7 +924,7 @@ class WebGLManager {
     this._resize = this.resize.bind(this);
     window.addEventListener('resize', this._resize);
     this._onVisibility = () => {
-      const hidden = document.hidden;
+      const { hidden } = document;
       if (hidden) {
         this.pause();
       } else if (this.props.isVisibleRef.current) {

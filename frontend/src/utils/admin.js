@@ -267,3 +267,26 @@ export const adminInviteTeamMember = async ({ email, role }) => {
   if (data?.error) throw new Error(data.error);
   return data;
 };
+
+/* ------------------------------------------------------------------ */
+/*  Monthly report — sends XLSX to admin email via Edge Function        */
+/* ------------------------------------------------------------------ */
+
+/**
+ * Triggers the send-report Edge Function which compiles all org data
+ * into an Excel file and emails it to the calling admin's own email.
+ * Rate limited: 3 requests per 5 minutes.
+ */
+export const sendMonthlyReport = async (reportMonth = null) => {
+  const now = new Date();
+  const month =
+    reportMonth ||
+    `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+
+  const { data, error } = await supabase.functions.invoke("send-report", {
+    body: { reportMonth: month },
+  });
+  if (error) throw new Error(error.message);
+  if (data?.error) throw new Error(data.error);
+  return data;
+};

@@ -12,6 +12,8 @@ import { TrendAreaChart } from "../components/DashboardCharts";
 import DashboardSearchResults from "../components/DashboardSearchResults";
 import { useTheme } from "../context/ThemeContext";
 import BorderGlow from "../components/ui/BorderGlow/BorderGlow";
+import { isOrgAdmin } from "../utils/admin";
+import { sendMonthlyReport } from "../utils/admin";
 import "./Dashboard.css";
 import "./formStyles.css";
 
@@ -82,6 +84,30 @@ function Dashboard() {
   const [tasks, setTasks] = useState([]);
   const [putUpDates, setPutUpDates] = useState([]);
   const { theme, toggleTheme } = useTheme();
+
+  // Report sending state
+  const now = new Date();
+  const defaultMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  const [reportMonth, setReportMonth] = useState(defaultMonth);
+  const [reportState, setReportState] = useState({ loading: false, toast: null }); // toast: {type:'success'|'error', msg}
+
+  const handleSendReport = useCallback(async () => {
+    setReportState({ loading: true, toast: null });
+    try {
+      const result = await sendMonthlyReport(reportMonth);
+      setReportState({
+        loading: false,
+        toast: { type: "success", msg: result?.message || `Report sent to your email for ${reportMonth}` },
+      });
+    } catch (err) {
+      setReportState({
+        loading: false,
+        toast: { type: "error", msg: err?.message || "Failed to send report." },
+      });
+    }
+    // Auto-dismiss toast after 5 seconds
+    setTimeout(() => setReportState((s) => ({ ...s, toast: null })), 5000);
+  }, [reportMonth]);
 
   const loadDashboard = useCallback(async () => {
     setLoading(true);
@@ -362,7 +388,33 @@ function Dashboard() {
           <Link to="/tasks" className="btn-gold dashboard-task-link">
             Tasks
           </Link>
+          {isOrgAdmin() && (
+            <div className="dashboard-report-group">
+              <input
+                type="month"
+                value={reportMonth}
+                onChange={(e) => setReportMonth(e.target.value)}
+                className="dashboard-month-input"
+                disabled={reportState.loading}
+                aria-label="Report month"
+              />
+              <button
+                type="button"
+                className="btn-report"
+                onClick={handleSendReport}
+                disabled={reportState.loading}
+                title="Send monthly Excel report to your email"
+              >
+                {reportState.loading ? "Sending…" : "📊 Send Report"}
+              </button>
+            </div>
+          )}
         </div>
+        {reportState.toast && (
+          <div className={`dashboard-report-toast dashboard-report-toast--${reportState.toast.type}`}>
+            {reportState.toast.type === "success" ? "✅" : "❌"} {reportState.toast.msg}
+          </div>
+        )}
       </div>
       {error && <div className="form-error-banner" style={{ marginBottom: 16 }}>{error}</div>}
 
