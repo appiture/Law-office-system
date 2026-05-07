@@ -1,4 +1,4 @@
-import { handleOptions, jsonResponse } from "../_shared/cors.ts";
+import { corsHeaders, handleOptions, jsonResponse } from "../_shared/cors.ts";
 import { createAdminClient } from "../_shared/supabase.ts";
 import { appBaseUrl, emailFrom, requiredEnv, supportEmail } from "../_shared/config.ts";
 import {

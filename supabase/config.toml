@@ -366,6 +366,24 @@ authorization_url_path = "/oauth/consent"
 # Allow dynamic client registration
 allow_dynamic_registration = false
 
+# Function-specific overrides — disable gateway JWT so OPTIONS preflight
+# requests are never rejected before CORS headers can be returned.
+# Each function validates the JWT manually via getActorContext().
+[functions.send-report]
+verify_jwt = false
+
+[functions.invite-user]
+verify_jwt = false
+
+[functions.invite-admin]
+verify_jwt = false
+
+[functions.send-email]
+verify_jwt = false
+
+[functions.monthly-report]
+verify_jwt = false
+
 [edge_runtime]
 enabled = true
 # Supported request policies: `oneshot`, `per_worker`.
