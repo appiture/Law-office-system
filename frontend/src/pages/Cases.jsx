@@ -285,22 +285,6 @@ function Cases() {
   const initialEditId = searchParams.get("editId");
   const [initialEditTriggered, setInitialEditTriggered] = useState(false);
 
-  useEffect(() => {
-    if (searchParams.get("search")) {
-      void loadData({ nextPage: 1, showAll: false });
-    }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
-
-  useEffect(() => {
-    if (initialEditId && !initialEditTriggered && cases.length > 0) {
-      const caseToEdit = cases.find(c => String(c.id) === String(initialEditId));
-      if (caseToEdit) {
-        setInitialEditTriggered(true);
-        void openEdit(caseToEdit);
-      }
-    }
-  }, [initialEditId, initialEditTriggered, cases, openEdit]);
-
   const clientOptions = useMemo(() => clients.map(c => ({ id: c.id, name: c.name })), [clients]);
 
   const ensureClientsForModal = useCallback(async () => {
@@ -317,6 +301,22 @@ function Cases() {
   const openCreate = async () => { setEditingCase(null); await ensureClientsForModal(); setShowModal(true); };
   const openEdit   = useCallback(async (c)  => { setEditingCase(c);   await ensureClientsForModal(); setShowModal(true); }, [ensureClientsForModal]);
   const closeModal = ()   => { setShowModal(false); setEditingCase(null); };
+
+  useEffect(() => {
+    if (searchParams.get("search")) {
+      void loadData({ nextPage: 1, showAll: false });
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (initialEditId && !initialEditTriggered && cases.length > 0) {
+      const caseToEdit = cases.find(c => String(c.id) === String(initialEditId));
+      if (caseToEdit) {
+        setInitialEditTriggered(true);
+        void openEdit(caseToEdit);
+      }
+    }
+  }, [initialEditId, initialEditTriggered, cases, openEdit]);
 
   const handleSearch = (nextFilters = filters) => {
     setShowAllMode(false);
