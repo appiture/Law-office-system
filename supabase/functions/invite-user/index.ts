@@ -13,7 +13,7 @@ import {
 } from "../_shared/validation.ts";
 import { inviteEmail, passwordSetupRedirectUrl, sendEmail } from "../_shared/email.ts";
 
-Deno.serve(async (request) => {
+Deno.serve(async (request: Request): Promise<Response> => {
   const options = handleOptions(request);
   if (options) return options;
 

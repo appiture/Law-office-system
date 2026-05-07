@@ -35,9 +35,9 @@
 Set these in Supabase Edge Function secrets:
 
 ```bash
-supabase secrets set SUPABASE_URL="https://your-project.supabase.co"
-supabase secrets set SUPABASE_ANON_KEY="your-anon-key"
-supabase secrets set SUPABASE_SERVICE_ROLE_KEY="your-service-role-key"
+supabase secrets set PROJECT_URL="https://your-project.supabase.co"
+supabase secrets set PROJECT_ANON_KEY="your-anon-key"
+supabase secrets set SERVICE_ROLE_KEY="your-service-role-key"
 supabase secrets set RESEND_API_KEY="re_your_key"
 supabase secrets set EMAIL_FROM="Law Office Platform <noreply@yourdomain.com>"
 supabase secrets set EMAIL_REPLY_TO="support@yourdomain.com"
@@ -46,7 +46,7 @@ supabase secrets set APP_BASE_URL="https://your-app.vercel.app"
 supabase secrets set MONTHLY_REPORT_SECRET="long-random-secret"
 ```
 
-Do not add `SUPABASE_SERVICE_ROLE_KEY` to Vercel frontend variables.
+Do not add `SERVICE_ROLE_KEY` to Vercel frontend variables.
 
 ## Deploy
 
@@ -69,7 +69,7 @@ supabase functions deploy monthly-report --no-verify-jwt
 
 ## Monthly Reports
 
-Schedule `monthly-report` monthly with Supabase Scheduled Edge Functions. Use a bearer token equal to either `SUPABASE_SERVICE_ROLE_KEY` or `MONTHLY_REPORT_SECRET`.
+Schedule `monthly-report` monthly with Supabase Scheduled Edge Functions. Use a bearer token equal to either `SERVICE_ROLE_KEY` or `MONTHLY_REPORT_SECRET`.
 
 Example request body:
 

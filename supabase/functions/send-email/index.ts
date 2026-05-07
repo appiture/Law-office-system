@@ -11,7 +11,7 @@ import { monthlyReportEmail, passwordResetEmail, sendEmail } from "../_shared/em
 
 const allowedTypes = new Set(["PASSWORD_RESET", "MONTHLY_REPORT", "NOTIFICATION"]);
 
-Deno.serve(async (request) => {
+Deno.serve(async (request: Request): Promise<Response> => {
   const options = handleOptions(request);
   if (options) return options;
 

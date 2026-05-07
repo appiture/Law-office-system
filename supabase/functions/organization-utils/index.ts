@@ -11,7 +11,7 @@ const countForOrg = async (table: string, organizationId: string) => {
   return count || 0;
 };
 
-Deno.serve(async (request) => {
+Deno.serve(async (request: Request): Promise<Response> => {
   const options = handleOptions(request);
   if (options) return options;
 

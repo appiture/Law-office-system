@@ -2,7 +2,7 @@ import { handleOptions, jsonResponse } from "../_shared/cors.ts";
 import { getActorContext } from "../_shared/auth.ts";
 import { createAdminClient } from "../_shared/supabase.ts";
 
-Deno.serve(async (request) => {
+Deno.serve(async (request: Request): Promise<Response> => {
   const options = handleOptions(request);
   if (options) return options;
 

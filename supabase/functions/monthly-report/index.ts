@@ -4,10 +4,19 @@ import { createAdminClient } from "../_shared/supabase.ts";
 import { monthlyReportEmail, sendEmail } from "../_shared/email.ts";
 import { recordAuditEvent } from "../_shared/auth.ts";
 
+type CountResult = {
+  count: number | null;
+  error: Error | null;
+};
+
+type PaymentRow = {
+  amount_paid: number | string | null;
+};
+
 const assertSchedulerAuth = (request: Request) => {
   const authorization = request.headers.get("Authorization") || "";
   const token = authorization.replace(/^Bearer\s+/i, "").trim();
-  const serviceRole = requiredEnv("SUPABASE_SERVICE_ROLE_KEY");
+  const serviceRole = requiredEnv("SERVICE_ROLE_KEY");
   const monthlySecret = env("MONTHLY_REPORT_SECRET");
   if (token !== serviceRole && (!monthlySecret || token !== monthlySecret)) {
     throw new Error("Unauthorized scheduler request.");
@@ -57,7 +66,7 @@ const orgMetrics = async (organizationId: string, startIso: string, endIso: stri
       .in("severity", ["WARN", "ERROR", "SECURITY"])
       .gte("created_at", startIso)
       .lt("created_at", endIso)
-      .then(({ count, error }) => {
+      .then(({ count, error }: CountResult) => {
         if (error) throw error;
         return count || 0;
       }),
@@ -71,7 +80,10 @@ const orgMetrics = async (organizationId: string, startIso: string, endIso: stri
     .lt("timestamp", endIso);
   if (paymentsError) throw paymentsError;
 
-  const revenue = (payments || []).reduce((sum, row) => sum + Number(row.amount_paid || 0), 0);
+  const revenue = ((payments || []) as PaymentRow[]).reduce(
+    (sum: number, row: PaymentRow) => sum + Number(row.amount_paid || 0),
+    0,
+  );
 
   return {
     active_users: activeUsers,
@@ -85,7 +97,7 @@ const orgMetrics = async (organizationId: string, startIso: string, endIso: stri
   };
 };
 
-Deno.serve(async (request) => {
+Deno.serve(async (request: Request) => {
   const options = handleOptions(request);
   if (options) return options;
 
@@ -125,7 +137,7 @@ Deno.serve(async (request) => {
         .in("severity", ["WARN", "ERROR", "SECURITY"])
         .gte("created_at", bounds.startIso)
         .lt("created_at", bounds.endIso)
-        .then(({ count, error }) => {
+        .then(({ count, error }: CountResult) => {
           if (error) throw error;
           return count || 0;
         }),
@@ -232,4 +244,3 @@ Deno.serve(async (request) => {
     }, 400);
   }
 });
-
