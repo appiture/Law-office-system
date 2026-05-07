@@ -1,7 +1,8 @@
 export const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type, x-supabase-auth",
+  "Access-Control-Allow-Methods": "POST, GET, OPTIONS, PUT, DELETE, PATCH",
+  "Access-Control-Max-Age": "86400",
 };
 
 export const jsonResponse = (body: unknown, status = 200) =>
@@ -13,6 +14,13 @@ export const jsonResponse = (body: unknown, status = 200) =>
     },
   });
 
-export const handleOptions = (request: Request) =>
-  request.method === "OPTIONS" ? new Response("ok", { headers: corsHeaders }) : null;
+export const handleOptions = (request: Request) => {
+  if (request.method === "OPTIONS") {
+    return new Response(null, { 
+      status: 204, 
+      headers: corsHeaders 
+    });
+  }
+  return null;
+};
 

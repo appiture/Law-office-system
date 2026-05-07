@@ -196,58 +196,89 @@ async function sendReportEmail(opts: {
   xlsxBytes: Uint8Array;
   organizationId: string;
 }) {
-  const db = createAdminClient();
-  const fileName = `${opts.orgName.replace(/\s+/g, "_")}_report_${opts.reportMonth}.xlsx`;
+  const adminClient = createAdminClient();
+  const [year, monthNum] = opts.reportMonth.split("-");
+  const monthName = new Date(Number(year), Number(monthNum) - 1).toLocaleString("en-IN", { month: "long", year: "numeric" });
 
-  // Convert to base64
+  const subject = `Monthly Operating Report: ${monthName}`;
+  
+  // Create a premium HTML summary
+  const html = `
+    <div style="margin-bottom:24px">
+      <p>Hello,</p>
+      <p>Please find the monthly operating report for <strong>${opts.orgName}</strong> covering <strong>${monthName}</strong>. The full detailed report is attached as an Excel (.xlsx) file.</p>
+    </div>
+    
+    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:24px;margin-bottom:24px">
+      <h3 style="margin-top:0;color:#0B1F3A;font-size:16px">Report Highlights</h3>
+      <ul style="padding-left:20px;margin-bottom:0;color:#334155;line-height:1.6">
+        <li><strong>Detailed Analytics</strong>: Complete breakdown of cases, clients, and financials.</li>
+        <li><strong>Payment History</strong>: Audit trail of all fees collected and pending.</li>
+        <li><strong>Practice Health</strong>: Trends across documents, follow-ups, and team activity.</li>
+      </ul>
+    </div>
+
+    <p>This report was generated on ${new Date().toLocaleDateString("en-IN", { dateStyle: "long" })}.</p>
+    <p style="color:#64748b;font-size:13px;margin-top:32px">Law Office Platform automation.</p>
+  `;
+
+  // Wrap in layout (mimicking _shared/email.ts behavior)
+  const fullHtml = `<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <style>
+    @media only screen and (max-width: 600px) {
+      .container { width: 100% !important; padding: 12px !important; }
+    }
+  </style>
+</head>
+<body style="margin:0;background:#f1f5f9;color:#0f172a;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif">
+  <table width="100%" cellspacing="0" cellpadding="0" style="background:#f1f5f9;padding:40px 12px">
+    <tr>
+      <td align="center">
+        <table class="container" width="100%" cellspacing="0" cellpadding="0" style="max-width:600px;background:#ffffff;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1)">
+          <tr>
+            <td style="background:#0B1F3A;padding:32px;color:#ffffff">
+              <div style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:#C9A34E;font-weight:800;margin-bottom:8px">Operational Intelligence</div>
+              <div style="font-size:24px;font-weight:800;line-height:1.2">${subject}</div>
+              <div style="font-size:14px;color:#94a3b8;margin-top:8px">${opts.orgName}</div>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:32px;font-size:15px;line-height:1.6;color:#1e293b">
+              ${html}
+            </td>
+          </tr>
+          <tr>
+            <td style="padding:24px 32px;background:#f8fafc;border-top:1px solid #e2e8f0;color:#64748b;font-size:12px">
+              This is an automated administrative report. If you have any questions, please contact support.
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+
   let binary = "";
   opts.xlsxBytes.forEach((b) => { binary += String.fromCharCode(b); });
   const b64 = btoa(binary);
 
-  const html = `<!doctype html><html><head><meta charset="utf-8"></head>
-<body style="margin:0;background:#f6f8fb;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif">
-<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="background:#f6f8fb;padding:28px 12px">
-<tr><td align="center">
-<table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:600px;background:#ffffff;border:1px solid #e5e7eb;border-radius:18px;overflow:hidden">
-<tr><td style="background:#0B1F3A;padding:24px 28px;color:#ffffff">
-  <div style="font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#C9A34E;font-weight:800">Law Office Platform</div>
-  <div style="font-size:22px;font-weight:800;margin-top:6px">Monthly Report: ${esc(opts.reportMonth)}</div>
-  <div style="font-size:13px;color:#cbd5e1;margin-top:4px">${esc(opts.orgName)}</div>
-</td></tr>
-<tr><td style="padding:28px;color:#182235;font-size:15px;line-height:1.65">
-  <p>Hello,</p>
-  <p>Please find attached the monthly operations report for <strong>${esc(opts.orgName)}</strong> covering <strong>${esc(opts.reportMonth)}</strong>.</p>
-  <p>The Excel file contains the following sheets:</p>
-  <ul style="color:#374151;padding-left:20px">
-    <li>Summary — Key metrics at a glance</li>
-    <li>Clients — All client records</li>
-    <li>Cases — All matter records</li>
-    <li>Payments — Fee collection history</li>
-    <li>Follow-Ups — Scheduled hearings &amp; tasks</li>
-    <li>Documents — Uploaded files</li>
-    <li>Team — Active members</li>
-  </ul>
-  <p style="color:#64748b;font-size:13px">This report was generated on demand from the Law Office Platform dashboard.</p>
-</td></tr>
-<tr><td style="padding:18px 28px;border-top:1px solid #e5e7eb;color:#64748b;font-size:12px">
-  For support, contact <a href="mailto:${esc(supportEmail())}" style="color:#0B1F3A">${esc(supportEmail())}</a>.
-</td></tr>
-</table>
-</td></tr>
-</table></body></html>`;
-
-  // Log to email_events first
-  const { data: event, error: eventError } = await db
+  const { data: event, error: eventError } = await adminClient
     .from("email_events")
     .insert({
       organization_id: opts.organizationId,
       recipient_email: opts.to,
-      email_type: "MONTHLY_REPORT_ORG",
-      subject: `${opts.orgName} — Monthly Report ${opts.reportMonth}`,
-      metadata: { reportMonth: opts.reportMonth, hasAttachment: true },
+      email_type: "MONTHLY_REPORT",
+      subject: subject,
+      metadata: { reportMonth: opts.reportMonth },
     })
     .select("id")
     .single();
+
   if (eventError) throw eventError;
 
   const response = await fetch("https://api.resend.com/emails", {
@@ -258,27 +289,30 @@ async function sendReportEmail(opts: {
     },
     body: JSON.stringify({
       from: emailFrom(),
-      to: [opts.to],
-      subject: `${opts.orgName} — Monthly Report ${opts.reportMonth}`,
-      html,
-      reply_to: supportEmail(),
+      to: opts.to,
+      subject: subject,
+      html: fullHtml,
       attachments: [
         {
-          filename: fileName,
+          filename: `${opts.orgName.replaceAll(" ", "_")}_Report_${opts.reportMonth}.xlsx`,
           content: b64,
-          content_type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         },
       ],
     }),
   });
 
   const result = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    await db.from("email_events").update({ status: "FAILED", error_message: result?.message || `Resend ${response.status}` }).eq("id", event.id);
-    throw new Error(result?.message || `Resend failed (${response.status})`);
-  }
+  if (!response.ok) throw new Error(result?.message || `Resend failed with status ${response.status}`);
 
-  await db.from("email_events").update({ status: "SENT", provider_message_id: result?.id || null, sent_at: new Date().toISOString() }).eq("id", event.id);
+  await adminClient
+    .from("email_events")
+    .update({
+      status: "SENT",
+      provider_message_id: result?.id || null,
+      sent_at: new Date().toISOString(),
+    })
+    .eq("id", event.id);
+
   return result?.id;
 }
 
@@ -287,24 +321,28 @@ async function sendReportEmail(opts: {
 // ---------------------------------------------------------------------------
 
 Deno.serve(async (request: Request): Promise<Response> => {
+  // Handle preflight
   const options = handleOptions(request);
   if (options) return options;
 
-  if (request.method !== "POST") return jsonResponse({ error: "Method not allowed" }, 405);
+  if (request.method !== "POST") {
+    return jsonResponse({ error: "Method not allowed" }, 405);
+  }
 
   const db = createAdminClient();
 
   try {
     const actor = await getActorContext(request);
     assertOrganizationAdmin(actor);
-    await checkRateLimit(actor.user.id, "send-report", actor.ipAddress, 3, 300);
+    await checkRateLimit(actor.user.id, "send-report", actor.ipAddress, 5, 300);
 
     const organizationId = actor.profile!.organization_id as string;
     const body = await request.json().catch(() => ({}));
     const now = new Date();
     const reportMonth = body.reportMonth || `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+    const isDownload = body.download === true;
 
-    // Fetch org name and admin email
+    // Fetch org details
     const { data: org, error: orgError } = await db.from("organizations").select("id,name").eq("id", organizationId).single();
     if (orgError || !org) throw new Error("Organization not found.");
 
@@ -317,6 +355,29 @@ Deno.serve(async (request: Request): Promise<Response> => {
     // Build XLSX
     const sheets = buildSheets(data, org.name, reportMonth);
     const xlsxBytes = await buildXlsx(sheets);
+
+    if (isDownload) {
+      // Record download event
+      await recordAuditEvent({
+        organizationId,
+        actorId: actor.user.id,
+        actorEmail: adminEmail,
+        action: "MONTHLY_REPORT_DOWNLOADED",
+        targetType: "report",
+        severity: "INFO",
+        ipAddress: actor.ipAddress,
+        userAgent: actor.userAgent,
+        metadata: { reportMonth },
+      });
+
+      return new Response(xlsxBytes, {
+        headers: {
+          ...corsHeaders,
+          "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          "Content-Disposition": `attachment; filename="LawOffice_Report_${reportMonth}.xlsx"`,
+        },
+      });
+    }
 
     // Send email with attachment
     const messageId = await sendReportEmail({
@@ -346,6 +407,7 @@ Deno.serve(async (request: Request): Promise<Response> => {
       message: `Report sent to ${adminEmail}`,
     });
   } catch (error) {
+    console.error("Error in send-report:", error);
     return jsonResponse({
       success: false,
       error: error instanceof Error ? error.message : String(error),

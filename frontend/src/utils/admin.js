@@ -277,15 +277,21 @@ export const adminInviteTeamMember = async ({ email, role }) => {
  * into an Excel file and emails it to the calling admin's own email.
  * Rate limited: 3 requests per 5 minutes.
  */
-export const sendMonthlyReport = async (reportMonth = null) => {
-  const now = new Date();
-  const month =
-    reportMonth ||
-    `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+export const sendMonthlyReport = async (reportMonth = null, download = false) => {
+  const month = reportMonth || new Date().toISOString().slice(0, 7);
+
+  if (download) {
+    const { data, error } = await supabase.functions.invoke("send-report", {
+      body: { reportMonth: month, download: true },
+    });
+    if (error) throw error;
+    return { blob: data, fileName: `Report_${month}.xlsx` };
+  }
 
   const { data, error } = await supabase.functions.invoke("send-report", {
     body: { reportMonth: month },
   });
+
   if (error) throw new Error(error.message);
   if (data?.error) throw new Error(data.error);
   return data;

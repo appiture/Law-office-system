@@ -91,18 +91,36 @@ function Dashboard() {
   const [reportMonth, setReportMonth] = useState(defaultMonth);
   const [reportState, setReportState] = useState({ loading: false, toast: null }); // toast: {type:'success'|'error', msg}
 
-  const handleSendReport = useCallback(async () => {
+  const handleSendReport = useCallback(async (isDownload = false) => {
     setReportState({ loading: true, toast: null });
     try {
-      const result = await sendMonthlyReport(reportMonth);
-      setReportState({
-        loading: false,
-        toast: { type: "success", msg: result?.message || `Report sent to your email for ${reportMonth}` },
-      });
+      const result = await sendMonthlyReport(reportMonth, isDownload);
+      
+      if (isDownload && result?.blob) {
+        // Direct download logic
+        const url = window.URL.createObjectURL(result.blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.setAttribute("download", result.fileName || `Report_${reportMonth}.xlsx`);
+        document.body.appendChild(link);
+        link.click();
+        link.parentNode.removeChild(link);
+        window.URL.revokeObjectURL(url);
+        
+        setReportState({
+          loading: false,
+          toast: { type: "success", msg: "Report download started." },
+        });
+      } else {
+        setReportState({
+          loading: false,
+          toast: { type: "success", msg: result?.message || `Report sent to your email for ${reportMonth}` },
+        });
+      }
     } catch (err) {
       setReportState({
         loading: false,
-        toast: { type: "error", msg: err?.message || "Failed to send report." },
+        toast: { type: "error", msg: err?.message || "Failed to process report." },
       });
     }
     // Auto-dismiss toast after 5 seconds
@@ -398,15 +416,26 @@ function Dashboard() {
                 disabled={reportState.loading}
                 aria-label="Report month"
               />
-              <button
-                type="button"
-                className="btn-report"
-                onClick={handleSendReport}
-                disabled={reportState.loading}
-                title="Send monthly Excel report to your email"
-              >
-                {reportState.loading ? "Sending…" : "📊 Send Report"}
-              </button>
+              <div className="dashboard-report-actions">
+                <button
+                  type="button"
+                  className="btn-report btn-report--email"
+                  onClick={() => handleSendReport(false)}
+                  disabled={reportState.loading}
+                  title="Send monthly Excel report to your email"
+                >
+                  {reportState.loading ? "Processing…" : "📧 Email Report"}
+                </button>
+                <button
+                  type="button"
+                  className="btn-report btn-report--download"
+                  onClick={() => handleSendReport(true)}
+                  disabled={reportState.loading}
+                  title="Download monthly Excel report directly"
+                >
+                  {reportState.loading ? "Preparing…" : "📥 Download"}
+                </button>
+              </div>
             </div>
           )}
         </div>
