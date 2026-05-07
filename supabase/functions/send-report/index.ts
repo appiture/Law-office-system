@@ -407,10 +407,13 @@ Deno.serve(async (request: Request): Promise<Response> => {
       message: `Report sent to ${adminEmail}`,
     });
   } catch (error) {
-    console.error("Error in send-report:", error);
+    const errMsg = error instanceof Error ? error.message : String(error);
+    const errName = error instanceof Error ? error.name : "UnknownError";
+    console.error("[send-report] ERROR", errName + ":", errMsg);
+    if (error instanceof Error && error.stack) console.error(error.stack);
     return jsonResponse({
       success: false,
-      error: error instanceof Error ? error.message : String(error),
+      error: errMsg,
     }, 400);
   }
 });

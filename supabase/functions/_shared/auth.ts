@@ -131,19 +131,27 @@ export const recordAuditEvent = async (params: {
   userAgent?: string | null;
   metadata?: Record<string, unknown>;
 }) => {
-  const adminClient = createAdminClient();
-  await adminClient.rpc("record_audit_event", {
-    organization_id: params.organizationId || null,
-    actor_id: params.actorId || null,
-    actor_email: params.actorEmail || null,
-    action: params.action,
-    target_type: params.targetType || null,
-    target_id: params.targetId || null,
-    target_email: params.targetEmail || null,
-    severity: params.severity || "INFO",
-    ip_address: params.ipAddress || null,
-    user_agent: params.userAgent || null,
-    metadata: params.metadata || {},
-  });
+  // Audit recording is best-effort — never block the main response if it fails.
+  try {
+    const adminClient = createAdminClient();
+    const { error } = await adminClient.rpc("record_audit_event", {
+      organization_id: params.organizationId || null,
+      actor_id: params.actorId || null,
+      actor_email: params.actorEmail || null,
+      action: params.action,
+      target_type: params.targetType || null,
+      target_id: params.targetId || null,
+      target_email: params.targetEmail || null,
+      severity: params.severity || "INFO",
+      ip_address: params.ipAddress || null,
+      user_agent: params.userAgent || null,
+      metadata: params.metadata || {},
+    });
+    if (error) {
+      console.warn("[recordAuditEvent] RPC error (non-critical):", error.code, error.message);
+    }
+  } catch (e) {
+    console.warn("[recordAuditEvent] Exception (non-critical):", e instanceof Error ? e.message : e);
+  }
 };
 
