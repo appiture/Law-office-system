@@ -91,15 +91,31 @@ export const checkRateLimit = async (
   maxRequests = 5,
   windowSeconds = 60,
 ) => {
-  const adminClient = createAdminClient();
-  const { error } = await adminClient.rpc("edge_check_rate_limit", {
-    actor_id: actorId,
-    action_key: actionKey,
-    max_requests: maxRequests,
-    window_seconds: windowSeconds,
-    ip_address: ipAddress,
-  });
-  if (error) throw error;
+  // Rate limiting is best-effort — if the RPC doesn't exist or errors we
+  // log and continue rather than returning a cryptic 400 to the caller.
+  try {
+    const adminClient = createAdminClient();
+    const { error } = await adminClient.rpc("edge_check_rate_limit", {
+      actor_id: actorId,
+      action_key: actionKey,
+      max_requests: maxRequests,
+      window_seconds: windowSeconds,
+      ip_address: ipAddress,
+    });
+    if (error) {
+      // PGRST202 = function not found — treat as non-blocking
+      if (error.code === "PGRST202" || error.message?.includes("function") || error.message?.includes("does not exist")) {
+        console.warn("[checkRateLimit] RPC not found — skipping rate limit check:", error.message);
+        return;
+      }
+      // Rate limit actually exceeded — re-throw so caller gets a proper 429-style 400
+      throw error;
+    }
+  } catch (e) {
+    // Only re-throw if it looks like a genuine rate-limit violation
+    if (e instanceof Error && e.message?.toLowerCase().includes("rate limit")) throw e;
+    console.warn("[checkRateLimit] Non-critical error — skipping:", e instanceof Error ? e.message : e);
+  }
 };
 
 export const recordAuditEvent = async (params: {

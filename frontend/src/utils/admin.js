@@ -9,6 +9,23 @@
 import { supabase } from "../lib/supabase";
 import { getUserRole } from "./auth";
 
+/**
+ * Extracts a human-readable error message from a Supabase functions.invoke() call.
+ * The Supabase client sets error.message to a generic string for non-2xx responses;
+ * the real reason lives in the parsed response body.
+ */
+async function fnError(error, data) {
+  // data may already contain the parsed body (Supabase JS v2 returns it on errors)
+  if (data?.error) return new Error(data.error);
+  // Try to extract from the raw response object attached to the error
+  try {
+    const body = await error?.context?.json?.();
+    if (body?.error) return new Error(body.error);
+    if (body?.message) return new Error(body.message);
+  } catch { /* ignore parse errors */ }
+  return new Error(error?.message || "Edge function call failed.");
+}
+
 const ADMIN_CACHE_KEY = "lawoffice.adminStatus";
 
 /* ------------------------------------------------------------------ */
@@ -180,7 +197,7 @@ export const inviteUserToOrganization = async (email, role) => {
       role,
     },
   });
-  if (error) throw new Error(error.message);
+  if (error) throw await fnError(error, data);
   if (data?.error) throw new Error(data.error);
   return data;
 };
@@ -263,7 +280,7 @@ export const adminInviteTeamMember = async ({ email, role }) => {
       role,
     },
   });
-  if (error) throw new Error(error.message);
+  if (error) throw await fnError(error, data);
   if (data?.error) throw new Error(data.error);
   return data;
 };
@@ -284,7 +301,7 @@ export const sendMonthlyReport = async (reportMonth = null, download = false) =>
     const { data, error } = await supabase.functions.invoke("send-report", {
       body: { reportMonth: month, download: true },
     });
-    if (error) throw error;
+    if (error) throw await fnError(error, data);
     return { blob: data, fileName: `Report_${month}.xlsx` };
   }
 
@@ -292,7 +309,7 @@ export const sendMonthlyReport = async (reportMonth = null, download = false) =>
     body: { reportMonth: month },
   });
 
-  if (error) throw new Error(error.message);
+  if (error) throw await fnError(error, data);
   if (data?.error) throw new Error(data.error);
   return data;
 };
