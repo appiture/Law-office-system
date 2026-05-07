@@ -9,7 +9,7 @@ import {
   setRememberedEmail,
   syncSupabaseSession,
 } from "../utils/auth";
-import { checkMustResetPassword } from "../utils/admin";
+import { checkMustResetPassword, checkAdminStatus } from "../utils/admin";
 import DotGrid from "../components/ui/DotGrid/DotGrid";
 import appitureLogo from "../assets/appiture_logo.png";
 import "./Login.css";
@@ -40,8 +40,17 @@ function Login() {
     const hydrate = async () => {
       try {
         const session = await syncSupabaseSession();
-        if (!cancelled && session?.canAccessWorkspace && isAuthenticated()) {
-          navigate("/dashboard", { replace: true });
+        if (cancelled) return;
+        if (isAuthenticated()) {
+          if (session?.canAccessWorkspace) {
+            navigate("/dashboard", { replace: true });
+          } else {
+            // Could be a platform admin (no org workspace) — check before giving up
+            const { isPlatformAdmin: isAdmin } = await checkAdminStatus({ force: true });
+            if (!cancelled && isAdmin) {
+              navigate("/platform-admin", { replace: true });
+            }
+          }
         }
       } catch {
         // Keep the sign-in form visible if the session is not ready yet.

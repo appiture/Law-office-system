@@ -195,8 +195,12 @@ Deno.serve(async (request: Request): Promise<Response> => {
         : "Organization and admin account created, but the invite email failed. Check Resend configuration and email_events.",
     });
   } catch (error) {
-    if (organizationId && !createdUserId) {
-      await adminClient.from("organizations").delete().eq("id", organizationId);
+    // Full rollback: remove org and orphan auth user if they were partially created
+    if (organizationId) {
+      await adminClient.from("organizations").delete().eq("id", organizationId).catch(() => {});
+    }
+    if (createdUserId) {
+      await adminClient.auth.admin.deleteUser(createdUserId).catch(() => {});
     }
 
     return jsonResponse({

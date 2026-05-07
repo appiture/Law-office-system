@@ -64,10 +64,13 @@ function App() {
       }
 
       if (event === "SIGNED_OUT") {
+        // Read admin flag BEFORE caches are cleared so redirect is correct
+        const wasPlatformAdmin = isPlatformAdmin();
         clearUser();
         clearAuthData();
-        if (window.location.pathname !== "/login") {
-          window.location.href = "/login";
+        const redirectTo = wasPlatformAdmin ? "/super-admin-login" : "/login";
+        if (window.location.pathname !== redirectTo) {
+          window.location.href = redirectTo;
         }
       }
     });

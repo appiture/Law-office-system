@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../lib/supabase";
 import { requiredText } from "../lib/validation";
-import { checkAdminStatus } from "../utils/admin";
+import { checkAdminStatus, checkMustResetPassword } from "../utils/admin";
 import DotGrid from "../components/ui/DotGrid/DotGrid";
 import appitureLogo from "../assets/appiture_logo.png";
 import "./Login.css"; // reuse the same glassmorphic styles
@@ -77,7 +77,18 @@ function SuperAdminLogin() {
         throw new Error("Access denied. This portal is for platform administrators only.");
       }
 
-      /* 3. All good → go to the Super Admin Dashboard */
+      /* 3. Check if this super admin must reset their password first */
+      try {
+        const mustReset = await checkMustResetPassword();
+        if (mustReset) {
+          navigate("/reset-password", { replace: true });
+          return;
+        }
+      } catch {
+        // Non-critical — let them into the admin panel
+      }
+
+      /* 4. All good → go to the Super Admin Dashboard */
       navigate("/platform-admin", { replace: true });
     } catch (err) {
       setError(err?.message || "Unable to sign in.");

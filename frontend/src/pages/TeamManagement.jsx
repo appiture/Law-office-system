@@ -205,6 +205,7 @@ function InviteForm({ onInvited }) {
                 <option value="USER">User</option>
                 <option value="LAWYER">⚖️ Lawyer</option>
                 <option value="STAFF">🗂️ Staff</option>
+                <option value="ADMIN">🔑 Admin</option>
               </select>
             </div>
             <button
@@ -323,6 +324,7 @@ function MemberRow({ member, currentUserId, onUpdated, onRemoved }) {
             onBlur={() => setRoleEditing(false)}
             style={{ fontSize: 13, padding: "4px 8px", borderRadius: 8, border: "1px solid var(--color-border)", background: "var(--color-surface)", color: "var(--color-text)" }}
           >
+            <option value="ADMIN">Admin</option>
             <option value="LAWYER">Lawyer</option>
             <option value="STAFF">Staff</option>
             <option value="USER">User</option>

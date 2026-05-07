@@ -31,7 +31,7 @@ Deno.serve(async (request: Request): Promise<Response> => {
     const organizationId = actor.profile?.organization_id as string;
     const body = await request.json().catch(() => ({}));
     const emailAddress = requireEmail(body.email || body.inviteEmail);
-    const role = requireRole(body.role || "USER", ["USER", "LAWYER", "STAFF"]);
+    const role = requireRole(body.role || "USER", ["USER", "LAWYER", "STAFF", "ADMIN"]);
 
     const { data: organization, error: organizationError } = await adminClient
       .from("organizations")
