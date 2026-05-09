@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"; // Refreshed to resolve dev server glitch
 import { Link, useParams, useLocation, useNavigate } from "react-router-dom";
 import AppShell from "../components/AppShell";
-import { platformApi } from "../api/platform";
-import { getPersistentAssetUrl } from "../lib/storage";
+import { supabasePlatformApi as platformApi } from "../repositories/supabaseRepository";
+import { getPersistentAssetUrl } from "../services/storageService";
 import { currency, formatDate, sentenceCaseStatus, textOrDash } from "../utils/formatters";
 import ProfileCard from "../components/ui/ProfileCard/ProfileCard";
 import MagicBento, { ParticleCard } from "../components/ui/MagicBento/MagicBento";
@@ -751,3 +751,7 @@ function CaseDetails() {
 }
 
 export default CaseDetails;
+
+
+
+

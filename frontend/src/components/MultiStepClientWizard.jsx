@@ -1,7 +1,7 @@
 import { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { buildTenantAssetPrefix, getPersistentAssetUrl, uploadAsset } from "../lib/storage";
-import { supabaseBuckets } from "../lib/supabase";
+import { buildTenantAssetPrefix, getPersistentAssetUrl, uploadAsset } from "../services/storageService";
+import { supabaseBuckets } from "../services/supabaseClient";
 import {
   assertCasePayload,
   assertChargePayload,
@@ -11,7 +11,7 @@ import {
   normalizeDigits,
   requiredText,
   resolveOtherSelection,
-} from "../lib/validation";
+} from "../utils/validation";
 import { sentenceCaseStatus } from "../utils/formatters";
 import "../pages/formStyles.css";
 
@@ -554,3 +554,7 @@ export default function MultiStepClientWizard({ client, onClose, onSave, initial
 
   return createPortal(modal, document.body);
 }
+
+
+
+

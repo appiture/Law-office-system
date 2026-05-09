@@ -1,3 +1,4 @@
+import JSZip from "jszip";
 import { corsHeaders, handleOptions, jsonResponse } from "../_shared/cors.ts";
 import { createAdminClient } from "../_shared/supabase.ts";
 import { appBaseUrl, emailFrom, requiredEnv, supportEmail } from "../_shared/config.ts";
@@ -27,8 +28,6 @@ type Sheet = { name: string; headers: string[]; rows: Row[] };
 
 /** Build a minimal xlsx ArrayBuffer with multiple sheets */
 async function buildXlsx(sheets: Sheet[]): Promise<Uint8Array> {
-  // Dynamic import of JSZip — available in Deno via esm.sh
-  const { default: JSZip } = await import("https://esm.sh/jszip@3.10.1");
   const zip = new JSZip();
 
   const sharedStrings: string[] = [];
@@ -375,6 +374,7 @@ Deno.serve(async (request: Request): Promise<Response> => {
           ...corsHeaders,
           "Content-Type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
           "Content-Disposition": `attachment; filename="LawOffice_Report_${reportMonth}.xlsx"`,
+          "Content-Length": xlsxBytes.byteLength.toString(),
         },
       });
     }

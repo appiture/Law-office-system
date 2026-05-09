@@ -5,9 +5,10 @@ import {
   isAuthenticated, 
   syncSupabaseSession,
   getWorkspaceAccessMessage,
-  fullLogout
-} from "../utils/auth";
-import { isPlatformAdmin, checkAdminStatus } from "../utils/admin";
+  fullLogout,
+  mustResetPassword
+} from "../services/authService";
+import { isPlatformAdmin, checkAdminStatus } from "../services/adminService";
 
 function ProtectedRoute({ children }) {
   const location = useLocation();
@@ -70,6 +71,10 @@ function ProtectedRoute({ children }) {
     return <Navigate to="/login" replace />;
   }
 
+  if (mustResetPassword() && location.pathname !== "/reset-password") {
+    return <Navigate to="/reset-password" replace />;
+  }
+
   // Platform admin with no workspace → send directly to their portal
   if (isAdmin && !canAccessWorkspace() && location.pathname !== "/platform-admin") {
     return <Navigate to="/platform-admin" replace />;
@@ -110,3 +115,7 @@ function ProtectedRoute({ children }) {
 }
 
 export default ProtectedRoute;
+
+
+
+

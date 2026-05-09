@@ -331,3 +331,7 @@ function DashboardSearchResults({ query, cases, tasks, putUpDates, onResultClick
 }
 
 export default DashboardSearchResults;
+
+
+
+

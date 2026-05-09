@@ -7,7 +7,7 @@ import {
   adminListPlatformAdmins, adminAddPlatformAdmin, adminRemovePlatformAdmin,
   adminGetActivityLog,
   adminCreateOrganization,
-} from "../utils/admin";
+} from "../services/adminService";
 import "./formStyles.css";
 
 /* ── tiny helpers ── */
@@ -652,3 +652,7 @@ export default function SuperAdminDashboard() {
     </AppShell>
   );
 }
+
+
+
+

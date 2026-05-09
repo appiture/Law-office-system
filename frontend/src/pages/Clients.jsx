@@ -5,8 +5,8 @@ import AppShell from "../components/AppShell";
 import ProfileCard from "../components/ui/ProfileCard/ProfileCard";
 import MultiStepClientWizard from "../components/MultiStepClientWizard";
 import ControlledSearchPanel, { EmptyState, ErrorState, LoadingState, PaginationControls } from "../components/ControlledSearchPanel";
-import { platformApi } from "../api/platform";
-import { getPersistentAssetUrl } from "../lib/storage";
+import { supabasePlatformApi as platformApi } from "../repositories/supabaseRepository";
+import { getPersistentAssetUrl } from "../services/storageService";
 import { ParticleCard } from "../components/ui/MagicBento/MagicBento";
 import "./Clients.css";
 import "./formStyles.css";
@@ -290,3 +290,7 @@ function Clients() {
 }
 
 export default Clients;
+
+
+
+

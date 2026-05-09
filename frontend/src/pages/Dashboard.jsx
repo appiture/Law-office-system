@@ -3,17 +3,17 @@ import { createPortal } from "react-dom";
 import { Link } from "react-router-dom";
 import AppShell from "../components/AppShell";
 import HeaderFilters from "../components/HeaderFilters";
-import { platformApi } from "../api/platform";
+import { supabasePlatformApi as platformApi } from "../repositories/supabaseRepository";
 import { getCache, setCache } from "../lib/cache";
 import { currency, formatDate } from "../utils/formatters";
-import { isLawyerFeeLabel } from "../lib/caseDomain";
-import { getOrganizationId, getUserId } from "../utils/auth";
+import { isLawyerFeeLabel } from "../utils/caseDomain";
+import { getOrganizationId, getUserId } from "../services/authService";
 import { TrendAreaChart } from "../components/DashboardCharts";
 import DashboardSearchResults from "../components/DashboardSearchResults";
 import { useTheme } from "../context/ThemeContext";
 import BorderGlow from "../components/ui/BorderGlow/BorderGlow";
-import { isOrgAdmin } from "../utils/admin";
-import { sendMonthlyReport } from "../utils/admin";
+import { isOrgAdmin } from "../services/adminService";
+import { sendMonthlyReport } from "../services/adminService";
 import "./Dashboard.css";
 import "./formStyles.css";
 
@@ -702,3 +702,7 @@ function Dashboard() {
 }
 
 export default Dashboard;
+
+
+
+

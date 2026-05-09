@@ -1,12 +1,12 @@
 import { lazy, Suspense, useEffect } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
-import { supabase } from "./lib/supabase";
-import { clearAuthData, syncSupabaseSession } from "./utils/auth";
-import { isPlatformAdmin } from "./utils/admin";
+import { supabase } from "./services/supabaseClient";
+import { clearAuthData, syncSupabaseSession } from "./services/authService";
+import { isPlatformAdmin } from "./services/adminService";
 import ProtectedRoute from "./components/ProtectedRoute";
 import ErrorBoundary from "./components/ErrorBoundary";
 import "./App.css";
-import { setUser, clearUser } from "./lib/session";
+import { setUser, clearUser } from "./store/sessionStore";
 
 const routePreloaders = [
   () => import("./pages/Login"),
@@ -229,3 +229,7 @@ function App() {
 }
 
 export default App;
+
+
+
+

@@ -1,5 +1,0 @@
-UPDATE local_users
-SET role = 'LAWYER'
-WHERE UPPER(role) IN ('ADMIN', 'FOUNDER');
-
-DROP TABLE IF EXISTS users;

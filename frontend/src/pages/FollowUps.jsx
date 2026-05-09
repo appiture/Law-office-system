@@ -5,14 +5,14 @@ import AppShell from "../components/AppShell";
 import CaseIdentityCard from "../components/CaseIdentityCard";
 import ControlledSearchPanel, { EmptyState, ErrorState, LoadingState, PaginationControls } from "../components/ControlledSearchPanel";
 import CaseCombobox from "../components/CaseCombobox";
-import { platformApi } from "../api/platform";
+import { supabasePlatformApi as platformApi } from "../repositories/supabaseRepository";
 import {
   assertFollowUpPayload,
   getApiErrorMessage,
   normalizeFollowUpStatus,
   resolveOtherSelection,
   splitOtherSelection,
-} from "../lib/validation";
+} from "../utils/validation";
 import { formatDateTime, textOrDash } from "../utils/formatters";
 import "./formStyles.css";
 
@@ -463,3 +463,7 @@ function FollowUps() {
 }
 
 export default FollowUps;
+
+
+
+

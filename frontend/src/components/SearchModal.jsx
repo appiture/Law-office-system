@@ -32,3 +32,7 @@ function SearchModal({ query, cases, tasks, putUpDates, onClose }) {
 }
 
 export default SearchModal;
+
+
+
+

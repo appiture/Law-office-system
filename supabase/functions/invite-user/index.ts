@@ -22,6 +22,7 @@ Deno.serve(async (request: Request): Promise<Response> => {
   }
 
   const adminClient = createAdminClient();
+  let createdUserId: string | null = null;
 
   try {
     const actor = await getActorContext(request);
@@ -82,7 +83,8 @@ Deno.serve(async (request: Request): Promise<Response> => {
       throw createUserError || new Error("Supabase Auth did not return a user.");
     }
 
-    const userId = createdUser.user.id;
+    createdUserId = createdUser.user.id;
+    const userId = createdUserId;
     const { error: profileError } = await adminClient.from("users").upsert({
       id: userId,
       email: emailAddress,
@@ -193,6 +195,14 @@ Deno.serve(async (request: Request): Promise<Response> => {
         : "Team member account created, but the invite email failed. Check Resend configuration and email_events.",
     });
   } catch (error) {
+    // Rollback orphaned Supabase Auth user
+    if (createdUserId) {
+      console.warn(`[invite-user] Rolling back orphaned auth user ${createdUserId} due to error:`, error);
+      await adminClient.auth.admin.deleteUser(createdUserId).catch((e) => {
+        console.error(`[invite-user] FAILED TO ROLLBACK AUTH USER ${createdUserId}:`, e);
+      });
+    }
+
     return jsonResponse({
       success: false,
       error: error instanceof Error ? error.message : String(error),

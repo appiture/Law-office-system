@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import AppShell from "../components/AppShell";
-import { supabasePlatformApi } from "../api/supabasePlatform";
-import { uploadAsset, buildTenantAssetPrefix } from "../lib/storage";
-import { supabaseBuckets } from "../lib/supabase";
+import { supabasePlatformApi } from "../repositories/supabaseRepository";
+import { uploadAsset, buildTenantAssetPrefix } from "../services/storageService";
+import { supabaseBuckets } from "../services/supabaseClient";
 import { 
   getOrganizationName, 
   getOrganizationLogoUrl, 
@@ -10,7 +10,7 @@ import {
   getUserAvatarUrl,
   getUserEmail,
   syncSupabaseSession
-} from "../utils/auth";
+} from "../services/authService";
 import "./formStyles.css";
 
 function Settings() {
@@ -239,3 +239,7 @@ function Settings() {
 }
 
 export default Settings;
+
+
+
+

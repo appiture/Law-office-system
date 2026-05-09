@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "../lib/supabase";
-import { completePasswordReset } from "../utils/admin";
-import { syncSupabaseSession } from "../utils/auth";
+import { supabase } from "../services/supabaseClient";
+import { completePasswordReset } from "../services/adminService";
+import { syncSupabaseSession } from "../services/authService";
 import DotGrid from "../components/ui/DotGrid/DotGrid";
 import appitureLogo from "../assets/appiture_logo.png";
 import "./Login.css"; // reuse Login styles
@@ -208,3 +208,7 @@ export default function ResetPassword() {
     </div>
   );
 }
+
+
+
+

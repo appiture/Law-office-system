@@ -4,13 +4,13 @@ import { useSearchParams } from "react-router-dom";
 import AppShell from "../components/AppShell";
 import CaseIdentityCard from "../components/CaseIdentityCard";
 import ControlledSearchPanel, { EmptyState, ErrorState, LoadingState, PaginationControls } from "../components/ControlledSearchPanel";
-import { platformApi } from "../api/platform";
+import { supabasePlatformApi as platformApi } from "../repositories/supabaseRepository";
 import {
   assertCasePayload,
   getApiErrorMessage,
   resolveOtherSelection,
   splitOtherSelection,
-} from "../lib/validation";
+} from "../utils/validation";
 import { formatDateTime } from "../utils/formatters";
 import "./formStyles.css";
 
@@ -425,3 +425,7 @@ function Cases() {
 }
 
 export default Cases;
+
+
+
+

@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { getPersistentAssetUrl } from "../lib/storage";
+import { getPersistentAssetUrl } from "../services/storageService";
 import { sentenceCaseStatus, textOrDash } from "../utils/formatters";
 
 function CaseIdentityCard({ item, children, footer, className = "", onImageClick, detailsTarget, detailsLabel = "View Full Details" }) {
@@ -56,3 +56,7 @@ function CaseIdentityCard({ item, children, footer, className = "", onImageClick
 }
 
 export default CaseIdentityCard;
+
+
+
+

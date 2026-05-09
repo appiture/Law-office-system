@@ -1,6 +1,10 @@
-node_modules/
-target/
-dist/
+node_modules
+dist
+target
 .env
-frontend/.env
-backend/.env
+.env.local
+.env.production
+.supabase
+.vscode
+.idea
+coverage

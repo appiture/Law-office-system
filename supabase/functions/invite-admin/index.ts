@@ -197,7 +197,14 @@ Deno.serve(async (request: Request): Promise<Response> => {
   } catch (error) {
     // Full rollback: remove org and orphan auth user if they were partially created
     if (organizationId) {
-      await adminClient.from("organizations").delete().eq("id", organizationId).catch(() => {});
+      await adminClient.from("organization_invites")
+        .delete()
+        .eq("organization_id", organizationId)
+        .catch(() => {});
+      await adminClient.from("organizations")
+        .delete()
+        .eq("id", organizationId)
+        .catch(() => {});
     }
     if (createdUserId) {
       await adminClient.auth.admin.deleteUser(createdUserId).catch(() => {});

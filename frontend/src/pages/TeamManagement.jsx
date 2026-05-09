@@ -6,8 +6,8 @@ import {
   adminInviteTeamMember,
   updateOrganizationMember,
   removeOrganizationMember,
-} from "../utils/admin";
-import { getUserId } from "../utils/auth";
+} from "../services/adminService";
+import { getUserId } from "../services/authService";
 import "./formStyles.css";
 
 /* ── Role badge ───────────────────────────────────────────────────── */
@@ -570,3 +570,7 @@ export default function TeamManagement() {
     </AppShell>
   );
 }
+
+
+
+

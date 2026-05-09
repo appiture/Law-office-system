@@ -1,13 +1,15 @@
 {
-  "name": "law-office-demo",
-  "version": "1.0.0",
-  "description": "Orchestrates the Law Office Demo System with zero-config setup.",
+  "name": "law-office-system",
+  "version": "2.0.0",
+  "description": "Hardened Law Office System - Supabase & React Production Architecture",
   "scripts": {
-    "install:all": "cd backend && mvnw.cmd clean install -DskipTests && cd ../frontend && npm install",
-    "dev:backend": "cd backend && mvnw.cmd spring-boot:run",
+    "install:all": "cd frontend && npm install",
     "dev:frontend": "cd frontend && npm run dev",
-    "demo": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
-    "setup": "npm install && npm run install:all"
+    "dev:supabase": "supabase start",
+    "dev": "npm run dev:frontend",
+    "setup": "npm run install:all",
+    "supabase:gen": "supabase gen types typescript --local > frontend/src/types/supabase.ts",
+    "supabase:deploy": "supabase functions deploy"
   },
   "devDependencies": {
     "concurrently": "^8.2.2"

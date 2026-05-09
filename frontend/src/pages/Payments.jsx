@@ -5,14 +5,14 @@ import AppShell from "../components/AppShell";
 import CaseIdentityCard from "../components/CaseIdentityCard";
 import ControlledSearchPanel, { EmptyState, ErrorState, LoadingState, PaginationControls } from "../components/ControlledSearchPanel";
 import CaseCombobox from "../components/CaseCombobox";
-import { platformApi } from "../api/platform";
+import { supabasePlatformApi as platformApi } from "../repositories/supabaseRepository";
 import {
   assertChargePayload,
   assertPaymentPayload,
   getApiErrorMessage,
   normalizePaymentStatus,
   resolveOtherSelection,
-} from "../lib/validation";
+} from "../utils/validation";
 import { currency, formatDate, sentenceCaseStatus, textOrDash } from "../utils/formatters";
 import "./formStyles.css";
 
@@ -578,3 +578,7 @@ function Payments() {
 }
 
 export default Payments;
+
+
+
+

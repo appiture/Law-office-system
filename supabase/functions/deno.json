@@ -1,6 +1,7 @@
 {
   "imports": {
     "@supabase/supabase-js": "npm:@supabase/supabase-js@2",
-    "resend": "npm:resend@4"
+    "resend": "npm:resend@4",
+    "jszip": "https://esm.sh/jszip@3.10.1?pin=v135"
   }
 }

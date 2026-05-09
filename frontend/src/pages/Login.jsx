@@ -1,15 +1,15 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "../lib/supabase";
-import { requiredText } from "../lib/validation";
+import { supabase } from "../services/supabaseClient";
+import { requiredText } from "../utils/validation";
 import {
   getRememberedEmail,
   getWorkspaceAccessMessage,
   isAuthenticated,
   setRememberedEmail,
   syncSupabaseSession,
-} from "../utils/auth";
-import { checkMustResetPassword, checkAdminStatus } from "../utils/admin";
+} from "../services/authService";
+import { checkMustResetPassword, checkAdminStatus } from "../services/adminService";
 import DotGrid from "../components/ui/DotGrid/DotGrid";
 import appitureLogo from "../assets/appiture_logo.png";
 import "./Login.css";
@@ -191,3 +191,7 @@ function Login() {
 }
 
 export default Login;
+
+
+
+

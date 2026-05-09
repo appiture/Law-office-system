@@ -4,10 +4,10 @@ import { useSearchParams } from "react-router-dom";
 import AppShell from "../components/AppShell";
 import CaseIdentityCard from "../components/CaseIdentityCard";
 import ControlledSearchPanel, { EmptyState, ErrorState, LoadingState, PaginationControls } from "../components/ControlledSearchPanel";
-import { platformApi } from "../api/platform";
-import { buildTenantAssetPrefix, getPersistentAssetUrl, removeAsset, uploadAsset } from "../lib/storage";
-import { supabaseBuckets } from "../lib/supabase";
-import { assertDocumentPayload, getApiErrorMessage, resolveOtherSelection } from "../lib/validation";
+import { supabasePlatformApi as platformApi } from "../repositories/supabaseRepository";
+import { buildTenantAssetPrefix, getPersistentAssetUrl, removeAsset, uploadAsset } from "../services/storageService";
+import { supabaseBuckets } from "../services/supabaseClient";
+import { assertDocumentPayload, getApiErrorMessage, resolveOtherSelection } from "../utils/validation";
 import { formatDateTime } from "../utils/formatters";
 import "./formStyles.css";
 
@@ -418,3 +418,7 @@ function Documents() {
 }
 
 export default Documents;
+
+
+
+

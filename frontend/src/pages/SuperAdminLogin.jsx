@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "../lib/supabase";
-import { requiredText } from "../lib/validation";
-import { checkAdminStatus, checkMustResetPassword } from "../utils/admin";
+import { supabase } from "../services/supabaseClient";
+import { requiredText } from "../utils/validation";
+import { checkAdminStatus, checkMustResetPassword } from "../services/adminService";
 import DotGrid from "../components/ui/DotGrid/DotGrid";
 import appitureLogo from "../assets/appiture_logo.png";
 import "./Login.css"; // reuse the same glassmorphic styles
@@ -235,3 +235,7 @@ function SuperAdminLogin() {
 }
 
 export default SuperAdminLogin;
+
+
+
+

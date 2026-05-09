@@ -8,8 +8,8 @@ import {
   getUserRole,
   getUserFullName,
   getUserAvatarUrl
-} from "../utils/auth";
-import { checkAdminStatus, isPlatformAdmin } from "../utils/admin";
+} from "../services/authService";
+import { checkAdminStatus, isPlatformAdmin } from "../services/adminService";
 import { useTheme } from "../context/ThemeContext";
 import DotGrid from "./ui/DotGrid/DotGrid";
 import appitureLogo from "../assets/appiture_logo.png";
@@ -263,3 +263,7 @@ function AppShell({ title, subtitle, actions, children }) {
 }
 
 export default AppShell;
+
+
+
+
