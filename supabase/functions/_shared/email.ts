@@ -1,16 +1,9 @@
 import { appBaseUrl, emailFrom, env, requiredEnv, supportEmail } from "./config.ts";
 import { createAdminClient } from "./supabase.ts";
+import { Resend } from "resend";
 
-type EmailPayload = {
-  to: string | string[];
-  subject: string;
-  html: string;
-  text?: string;
-  organizationId?: string | null;
-  inviteId?: string | null;
-  emailType: string;
-  metadata?: Record<string, unknown>;
-};
+const resend = new Resend(requiredEnv("RESEND_API_KEY"));
+const adminClient = createAdminClient();
 
 const escapeHtml = (value: unknown) =>
   String(value ?? "")
@@ -167,68 +160,69 @@ export const monthlyReportEmail = ({
   };
 };
 
-export const sendEmail = async (payload: EmailPayload) => {
-  const adminClient = createAdminClient();
-  const recipients = Array.isArray(payload.to) ? payload.to : [payload.to];
-
-  const { data: event, error: eventError } = await adminClient
-    .from("email_events")
-    .insert({
-      organization_id: payload.organizationId || null,
-      invite_id: payload.inviteId || null,
-      recipient_email: recipients.join(","),
-      email_type: payload.emailType,
-      subject: payload.subject,
-      metadata: payload.metadata || {},
-    })
-    .select("id")
-    .single();
-
-  if (eventError) throw eventError;
-
+export async function sendEmail({
+  to,
+  subject,
+  html,
+  organizationId = null,
+  inviteId = null,
+  templateName = "general",
+  attachments = [],
+}: {
+  to: string;
+  subject: string;
+  html: string;
+  organizationId?: string | null;
+  inviteId?: string | null;
+  templateName?: string;
+  attachments?: any[];
+}) {
   try {
-    const response = await fetch("https://api.resend.com/emails", {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${requiredEnv("RESEND_API_KEY")}`,
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify({
-        from: emailFrom(),
-        to: recipients,
-        subject: payload.subject,
-        html: payload.html,
-        text: payload.text,
-        reply_to: env("EMAIL_REPLY_TO", supportEmail()),
-      }),
+    const response = await resend.emails.send({
+      from: Deno.env.get("RESEND_FROM_EMAIL") || emailFrom(),
+      to,
+      subject,
+      html,
+      attachments,
     });
 
-    const result = await response.json().catch(() => ({}));
-    if (!response.ok) {
-      throw new Error(result?.message || `Resend failed with status ${response.status}`);
+    if (response.error) {
+      throw new Error(response.error.message || "Failed to send email via Resend");
     }
 
-    await adminClient
-      .from("email_events")
-      .update({
-        status: "SENT",
-        provider_message_id: result?.id || null,
-        sent_at: new Date().toISOString(),
-      })
-      .eq("id", event.id);
+    // SUCCESS LOG
+    await adminClient.from("email_events").insert({
+      organization_id: organizationId,
+      invite_id: inviteId,
+      recipient_email: to,
+      email_type: templateName,
+      subject,
+      status: "SENT",
+      provider_message_id: response.data?.id || null,
+      error_message: null,
+      metadata: { ...response.data, has_attachments: attachments.length > 0 },
+      sent_at: new Date().toISOString(),
+    });
 
-    return { id: result?.id || null, emailEventId: event.id };
+    return response.data;
   } catch (error) {
-    await adminClient
-      .from("email_events")
-      .update({
-        status: "FAILED",
-        error_message: error instanceof Error ? error.message : String(error),
-      })
-      .eq("id", event.id);
+    // FAILURE LOG
+    await adminClient.from("email_events").insert({
+      organization_id: organizationId,
+      invite_id: inviteId,
+      recipient_email: to,
+      email_type: templateName,
+      subject,
+      status: "FAILED",
+      provider_message_id: null,
+      error_message: error instanceof Error ? error.message : String(error),
+      metadata: { error, has_attachments: attachments.length > 0 },
+      sent_at: null,
+    });
+
     throw error;
   }
-};
+}
 
 export const passwordSetupRedirectUrl = () => `${appBaseUrl()}/reset-password`;
 

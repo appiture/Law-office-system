@@ -7,6 +7,8 @@ import {
   adminListPlatformAdmins, adminAddPlatformAdmin, adminRemovePlatformAdmin,
   adminGetActivityLog,
   adminCreateOrganization,
+  adminDeleteOrganization,
+  adminDeleteUser,
 } from "../services/adminService";
 import "./formStyles.css";
 
@@ -195,7 +197,21 @@ function TabOrganizations({ orgs, onRefresh, showToast }) {
                   Reject
                 </button>
               </>}
-              {org.status !== "PENDING_APPROVAL" && <span style={{ fontSize: 12, opacity: .35, fontStyle: "italic" }}>—</span>}
+              <button
+                disabled={actioning === org.id}
+                onClick={async () => {
+                  if (!window.confirm(`Permanently delete "${org.name}" and ALL its users, cases, clients, payments and documents? This cannot be undone.`)) return;
+                  setActioning(org.id);
+                  try {
+                    await adminDeleteOrganization(org.id);
+                    showToast("Organization deleted");
+                    onRefresh();
+                  } catch (e) { showToast(e.message, "error"); }
+                  finally { setActioning(null); }
+                }}
+                style={{ background: "rgba(248,113,113,.15)", color: "#F87171", border: "1px solid rgba(248,113,113,.3)", borderRadius: 8, padding: "5px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                🗑️
+              </button>
             </div>
           </div>
         ))}
@@ -280,8 +296,23 @@ function TabUsers({ users, orgs, onRefresh, showToast }) {
               <option value="PENDING_APPROVAL">Pending</option>
             </select>
             <span style={{ fontSize: 12, opacity: .6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{u.organization_name || "—"}</span>
-            <div style={{ textAlign: "right" }}>
+            <div style={{ textAlign: "right", display: "flex", gap: 6, justifyContent: "flex-end", alignItems: "center" }}>
               <span style={{ fontSize: 11, opacity: .35 }}>{fmtDate(u.created_at)}</span>
+              <button
+                disabled={actioning === u.id}
+                onClick={async () => {
+                  if (!window.confirm(`Permanently delete user "${u.email}"? This removes their auth account and cannot be undone.`)) return;
+                  setActioning(u.id);
+                  try {
+                    await adminDeleteUser(u.id);
+                    showToast("User deleted");
+                    onRefresh();
+                  } catch (e) { showToast(e.message, "error"); }
+                  finally { setActioning(null); }
+                }}
+                style={{ background: "rgba(248,113,113,.15)", color: "#F87171", border: "1px solid rgba(248,113,113,.3)", borderRadius: 8, padding: "4px 8px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                🗑️
+              </button>
             </div>
           </div>
         ))}

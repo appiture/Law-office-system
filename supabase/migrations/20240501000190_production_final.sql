@@ -101,6 +101,7 @@ CREATE TABLE IF NOT EXISTS public.request_logs (
 -- Index for cleanup and lookup
 CREATE INDEX IF NOT EXISTS idx_request_logs_user_time ON public.request_logs (user_id, created_at);
 
+drop function if exists public.check_rate_limit(text, integer, integer);
 CREATE OR REPLACE FUNCTION public.check_rate_limit(
   _action_key text, 
   _max_requests int DEFAULT 5, 

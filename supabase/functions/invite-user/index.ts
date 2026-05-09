@@ -141,10 +141,9 @@ Deno.serve(async (request: Request): Promise<Response> => {
         html: email.html,
         organizationId,
         inviteId: invite.id,
-        emailType: "USER_INVITE",
-        metadata: { role },
+        templateName: "invite-user",
       });
-      providerMessageId = delivery.id;
+      providerMessageId = delivery?.id || null;
       await adminClient
         .from("organization_invites")
         .update({

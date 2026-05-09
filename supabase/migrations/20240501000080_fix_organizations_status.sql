@@ -3,6 +3,9 @@ ADD COLUMN IF NOT EXISTS status text NOT NULL DEFAULT 'PENDING_APPROVAL';
 
 -- Add check constraint for status values
 ALTER TABLE organizations
+DROP CONSTRAINT IF EXISTS organizations_status_check;
+
+ALTER TABLE organizations
 ADD CONSTRAINT organizations_status_check 
 CHECK (status IN ('PENDING_APPROVAL', 'ACTIVE', 'REJECTED'));
 

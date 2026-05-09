@@ -16,6 +16,7 @@ alter table public.users add column if not exists avatar_path text;
 -- 3. Update get_workspace_context RPC
 drop function if exists public.get_workspace_context();
 
+drop function if exists public.get_workspace_context();
 create or replace function public.get_workspace_context()
 returns table (
   user_id uuid,

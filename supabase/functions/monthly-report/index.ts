@@ -157,8 +157,7 @@ Deno.serve(async (request: Request) => {
           to: admin.email,
           subject: rendered.subject,
           html: rendered.html,
-          emailType: "MONTHLY_REPORT_PLATFORM",
-          metadata: { reportMonth: bounds.reportMonth },
+          templateName: "monthly-report-platform",
         });
         await adminClient.from("monthly_report_runs").upsert({
           report_month: bounds.reportMonth,
@@ -166,7 +165,7 @@ Deno.serve(async (request: Request) => {
           recipient_email: admin.email,
           recipient_role: "SUPER_ADMIN",
           status: "SENT",
-          provider_message_id: delivery.id,
+          provider_message_id: delivery?.id || null,
           metrics: platformMetrics,
           sent_at: new Date().toISOString(),
         }, { onConflict: "report_month,organization_id,recipient_email" });
@@ -200,8 +199,7 @@ Deno.serve(async (request: Request) => {
             subject: rendered.subject,
             html: rendered.html,
             organizationId: org.id,
-            emailType: "MONTHLY_REPORT_ORG",
-            metadata: { reportMonth: bounds.reportMonth },
+            templateName: "monthly-report-org",
           });
           await adminClient.from("monthly_report_runs").upsert({
             report_month: bounds.reportMonth,
@@ -209,7 +207,7 @@ Deno.serve(async (request: Request) => {
             recipient_email: admin.email,
             recipient_role: "ADMIN",
             status: "SENT",
-            provider_message_id: delivery.id,
+            provider_message_id: delivery?.id || null,
             metrics,
             sent_at: new Date().toISOString(),
           }, { onConflict: "report_month,organization_id,recipient_email" });

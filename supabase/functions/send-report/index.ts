@@ -1,4 +1,5 @@
 import JSZip from "jszip";
+import { sendEmail } from "../_shared/email.ts";
 import { corsHeaders, handleOptions, jsonResponse } from "../_shared/cors.ts";
 import { createAdminClient } from "../_shared/supabase.ts";
 import { appBaseUrl, emailFrom, requiredEnv, supportEmail } from "../_shared/config.ts";
@@ -188,6 +189,8 @@ function buildSheets(data: Awaited<ReturnType<typeof collectOrgData>>, orgName: 
 // Send via Resend with XLSX attachment
 // ---------------------------------------------------------------------------
 
+
+
 async function sendReportEmail(opts: {
   to: string;
   orgName: string;
@@ -195,13 +198,11 @@ async function sendReportEmail(opts: {
   xlsxBytes: Uint8Array;
   organizationId: string;
 }) {
-  const adminClient = createAdminClient();
   const [year, monthNum] = opts.reportMonth.split("-");
   const monthName = new Date(Number(year), Number(monthNum) - 1).toLocaleString("en-IN", { month: "long", year: "numeric" });
 
   const subject = `Monthly Operating Report: ${monthName}`;
   
-  // Create a premium HTML summary
   const html = `
     <div style="margin-bottom:24px">
       <p>Hello,</p>
@@ -221,23 +222,17 @@ async function sendReportEmail(opts: {
     <p style="color:#64748b;font-size:13px;margin-top:32px">Law Office Platform automation.</p>
   `;
 
-  // Wrap in layout (mimicking _shared/email.ts behavior)
   const fullHtml = `<!doctype html>
 <html>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <style>
-    @media only screen and (max-width: 600px) {
-      .container { width: 100% !important; padding: 12px !important; }
-    }
-  </style>
 </head>
 <body style="margin:0;background:#f1f5f9;color:#0f172a;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Arial,sans-serif">
   <table width="100%" cellspacing="0" cellpadding="0" style="background:#f1f5f9;padding:40px 12px">
     <tr>
       <td align="center">
-        <table class="container" width="100%" cellspacing="0" cellpadding="0" style="max-width:600px;background:#ffffff;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1)">
+        <table width="100%" cellspacing="0" cellpadding="0" style="max-width:600px;background:#ffffff;border:1px solid #e2e8f0;border-radius:16px;overflow:hidden;box-shadow:0 4px 6px -1px rgba(0,0,0,0.1)">
           <tr>
             <td style="background:#0B1F3A;padding:32px;color:#ffffff">
               <div style="font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:#C9A34E;font-weight:800;margin-bottom:8px">Operational Intelligence</div>
@@ -266,53 +261,21 @@ async function sendReportEmail(opts: {
   opts.xlsxBytes.forEach((b) => { binary += String.fromCharCode(b); });
   const b64 = btoa(binary);
 
-  const { data: event, error: eventError } = await adminClient
-    .from("email_events")
-    .insert({
-      organization_id: opts.organizationId,
-      recipient_email: opts.to,
-      email_type: "MONTHLY_REPORT",
-      subject: subject,
-      metadata: { reportMonth: opts.reportMonth },
-    })
-    .select("id")
-    .single();
-
-  if (eventError) throw eventError;
-
-  const response = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${requiredEnv("RESEND_API_KEY")}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      from: emailFrom(),
-      to: opts.to,
-      subject: subject,
-      html: fullHtml,
-      attachments: [
-        {
-          filename: `${opts.orgName.replaceAll(" ", "_")}_Report_${opts.reportMonth}.xlsx`,
-          content: b64,
-        },
-      ],
-    }),
+  const delivery = await sendEmail({
+    to: opts.to,
+    subject,
+    html: fullHtml,
+    organizationId: opts.organizationId,
+    templateName: "monthly-report-manual",
+    attachments: [
+      {
+        filename: `${opts.orgName.replaceAll(" ", "_")}_Report_${opts.reportMonth}.xlsx`,
+        content: b64,
+      },
+    ],
   });
 
-  const result = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(result?.message || `Resend failed with status ${response.status}`);
-
-  await adminClient
-    .from("email_events")
-    .update({
-      status: "SENT",
-      provider_message_id: result?.id || null,
-      sent_at: new Date().toISOString(),
-    })
-    .eq("id", event.id);
-
-  return result?.id;
+  return delivery?.id;
 }
 
 // ---------------------------------------------------------------------------

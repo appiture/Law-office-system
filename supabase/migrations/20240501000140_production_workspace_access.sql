@@ -106,6 +106,7 @@ grant execute on function app_private.current_user_role() to authenticated;
 grant execute on function public.current_organization_id() to authenticated;
 grant execute on function public.current_user_role() to authenticated;
 
+drop function if exists public.get_workspace_context();
 create or replace function public.get_workspace_context()
 returns table (
   user_id uuid,

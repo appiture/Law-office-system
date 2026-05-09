@@ -141,6 +141,14 @@ create table if not exists public.email_events (
   sent_at timestamptz
 );
 
+-- Ensure column exists if table was created by a previous version
+do $$
+begin
+  if not exists (select 1 from information_schema.columns where table_name = 'email_events' and column_name = 'recipient_email') then
+    alter table public.email_events add column recipient_email text;
+  end if;
+end $$;
+
 alter table public.email_events enable row level security;
 
 drop policy if exists email_events_platform_read on public.email_events;
@@ -359,6 +367,7 @@ grant execute on function public.complete_password_reset() to authenticated;
 -- not be the privilege boundary for role/status changes.
 drop policy if exists users_admin_update on public.users;
 
+drop function if exists public.list_organization_members();
 create or replace function public.list_organization_members()
 returns table (
   id uuid,

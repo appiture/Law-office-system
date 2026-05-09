@@ -67,9 +67,10 @@ Deno.serve(async (request: Request): Promise<Response> => {
       subject,
       html,
       organizationId,
-      emailType,
-      metadata: { sentBy: actor.user.id },
+      templateName: emailType.toLowerCase(),
     });
+
+    const providerMessageId = delivery?.id || null;
 
     await recordAuditEvent({
       organizationId,
@@ -80,10 +81,10 @@ Deno.serve(async (request: Request): Promise<Response> => {
       targetEmail: recipientEmail,
       ipAddress: actor.ipAddress,
       userAgent: actor.userAgent,
-      metadata: { emailType, providerMessageId: delivery.id },
+      metadata: { emailType, providerMessageId },
     });
 
-    return jsonResponse({ success: true, providerMessageId: delivery.id });
+    return jsonResponse({ success: true, providerMessageId });
   } catch (error) {
     return jsonResponse({
       success: false,
