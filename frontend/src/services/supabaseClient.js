@@ -24,6 +24,8 @@ export const supabase = createClient(
   }
 )
 
-
-
+export const supabaseBuckets = {
+  clients: 'client-assets',
+  documents: 'case-documents'
+}
 

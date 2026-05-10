@@ -332,18 +332,26 @@ export const sendMonthlyReport = async (reportMonth = null, download = false) =>
 };
 
 export const adminDeleteOrganization = async (orgId) => {
-  const { data, error } = await supabase.rpc("admin_delete_organization", {
-    target_org_id: orgId,
+  const { data, error } = await supabase.functions.invoke("admin-delete", {
+    body: {
+      targetType: "organization",
+      organizationId: orgId,
+    },
   });
-  if (error) throw new Error(error.message);
+  if (error) throw await fnError(error, data);
+  if (data?.error) throw new Error(data.error);
   return data;
 };
 
 export const adminDeleteUser = async (userId) => {
-  const { data, error } = await supabase.rpc("admin_delete_user", {
-    target_user_id: userId,
+  const { data, error } = await supabase.functions.invoke("admin-delete", {
+    body: {
+      targetType: "user",
+      userId,
+    },
   });
-  if (error) throw new Error(error.message);
+  if (error) throw await fnError(error, data);
+  if (data?.error) throw new Error(data.error);
   return data;
 };
 

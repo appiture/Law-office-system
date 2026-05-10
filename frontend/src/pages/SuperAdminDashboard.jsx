@@ -163,13 +163,13 @@ function TabOrganizations({ orgs, onRefresh, showToast }) {
       </div>
 
       <Card>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 110px 190px 70px 120px 170px", gap: 8, padding: "12px 20px", borderBottom: "1px solid var(--color-border)" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 110px 190px 70px 120px 210px", gap: 8, padding: "12px 20px", borderBottom: "1px solid var(--color-border)" }}>
           <TH>Organization</TH><TH>Status</TH><TH>Owner Email</TH><TH>Users</TH><TH>Created</TH><TH right>Actions</TH>
         </div>
         {filtered.length === 0 && <p style={{ padding: 40, textAlign: "center", opacity: .4 }}>No organizations found.</p>}
         {filtered.map(org => (
           <div key={org.id} style={{
-            display: "grid", gridTemplateColumns: "1fr 110px 190px 70px 120px 170px",
+            display: "grid", gridTemplateColumns: "1fr 110px 190px 70px 120px 210px",
             gap: 8, padding: "14px 20px", borderBottom: "1px solid var(--color-border)",
             alignItems: "center",
           }}>
@@ -209,7 +209,8 @@ function TabOrganizations({ orgs, onRefresh, showToast }) {
                   } catch (e) { showToast(e.message, "error"); }
                   finally { setActioning(null); }
                 }}
-                style={{ background: "rgba(248,113,113,.15)", color: "#F87171", border: "1px solid rgba(248,113,113,.3)", borderRadius: 8, padding: "5px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                style={{ background: "rgba(248,113,113,.15)", color: "#F87171", border: "1px solid rgba(248,113,113,.3)", borderRadius: 8, padding: "5px 12px", fontSize: 0, fontWeight: 700, cursor: "pointer" }}>
+                <span style={{ fontSize: 12 }}>{actioning === org.id ? "Deleting..." : "Delete"}</span>
                 🗑️
               </button>
             </div>
@@ -264,13 +265,13 @@ function TabUsers({ users, orgs, onRefresh, showToast }) {
       </div>
 
       <Card>
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 120px 120px 160px 120px", gap: 8, padding: "12px 20px", borderBottom: "1px solid var(--color-border)" }}>
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 120px 120px 160px 150px", gap: 8, padding: "12px 20px", borderBottom: "1px solid var(--color-border)" }}>
           <TH>User</TH><TH>Role</TH><TH>Status</TH><TH>Organization</TH><TH right>Actions</TH>
         </div>
         {filtered.length === 0 && <p style={{ padding: 40, textAlign: "center", opacity: .4 }}>No users found.</p>}
         {filtered.map(u => (
           <div key={u.id} style={{
-            display: "grid", gridTemplateColumns: "1fr 120px 120px 160px 120px",
+            display: "grid", gridTemplateColumns: "1fr 120px 120px 160px 150px",
             gap: 8, padding: "13px 20px", borderBottom: "1px solid var(--color-border)", alignItems: "center",
             opacity: actioning === u.id ? .5 : 1,
           }}>
@@ -310,7 +311,8 @@ function TabUsers({ users, orgs, onRefresh, showToast }) {
                   } catch (e) { showToast(e.message, "error"); }
                   finally { setActioning(null); }
                 }}
-                style={{ background: "rgba(248,113,113,.15)", color: "#F87171", border: "1px solid rgba(248,113,113,.3)", borderRadius: 8, padding: "4px 8px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                style={{ background: "rgba(248,113,113,.15)", color: "#F87171", border: "1px solid rgba(248,113,113,.3)", borderRadius: 8, padding: "4px 10px", fontSize: 0, fontWeight: 700, cursor: "pointer" }}>
+                <span style={{ fontSize: 11 }}>{actioning === u.id ? "Deleting..." : "Delete"}</span>
                 🗑️
               </button>
             </div>
@@ -399,6 +401,8 @@ function TabLogs({ logs }) {
     ADD_PLATFORM_ADMIN:   "#C9A34E",
     REMOVE_PLATFORM_ADMIN:"#F87171",
     UPDATE_USER:          "#818CF8",
+    DELETE_ORGANIZATION:  "#F87171",
+    DELETE_USER:          "#F87171",
   };
 
   return (

@@ -1,4 +1,4 @@
-import { supabase, supabaseBuckets } from "./supabase";
+import { supabase, supabaseBuckets } from "./supabaseClient";
 import { getOrganizationId } from "../services/authService";
 
 const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10MB (compression will help)
