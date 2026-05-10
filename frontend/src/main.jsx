@@ -6,16 +6,20 @@ import App from './App'
 import { ThemeProvider } from './context/ThemeContext'
 import './index.css'
 
-Sentry.init({
-  dsn: import.meta.env.VITE_SENTRY_DSN || "YOUR_DSN",
-  integrations: [
-    Sentry.browserTracingIntegration(),
-    Sentry.replayIntegration(),
-  ],
-  tracesSampleRate: 1.0,
-  replaysSessionSampleRate: 0.1,
-  replaysOnErrorSampleRate: 1.0,
-})
+const sentryDsn = String(import.meta.env.VITE_SENTRY_DSN || "").trim()
+
+if (sentryDsn && sentryDsn !== "YOUR_DSN") {
+  Sentry.init({
+    dsn: sentryDsn,
+    integrations: [
+      Sentry.browserTracingIntegration(),
+      Sentry.replayIntegration(),
+    ],
+    tracesSampleRate: 1.0,
+    replaysSessionSampleRate: 0.1,
+    replaysOnErrorSampleRate: 1.0,
+  })
+}
 
 const queryClient = new QueryClient()
 
