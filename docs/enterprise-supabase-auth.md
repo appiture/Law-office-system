@@ -102,8 +102,7 @@ VITE_SUPABASE_DOCUMENT_BUCKET=case-documents
 ## Production Notes
 
 - Prefer a verified sending domain in Resend before inviting real users.
-- Keep Supabase Auth redirect URLs aligned with `APP_BASE_URL/reset-password`.
+- Keep Supabase Auth redirect URLs aligned with `APP_BASE_URL/reset-password`; for this deployment that is `https://law-office-system-pi.vercel.app/reset-password`.
 - Monitor `audit_events`, `email_events`, `organization_invites`, and `monthly_report_runs`.
 - Retire the old browser-callable account creation RPCs after all deployments use Edge Functions.
 - Rotate service-role and Resend keys if they were ever exposed outside server-side environments.
-

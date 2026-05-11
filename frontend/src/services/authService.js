@@ -137,6 +137,7 @@ export const syncSupabaseSession = async (providedSession = null, options = {}) 
           error?.message || "Supabase signed you in, but the workspace profile could not be loaded.";
       }
 
+      const hasWorkspaceResult = Boolean(workspace);
       const cached = {
         authenticated: true,
         userId: workspace?.userId || session.user?.id || previousCache.userId || "",
@@ -154,8 +155,10 @@ export const syncSupabaseSession = async (providedSession = null, options = {}) 
           "Law Office",
         organizationLogoUrl: workspace?.organizationLogoUrl || previousCache.organizationLogoUrl || "",
         organizationLogoPath: workspace?.organizationLogoPath || previousCache.organizationLogoPath || "",
-        mustResetPassword: Boolean(workspace?.mustResetPassword || previousCache.mustResetPassword || false),
-        canAccessWorkspace: workspace ? Boolean(workspace.canAccessWorkspace) : (previousCache.canAccessWorkspace || false),
+        mustResetPassword: hasWorkspaceResult
+          ? Boolean(workspace.mustResetPassword)
+          : Boolean(previousCache.mustResetPassword || false),
+        canAccessWorkspace: hasWorkspaceResult ? Boolean(workspace.canAccessWorkspace) : (previousCache.canAccessWorkspace || false),
         workspaceAccessMessage: workspace?.workspaceAccessMessage || workspaceAccessMessage || previousCache.workspaceAccessMessage || "",
       };
 

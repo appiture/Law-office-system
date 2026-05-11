@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../services/supabaseClient";
 import { completePasswordReset } from "../services/adminService";
@@ -31,10 +31,62 @@ export default function ResetPassword() {
   const [newPassword, setNewPassword]     = useState("");
   const [confirmPass, setConfirmPass]     = useState("");
   const [loading, setLoading]             = useState(false);
+  const [authReady, setAuthReady]         = useState(false);
   const [error, setError]                 = useState("");
+  const [authError, setAuthError]         = useState("");
   const [success, setSuccess]             = useState(false);
 
   const strength = strengthLabel(newPassword);
+
+  useEffect(() => {
+    if (!supabase) {
+      setAuthError("Password setup is unavailable because Supabase is not configured.");
+      setAuthReady(true);
+      return undefined;
+    }
+
+    let cancelled = false;
+    let timeoutId = null;
+
+    const markReadyWithSession = (session) => {
+      if (!session?.user) return false;
+      if (timeoutId) window.clearTimeout(timeoutId);
+      setAuthError("");
+      void syncSupabaseSession(session, { force: true }).finally(() => {
+        if (!cancelled) setAuthReady(true);
+      });
+      return true;
+    };
+
+    const {
+      data: { subscription },
+    } = supabase.auth.onAuthStateChange((_event, session) => {
+      markReadyWithSession(session);
+    });
+
+    supabase.auth.getSession()
+      .then(({ data }) => {
+        if (cancelled) return;
+        if (markReadyWithSession(data?.session)) return;
+
+        timeoutId = window.setTimeout(() => {
+          if (cancelled) return;
+          setAuthError("This password setup link could not be verified. Open the latest invite email, or sign in with the temporary password from the email.");
+          setAuthReady(true);
+        }, 5000);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setAuthError("This password setup link could not be verified. Open the latest invite email, or sign in with the temporary password from the email.");
+        setAuthReady(true);
+      });
+
+    return () => {
+      cancelled = true;
+      if (timeoutId) window.clearTimeout(timeoutId);
+      subscription.unsubscribe();
+    };
+  }, []);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -51,6 +103,11 @@ export default function ResetPassword() {
 
     setLoading(true);
     try {
+      const { data: sessionData } = await supabase.auth.getSession();
+      if (!sessionData?.session) {
+        throw new Error("Your password setup session has expired. Open the latest invite email, or sign in with the temporary password from the email.");
+      }
+
       // 1. Update the password in Supabase Auth
       const { error: updateError } = await supabase.auth.updateUser({
         password: newPassword,
@@ -106,7 +163,16 @@ export default function ResetPassword() {
           </p>
         </div>
 
-        {success ? (
+        {!authReady ? (
+          <div style={{
+            background: "rgba(255,255,255,.08)", border: "1px solid rgba(255,255,255,.14)",
+            borderRadius: 12, padding: "18px 20px", textAlign: "center",
+          }}>
+            <p style={{ margin: 0, color: "rgba(255,255,255,.75)", fontWeight: 700, fontSize: 15 }}>
+              Verifying password setup link...
+            </p>
+          </div>
+        ) : success ? (
           <div style={{
             background: "rgba(52,211,153,.12)", border: "1px solid rgba(52,211,153,.35)",
             borderRadius: 12, padding: "18px 20px", textAlign: "center",
@@ -184,12 +250,12 @@ export default function ResetPassword() {
               ))}
             </ul>
 
-            {error && <div className="error-banner">{error}</div>}
+            {(authError || error) && <div className="error-banner">{authError || error}</div>}
 
             <button
               type="submit"
               className="glass-button"
-              disabled={loading || !newPassword || !confirmPass}
+              disabled={loading || Boolean(authError) || !newPassword || !confirmPass}
               style={{ marginTop: 4 }}
             >
               {loading ? "Updating…" : "Set New Password & Continue"}

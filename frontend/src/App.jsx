@@ -219,7 +219,7 @@ function App() {
                 </ProtectedRoute>
               }
             />
-            <Route path="/reset-password" element={<ProtectedRoute><ResetPassword /></ProtectedRoute>} />
+            <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="*" element={<Navigate to={isPlatformAdmin() ? "/platform-admin" : "/dashboard"} replace />} />
           </Routes>
         </Suspense>

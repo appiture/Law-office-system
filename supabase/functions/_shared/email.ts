@@ -87,10 +87,12 @@ export const inviteEmail = ({
   expiresAt?: string | null;
 }) => {
   const title = role === "ADMIN" ? "You have been invited as an organization admin" : "You have been invited to your workspace";
+  const signInUrl = appBaseUrl();
   const body = `
     <p>Hello,</p>
     <p><strong>${escapeHtml(invitedByEmail)}</strong> invited you to join <strong>${escapeHtml(organizationName)}</strong> as <strong>${escapeHtml(role)}</strong>.</p>
     <p>${button(setupUrl, "Set up password")}</p>
+    <p style="margin-top:18px">After setting your password, open your workspace here: <a href="${escapeHtml(signInUrl)}" style="color:#0B1F3A;font-weight:700">${escapeHtml(signInUrl)}</a></p>
     <p style="margin-top:22px">You can also sign in with this temporary password and will be required to change it immediately:</p>
     <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:12px;padding:14px 16px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:18px;font-weight:800;letter-spacing:.08em;color:#9a3412">${escapeHtml(temporaryPassword)}</div>
     <p style="color:#64748b;font-size:13px">For security, do not forward this email. The setup link and temporary password expire${expiresAt ? ` on ${escapeHtml(new Date(expiresAt).toLocaleString("en-IN"))}` : " soon"}.</p>
@@ -225,4 +227,3 @@ export async function sendEmail({
 }
 
 export const passwordSetupRedirectUrl = () => `${appBaseUrl()}/reset-password`;
-
