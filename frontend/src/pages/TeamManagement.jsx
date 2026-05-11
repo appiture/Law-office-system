@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { supabase } from "../services/supabaseClient";
 import AppShell from "../components/AppShell";
 import {
   isOrgAdmin,
@@ -9,6 +10,75 @@ import {
 } from "../services/adminService";
 import { getUserId } from "../services/authService";
 import "./formStyles.css";
+
+const SECTIONS = ["dashboard", "clients", "cases", "payments", "documents", "followups", "settings", "team"];
+
+function UserPermissionsModal({ user, onClose, showToast }) {
+  const [perms, setPerms] = useState({});
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    supabase.rpc("get_user_permissions", { target_user_id: user.id })
+      .then(({ data }) => setPerms(data || {}))
+      .catch(e => showToast(e.message, "error"))
+      .finally(() => setLoading(false));
+  }, [user.id, showToast]);
+
+  const save = async (fullPerms) => {
+    try {
+      const final = Object.fromEntries(SECTIONS.map(s => [s, s in fullPerms ? fullPerms[s] : true]));
+      const { error } = await supabase.rpc("admin_set_user_permissions", {
+        target_user_id: user.id,
+        sections_json: final
+      });
+      if (error) throw error;
+      showToast("Permissions updated for " + (user.full_name || user.email));
+      onClose();
+    } catch (e) { showToast(e.message, "error"); }
+  };
+
+  if (loading) return null;
+
+  return (
+    <div style={{
+      position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
+      background: "rgba(0,0,0,.7)", backdropFilter: "blur(8px)",
+      display: "grid", placeItems: "center", zIndex: 10000, padding: 20
+    }}>
+      <div style={{
+        background: "var(--color-surface)", border: "1px solid var(--color-border)",
+        borderRadius: 20, padding: 28, width: "100%", maxWidth: 440,
+        display: "flex", flexDirection: "column", gap: 20, boxShadow: "0 20px 50px rgba(0,0,0,0.3)"
+      }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>Manage Permissions</h3>
+          <button onClick={onClose} style={{ background: "transparent", border: "none", fontSize: 24, cursor: "pointer", color: "var(--color-text)", opacity: 0.5 }}>×</button>
+        </div>
+        
+        <p style={{ margin: 0, fontSize: 13, opacity: 0.6 }}>Enable or disable access to specific sections for <strong>{user.full_name || user.email}</strong>.</p>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, background: "rgba(255,255,255,0.03)", padding: 16, borderRadius: 12 }}>
+          {SECTIONS.map(s => (
+            <label key={s} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 14, cursor: "pointer", fontWeight: 500 }}>
+              <input 
+                type="checkbox" 
+                checked={Boolean(perms[s])} 
+                onChange={() => setPerms(prev => ({ ...prev, [s]: !Boolean(prev[s]) }))}
+                style={{ width: 16, height: 16, accentColor: "var(--color-primary)" }}
+              />
+              {s.charAt(0).toUpperCase() + s.slice(1)}
+            </label>
+          ))}
+        </div>
+        
+        <div style={{ display: "flex", gap: 12, marginTop: 8 }}>
+          <button className="btn-gold" style={{ flex: 1, padding: "12px" }} onClick={() => save(perms)}>Save Permissions</button>
+          <button onClick={onClose} style={{ flex: 1, background: "transparent", border: "1px solid var(--color-border)", borderRadius: 10, color: "var(--color-text)", cursor: "pointer", fontWeight: 600 }}>Cancel</button>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 /* ── Role badge ───────────────────────────────────────────────────── */
 function RoleBadge({ role }) {
@@ -240,7 +310,7 @@ function InviteForm({ onInvited }) {
 }
 
 /* ── Member row ───────────────────────────────────────────────────── */
-function MemberRow({ member, currentUserId, onUpdated, onRemoved }) {
+function MemberRow({ member, currentUserId, onUpdated, onRemoved, onEditPerms }) {
   const [roleEditing,  setRoleEditing]  = useState(false);
   const [selectedRole, setSelectedRole] = useState(member.role);
   const [loading,      setLoading]      = useState(false);
@@ -355,6 +425,18 @@ function MemberRow({ member, currentUserId, onUpdated, onRemoved }) {
         {!isSelf && (
           <>
             <button
+              onClick={() => onEditPerms?.(member)}
+              style={{
+                background: "rgba(201,163,78,0.12)", border: "1px solid rgba(201,163,78,0.25)",
+                borderRadius: 8, padding: "5px 12px", fontSize: 12, fontWeight: 700,
+                cursor: "pointer", color: "#C9A34E", transition: "all 0.15s",
+              }}
+              onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(201,163,78,0.25)")}
+              onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(201,163,78,0.12)")}
+            >
+              Perms
+            </button>
+            <button
               onClick={handleStatusToggle}
               disabled={loading}
               style={{
@@ -396,6 +478,7 @@ export default function TeamManagement() {
   const [toast,        setToast]        = useState(null);
   const [search,       setSearch]       = useState("");
   const [filterRole,   setFilterRole]   = useState("ALL");
+  const [editingPerms, setEditingPerms] = useState(null);
   const currentUserId = getUserId();
 
   const showToast = (msg, type = "success") => {
@@ -550,10 +633,19 @@ export default function TeamManagement() {
                 currentUserId={currentUserId}
                 onUpdated={loadMembers}
                 onRemoved={loadMembers}
+                onEditPerms={(m) => setEditingPerms(m)}
               />
             ))
           )}
         </div>
+
+        {editingPerms && (
+          <UserPermissionsModal 
+            user={editingPerms} 
+            onClose={() => setEditingPerms(null)} 
+            showToast={showToast} 
+          />
+        )}
 
         {/* Hint */}
         <p style={{ fontSize: 12, opacity: 0.4, textAlign: "center", margin: 0 }}>

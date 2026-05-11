@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { supabase } from "../services/supabaseClient";
 import AppShell from "../components/AppShell";
 import {
   isPlatformAdmin, checkAdminStatus,
@@ -83,6 +84,108 @@ const TH = ({ children, right }) => (
     {children}
   </div>
 );
+
+const SECTIONS = ["dashboard", "clients", "cases", "payments", "documents", "followups", "settings", "team"];
+
+function PermissionsModal({ title, initialPerms, onSave, onClose }) {
+  const [perms, setPerms] = useState(initialPerms || {});
+
+  const toggle = (s) => {
+    setPerms(prev => ({ ...prev, [s]: !Boolean(prev[s]) }));
+  };
+
+  return (
+    <div style={{
+      position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
+      background: "rgba(0,0,0,.7)", backdropFilter: "blur(8px)",
+      display: "grid", placeItems: "center", zIndex: 10000, padding: 20
+    }}>
+      <Card style={{ padding: 28, width: "100%", maxWidth: 440, display: "flex", flexDirection: "column", gap: 20, boxShadow: "0 20px 50px rgba(0,0,0,0.3)" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>{title}</h3>
+          <button onClick={onClose} style={{ background: "transparent", border: "none", fontSize: 24, cursor: "pointer", color: "var(--color-text)", opacity: 0.5 }}>×</button>
+        </div>
+        
+        <p style={{ margin: 0, fontSize: 13, opacity: 0.6 }}>Enable or disable specific sections for this {title.toLowerCase().includes("org") ? "organization" : "user"}.</p>
+
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, background: "rgba(255,255,255,0.03)", padding: 16, borderRadius: 12 }}>
+          {SECTIONS.map(s => (
+            <label key={s} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 14, cursor: "pointer", fontWeight: 500 }}>
+              <input 
+                type="checkbox" 
+                checked={Boolean(perms[s])} 
+                onChange={() => toggle(s)}
+                style={{ width: 16, height: 16, accentColor: "var(--color-primary)" }}
+              />
+              {s.charAt(0).toUpperCase() + s.slice(1)}
+            </label>
+          ))}
+        </div>
+        
+        <div style={{ display: "flex", gap: 12, marginTop: 8 }}>
+          <button className="btn-gold" style={{ flex: 1, padding: "12px" }} onClick={() => onSave(perms)}>Save Permissions</button>
+          <button onClick={onClose} style={{ flex: 1, background: "transparent", border: "1px solid var(--color-border)", borderRadius: 10, color: "var(--color-text)", cursor: "pointer", fontWeight: 600 }}>Cancel</button>
+        </div>
+      </Card>
+    </div>
+  );
+}
+
+function OrgPermissionsModal({ org, onClose, showToast }) {
+  const [perms, setPerms] = useState({});
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    supabase.rpc("get_org_permissions", { target_org_id: org.id })
+      .then(({ data }) => setPerms(data || {}))
+      .catch(e => showToast(e.message, "error"))
+      .finally(() => setLoading(false));
+  }, [org.id, showToast]);
+
+  const save = async (fullPerms) => {
+    try {
+      const final = Object.fromEntries(SECTIONS.map(s => [s, s in fullPerms ? fullPerms[s] : true]));
+      const { error } = await supabase.rpc("admin_set_org_permissions", {
+        target_org_id: org.id,
+        sections_json: final
+      });
+      if (error) throw error;
+      showToast("Organization permissions updated");
+      onClose();
+    } catch (e) { showToast(e.message, "error"); }
+  };
+
+  if (loading) return null;
+  return <PermissionsModal title={`Org Perms: ${org.name}`} initialPerms={perms} onSave={save} onClose={onClose} />;
+}
+
+function UserPermissionsModal({ user, onClose, showToast }) {
+  const [perms, setPerms] = useState({});
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    supabase.rpc("get_user_permissions", { target_user_id: user.id })
+      .then(({ data }) => setPerms(data || {}))
+      .catch(e => showToast(e.message, "error"))
+      .finally(() => setLoading(false));
+  }, [user.id, showToast]);
+
+  const save = async (fullPerms) => {
+    try {
+      const final = Object.fromEntries(SECTIONS.map(s => [s, s in fullPerms ? fullPerms[s] : true]));
+      const { error } = await supabase.rpc("admin_set_user_permissions", {
+        target_user_id: user.id,
+        sections_json: final
+      });
+      if (error) throw error;
+      showToast("User permissions updated");
+      onClose();
+    } catch (e) { showToast(e.message, "error"); }
+  };
+
+  if (loading) return null;
+  return <PermissionsModal title={`User Perms: ${user.email}`} initialPerms={perms} onSave={save} onClose={onClose} />;
+}
 
 /* ── TAB: Dashboard ── */
 function TabDashboard({ orgs, users, platformAdmins }) {
@@ -187,21 +290,26 @@ function TabOrganizations({ orgs, onRefresh, showToast }) {
             <span style={{ fontWeight: 700, fontSize: 13 }}>{org.user_count ?? 0}</span>
             <span style={{ fontSize: 12, opacity: .5 }}>{fmtDate(org.created_at)}</span>
             <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
+              <button
+                onClick={() => setActioning({ type: "PERMS", org })}
+                style={{ background: "rgba(201,163,78,.15)", color: "#C9A34E", border: "1px solid rgba(201,163,78,.3)", borderRadius: 8, padding: "5px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
+                Perms
+              </button>
               {org.status === "PENDING_APPROVAL" && <>
-                <button disabled={actioning === org.id} onClick={() => handleAction(org, "APPROVE")}
+                <button disabled={actioning?.org?.id === org.id} onClick={() => handleAction(org, "APPROVE")}
                   style={{ background: "rgba(52,211,153,.18)", color: "#34D399", border: "1px solid rgba(52,211,153,.35)", borderRadius: 8, padding: "5px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
-                  {actioning === org.id ? "…" : "Approve"}
+                  {actioning?.org?.id === org.id ? "…" : "Approve"}
                 </button>
-                <button disabled={actioning === org.id} onClick={() => handleAction(org, "REJECT")}
+                <button disabled={actioning?.org?.id === org.id} onClick={() => handleAction(org, "REJECT")}
                   style={{ background: "rgba(248,113,113,.15)", color: "#F87171", border: "1px solid rgba(248,113,113,.3)", borderRadius: 8, padding: "5px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
                   Reject
                 </button>
               </>}
               <button
-                disabled={actioning === org.id}
+                disabled={actioning?.org?.id === org.id}
                 onClick={async () => {
                   if (!window.confirm(`Permanently delete "${org.name}" and ALL its users, cases, clients, payments and documents? This cannot be undone.`)) return;
-                  setActioning(org.id);
+                  setActioning({ org });
                   try {
                     await adminDeleteOrganization(org.id);
                     showToast("Organization deleted");
@@ -210,13 +318,14 @@ function TabOrganizations({ orgs, onRefresh, showToast }) {
                   finally { setActioning(null); }
                 }}
                 style={{ background: "rgba(248,113,113,.15)", color: "#F87171", border: "1px solid rgba(248,113,113,.3)", borderRadius: 8, padding: "5px 12px", fontSize: 0, fontWeight: 700, cursor: "pointer" }}>
-                <span style={{ fontSize: 12 }}>{actioning === org.id ? "Deleting..." : "Delete"}</span>
+                <span style={{ fontSize: 12 }}>{actioning?.org?.id === org.id ? "Deleting..." : "Delete"}</span>
                 🗑️
               </button>
             </div>
           </div>
         ))}
-      </Card>
+      </div>
+      {actioning?.type === "PERMS" && <OrgPermissionsModal org={actioning.org} onClose={() => setActioning(null)} showToast={showToast} />}
     </div>
   );
 }
@@ -298,12 +407,17 @@ function TabUsers({ users, orgs, onRefresh, showToast }) {
             </select>
             <span style={{ fontSize: 12, opacity: .6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{u.organization_name || "—"}</span>
             <div style={{ textAlign: "right", display: "flex", gap: 6, justifyContent: "flex-end", alignItems: "center" }}>
+              <button
+                onClick={() => setActioning({ type: "PERMS", user: u })}
+                style={{ background: "rgba(201,163,78,.15)", color: "#C9A34E", border: "1px solid rgba(201,163,78,.3)", borderRadius: 8, padding: "4px 10px", fontSize: 11, fontWeight: 700, cursor: "pointer" }}>
+                Perms
+              </button>
               <span style={{ fontSize: 11, opacity: .35 }}>{fmtDate(u.created_at)}</span>
               <button
-                disabled={actioning === u.id}
+                disabled={actioning?.user?.id === u.id}
                 onClick={async () => {
                   if (!window.confirm(`Permanently delete user "${u.email}"? This removes their auth account and cannot be undone.`)) return;
-                  setActioning(u.id);
+                  setActioning({ user: u });
                   try {
                     await adminDeleteUser(u.id);
                     showToast("User deleted");
@@ -312,13 +426,14 @@ function TabUsers({ users, orgs, onRefresh, showToast }) {
                   finally { setActioning(null); }
                 }}
                 style={{ background: "rgba(248,113,113,.15)", color: "#F87171", border: "1px solid rgba(248,113,113,.3)", borderRadius: 8, padding: "4px 10px", fontSize: 0, fontWeight: 700, cursor: "pointer" }}>
-                <span style={{ fontSize: 11 }}>{actioning === u.id ? "Deleting..." : "Delete"}</span>
+                <span style={{ fontSize: 11 }}>{actioning?.user?.id === u.id ? "Deleting..." : "Delete"}</span>
                 🗑️
               </button>
             </div>
           </div>
         ))}
       </Card>
+      {actioning?.type === "PERMS" && <UserPermissionsModal user={actioning.user} onClose={() => setActioning(null)} showToast={showToast} />}
     </div>
   );
 }

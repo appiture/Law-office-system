@@ -9,8 +9,9 @@ import {
   mustResetPassword
 } from "../services/authService";
 import { isPlatformAdmin, checkAdminStatus } from "../services/adminService";
+import { usePermissions } from "../context/PermissionsContext";
 
-function ProtectedRoute({ children }) {
+function ProtectedRoute({ children, section }) {
   const location = useLocation();
   const hasCachedAccess = isAuthenticated() && (canAccessWorkspace() || isPlatformAdmin());
   const [ready, setReady]                 = useState(hasCachedAccess);
@@ -109,6 +110,11 @@ function ProtectedRoute({ children }) {
         </button>
       </div>
     );
+  }
+
+  const { canAccess } = usePermissions();
+  if (section && !canAccess(section)) {
+    return <Navigate to="/dashboard" replace />;
   }
 
   return children;

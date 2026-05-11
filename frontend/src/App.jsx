@@ -118,7 +118,7 @@ function App() {
             <Route
               path="/dashboard"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute section="dashboard">
                   <Dashboard />
                 </ProtectedRoute>
               }
@@ -126,7 +126,7 @@ function App() {
             <Route
               path="/clients"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute section="clients">
                   <Clients />
                 </ProtectedRoute>
               }
@@ -134,7 +134,7 @@ function App() {
             <Route
               path="/cases"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute section="cases">
                   <Cases />
                 </ProtectedRoute>
               }
@@ -142,7 +142,7 @@ function App() {
             <Route
               path="/clients/:clientId"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute section="clients">
                   <CaseDetails />
                 </ProtectedRoute>
               }
@@ -150,7 +150,7 @@ function App() {
             <Route
               path="/payments"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute section="payments">
                   <Payments />
                 </ProtectedRoute>
               }
@@ -158,7 +158,7 @@ function App() {
             <Route
               path="/documents"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute section="documents">
                   <Documents />
                 </ProtectedRoute>
               }
@@ -166,7 +166,7 @@ function App() {
             <Route
               path="/followups"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute section="followups">
                   <FollowUps />
                 </ProtectedRoute>
               }
@@ -174,7 +174,7 @@ function App() {
             <Route
               path="/tasks"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute section="followups">
                   <FollowUps />
                 </ProtectedRoute>
               }
@@ -182,7 +182,7 @@ function App() {
             <Route
               path="/put-up-dates"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute section="followups">
                   <FollowUps />
                 </ProtectedRoute>
               }
@@ -190,7 +190,7 @@ function App() {
             <Route
               path="/cases/:caseId"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute section="cases">
                   <CaseDetails />
                 </ProtectedRoute>
               }
@@ -198,7 +198,7 @@ function App() {
             <Route
               path="/settings"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute section="settings">
                   <Settings />
                 </ProtectedRoute>
               }
@@ -214,7 +214,7 @@ function App() {
             <Route
               path="/team"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute section="team">
                   <TeamManagement />
                 </ProtectedRoute>
               }

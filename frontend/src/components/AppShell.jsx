@@ -11,6 +11,7 @@ import {
 } from "../services/authService";
 import { checkAdminStatus, isPlatformAdmin } from "../services/adminService";
 import { useTheme } from "../context/ThemeContext";
+import { usePermissions } from "../context/PermissionsContext";
 import DotGrid from "./ui/DotGrid/DotGrid";
 import appitureLogo from "../assets/appiture_logo.png";
 import "./AppShell.css";
@@ -38,6 +39,7 @@ function AppShell({ title, subtitle, actions, children }) {
   const [superAdmin, setSuperAdmin] = useState(isPlatformAdmin());
 
   const { theme } = useTheme();
+  const { canAccess } = usePermissions();
 
   useEffect(() => {
     // Check platform admin status once per session
@@ -76,11 +78,16 @@ function AppShell({ title, subtitle, actions, children }) {
 
   // Build nav dynamically based on role.
   // Platform admins only see their own portal — no case/workspace items.
+  const filteredBaseNavItems = baseNavItems.filter(item => {
+    const sectionKey = item.to.replace("/", ""); // "/clients" -> "clients"
+    return canAccess(sectionKey);
+  });
+
   const navItems = superAdmin
     ? [{ to: "/platform-admin", label: "Platform Admin", shortLabel: "PA", detail: "Super admin controls" }]
     : [
-        ...baseNavItems,
-        ...(getUserRole() === "ADMIN"
+        ...filteredBaseNavItems,
+        ...(getUserRole() === "ADMIN" && canAccess("team")
           ? [{ to: "/team", label: "Team", shortLabel: "TM", detail: "Manage organization members" }]
           : []),
       ];
