@@ -42,41 +42,69 @@ function UserPermissionsModal({ user, onClose, showToast }) {
   return (
     <div style={{
       position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
-      background: "rgba(0,0,0,.7)", backdropFilter: "blur(8px)",
+      background: "rgba(0,0,0,0.85)", backdropFilter: "blur(12px)",
       display: "grid", placeItems: "center", zIndex: 10000, padding: 20
     }}>
       <div style={{
-        background: "var(--color-surface)", border: "1px solid var(--color-border)",
-        borderRadius: 20, padding: 28, width: "100%", maxWidth: 440,
-        display: "flex", flexDirection: "column", gap: 20, boxShadow: "0 20px 50px rgba(0,0,0,0.3)"
+        background: "#1e293b", border: "1px solid rgba(255,255,255,0.1)",
+        borderRadius: 24, padding: 32, width: "100%", maxWidth: 480,
+        display: "flex", flexDirection: "column", gap: 24,
+        boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)",
+        color: "#f8fafc"
       }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>Manage Permissions</h3>
-          <button onClick={onClose} style={{ background: "transparent", border: "none", fontSize: 24, cursor: "pointer", color: "var(--color-text)", opacity: 0.5 }}>×</button>
+          <h3 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: "#fff", letterSpacing: "-0.02em" }}>Manage Permissions</h3>
+          <button onClick={onClose} style={{
+            background: "rgba(255,255,255,0.05)", border: "none", width: 32, height: 32,
+            borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center",
+            cursor: "pointer", color: "#fff", transition: "all 0.2s"
+          }} onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.15)"}
+             onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.05)"}>×</button>
         </div>
         
-        <p style={{ margin: 0, fontSize: 13, opacity: 0.6 }}>Enable or disable access to specific sections for <strong>{user.full_name || user.email}</strong>.</p>
+        <p style={{ margin: 0, fontSize: 14, color: "rgba(255,255,255,0.6)", lineHeight: 1.5 }}>
+          Enable or disable access to specific sections for <strong>{user.full_name || user.email}</strong>.
+          Disabled sections will be hidden from their view.
+        </p>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14, background: "rgba(255,255,255,0.03)", padding: 16, borderRadius: 12 }}>
+        <div style={{
+          display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12,
+          background: "rgba(0,0,0,0.2)", padding: 20, borderRadius: 16,
+          border: "1px solid rgba(255,255,255,0.05)"
+        }}>
           {SECTIONS.map(s => (
-            <label key={s} style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 14, cursor: "pointer", fontWeight: 500 }}>
+            <label key={s} style={{
+              display: "flex", alignItems: "center", gap: 12, fontSize: 14,
+              cursor: "pointer", fontWeight: 600, color: perms[s] ? "#fff" : "rgba(255,255,255,0.45)",
+              padding: "8px 10px", borderRadius: 10, transition: "all 0.2s",
+              background: perms[s] ? "rgba(255,255,255,0.03)" : "transparent"
+            }}>
               <input 
                 type="checkbox" 
                 checked={Boolean(perms[s])} 
                 onChange={() => setPerms(prev => ({ ...prev, [s]: !Boolean(prev[s]) }))}
-                style={{ width: 16, height: 16, accentColor: "var(--color-primary)" }}
+                style={{
+                  width: 18, height: 18, cursor: "pointer",
+                  accentColor: "var(--color-primary, #C9A34E)"
+                }}
               />
               {s.charAt(0).toUpperCase() + s.slice(1)}
             </label>
           ))}
         </div>
         
-        <div style={{ display: "flex", gap: 12, marginTop: 8 }}>
-          <button className="btn-gold" style={{ flex: 1, padding: "12px" }} onClick={() => save(perms)}>Save Permissions</button>
-          <button onClick={onClose} style={{ flex: 1, background: "transparent", border: "1px solid var(--color-border)", borderRadius: 10, color: "var(--color-text)", cursor: "pointer", fontWeight: 600 }}>Cancel</button>
+        <div style={{ display: "flex", gap: 12, marginTop: 4 }}>
+          <button className="btn-gold" style={{ flex: 2, padding: "14px", fontSize: 14, fontWeight: 700 }} onClick={() => save(perms)}>Save Changes</button>
+          <button onClick={onClose} style={{
+            flex: 1, background: "transparent", border: "1px solid rgba(255,255,255,0.1)",
+            borderRadius: 12, color: "rgba(255,255,255,0.7)", cursor: "pointer",
+            fontWeight: 600, fontSize: 14, transition: "all 0.2s"
+          }} onMouseEnter={e => e.currentTarget.style.borderColor = "rgba(255,255,255,0.2)"}
+             onMouseLeave={e => e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)"}>Cancel</button>
         </div>
       </div>
     </div>
+
   );
 }
 
@@ -427,14 +455,16 @@ function MemberRow({ member, currentUserId, onUpdated, onRemoved, onEditPerms })
             <button
               onClick={() => onEditPerms?.(member)}
               style={{
-                background: "rgba(201,163,78,0.12)", border: "1px solid rgba(201,163,78,0.25)",
-                borderRadius: 8, padding: "5px 12px", fontSize: 12, fontWeight: 700,
-                cursor: "pointer", color: "#C9A34E", transition: "all 0.15s",
+                background: "rgba(201,163,78,0.18)", color: "#C9A34E",
+                border: "1px solid rgba(201,163,78,0.4)", borderRadius: 10,
+                padding: "6px 14px", fontSize: 13, fontWeight: 800,
+                cursor: "pointer", display: "flex", alignItems: "center", gap: 6,
+                transition: "all 0.2s"
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(201,163,78,0.25)")}
-              onMouseLeave={(e) => (e.currentTarget.style.background = "rgba(201,163,78,0.12)")}
+              onMouseEnter={e => { e.currentTarget.style.background = "rgba(201,163,78,0.3)"; e.currentTarget.style.transform = "translateY(-1px)"; }}
+              onMouseLeave={e => { e.currentTarget.style.background = "rgba(201,163,78,0.18)"; e.currentTarget.style.transform = "translateY(0)"; }}
             >
-              Perms
+              🔐 Perms
             </button>
             <button
               onClick={handleStatusToggle}
