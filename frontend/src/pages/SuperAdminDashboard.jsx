@@ -324,7 +324,7 @@ function TabOrganizations({ orgs, onRefresh, showToast }) {
             </div>
           </div>
         ))}
-      </div>
+      </Card>
       {actioning?.type === "PERMS" && <OrgPermissionsModal org={actioning.org} onClose={() => setActioning(null)} showToast={showToast} />}
     </div>
   );
