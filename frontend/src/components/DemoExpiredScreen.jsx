@@ -1,12 +1,12 @@
 import React from "react";
 import { LogOut, CreditCard, MessageSquare } from "lucide-react";
-import { logout } from "../repositories/supabaseRepository";
+import { supabase } from "../services/supabaseClient";
 
 const DemoExpiredScreen = ({ demoExpiresAt }) => {
   const expiryDate = demoExpiresAt ? new Date(demoExpiresAt).toLocaleDateString() : "recently";
 
   const handleLogout = async () => {
-    await logout();
+    await supabase.auth.signOut();
     window.location.href = "/login";
   };
 
