@@ -1381,7 +1381,15 @@ const supabasePlatformApi = {
     if (error) throw error;
 
     const dataset = await getWorkspaceData();
-    const items = await Promise.all((data || []).map(item => mapCaseRecord(item.cases, dataset)));
+    // Unique by case ID to avoid duplicates in the UI
+    const uniqueCaseMap = new Map();
+    (data || []).forEach(item => {
+      if (item.cases && !uniqueCaseMap.has(item.cases.id)) {
+        uniqueCaseMap.set(item.cases.id, item.cases);
+      }
+    });
+
+    const items = await Promise.all(Array.from(uniqueCaseMap.values()).map(caseRecord => mapCaseRecord(caseRecord, dataset)));
     return { items, total: count || 0, page: safePage, pageSize: safePageSize };
   },
   addFollowUp: async (caseId, payload) => {

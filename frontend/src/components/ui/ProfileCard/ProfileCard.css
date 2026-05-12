@@ -60,7 +60,7 @@
 }
 
 .pc-card {
-  min-height: 480px;
+  min-height: 280px;
   height: 100%;
   display: grid;
   width: 100%;
@@ -79,12 +79,12 @@
 }
 @media (max-width: 768px) {
   .pc-card {
-    height: 420px;
+    min-height: 260px;
   }
 }
 @media (max-width: 480px) {
   .pc-card {
-    height: 380px;
+    min-height: 240px;
   }
 }
 
@@ -421,12 +421,12 @@
 .pc-details h3 {
   font-weight: 900;
   margin: 0;
-  font-size: 2.2rem;
+  font-size: 1.5rem;
   background: linear-gradient(to bottom, var(--color-text), var(--color-text-tertiary));
   -webkit-text-fill-color: transparent;
   background-clip: text;
   -webkit-background-clip: text;
-  letter-spacing: -1px;
+  letter-spacing: -0.5px;
 }
 @media (max-width: 480px) {
   .pc-details h3 {

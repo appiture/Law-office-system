@@ -528,7 +528,7 @@ function Dashboard() {
 
           <section className="dashboard-focus-grid">
             <div className="dashboard-left-column">
-              <div className="standard-card" style={{ minHeight: '320px', maxHeight: 'none' }}>
+              <div className="standard-card card-tall">
                 <div className="dashboard-panel-title">
                   <div>
                     <h3>Clients per month</h3>
@@ -547,7 +547,7 @@ function Dashboard() {
                 </div>
               </div>
               
-              <div className="standard-card" style={{ minHeight: '320px', maxHeight: 'none' }}>
+              <div className="standard-card card-tall">
                 <div className="dashboard-panel-title">
                   <div>
                     <h3>Fee Collections</h3>
@@ -567,7 +567,7 @@ function Dashboard() {
               </div>
             </div>
 
-            <div className="standard-card dashboard-calendar-card-full" style={{ minHeight: 'auto', maxHeight: 'none' }}>
+            <div className="standard-card card-auto dashboard-calendar-card-full">
               <div className="dashboard-calendar-card">
                 <div className="dashboard-calendar-header">
                   <button type="button" className="dashboard-month-nav" aria-label="Previous month" onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1))}>

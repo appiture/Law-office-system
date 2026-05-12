@@ -89,18 +89,30 @@ svg {
 
 .standard-card,
 .case-card,
-.metric-card,
 .form-card {
   position: relative;
   border-radius: var(--radius-lg);
   border: 1px solid var(--color-border);
   background: var(--color-card);
   min-height: 280px;
-  max-height: 280px;
+  height: 100%; /* Ensure it fills the grid cell */
   padding: 18px;
   overflow: hidden;
   display: flex;
   flex-direction: column;
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+
+.metric-card {
+  position: relative;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  background: var(--color-card);
+  min-height: 110px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 
@@ -116,6 +128,10 @@ svg {
 .card-auto {
   min-height: auto;
   max-height: none;
+}
+
+.card-tall {
+  min-height: 320px;
 }
 
 .card-scroll,
@@ -135,11 +151,20 @@ svg {
    LAYOUT & GRIDS
 =================================================== */
 
-.app-shell { display: flex; min-height: 100vh; }
+.app-shell { 
+  min-height: 100vh;
+}
+
+.app-content {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+}
 
 .app-main {
-  flex: 1;
-  margin-left: 260px;
+  min-width: 0; /* Prevent grid blowout */
   padding: var(--compact-padding);
   display: flex;
   flex-direction: column;
@@ -149,8 +174,9 @@ svg {
 
 .card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 16px;
+  align-items: stretch;
 }
 
 .page-header {
@@ -255,8 +281,7 @@ input:focus, select:focus, textarea:focus {
 
 .case-details-container {
   padding: 1rem 1.5rem 1.5rem;
-  max-width: 1600px;
-  margin: 0 auto;
+  width: 100%;
 }
 
 .case-card-heading h3 {

@@ -135,22 +135,6 @@ function AppShell({ title, subtitle, actions, children }) {
 
   return (
     <div className={`app-shell${sidebarOpen ? " sidebar-open" : ""}`} style={{ position: "relative", zIndex: 0, background: "transparent" }}>
-      {isDesktop && (
-        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, zIndex: -1, pointerEvents: "none", opacity: theme === "dark" ? 0.3 : 0.6 }}>
-          <DotGrid
-            baseColor={theme === "dark" ? "#64748B" : "#3A5BA0"}
-            activeColor={theme === "dark" ? "#C9A34E" : "#6C8EDC"}
-            dotSize={1.5}
-            gap={24}
-            proximity={150}
-            shockRadius={200}
-            shockStrength={4}
-            resistance={800}
-            returnDuration={1.2}
-          />
-        </div>
-      )}
-
       <button
         type="button"
         className="app-sidebar-backdrop"
@@ -275,6 +259,21 @@ function AppShell({ title, subtitle, actions, children }) {
           <p>for queries contact <a href="https://www.appiture.in" target="_blank" rel="noopener noreferrer">www.appiture.in</a></p>
         </footer>
       </main>
+      {isDesktop && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, zIndex: -1, pointerEvents: "none", opacity: theme === "dark" ? 0.3 : 0.6 }}>
+          <DotGrid
+            baseColor={theme === "dark" ? "#64748B" : "#3A5BA0"}
+            activeColor={theme === "dark" ? "#C9A34E" : "#6C8EDC"}
+            dotSize={1.5}
+            gap={24}
+            proximity={150}
+            shockRadius={200}
+            shockStrength={4}
+            resistance={800}
+            returnDuration={1.2}
+          />
+        </div>
+      )}
     </div>
   );
 }

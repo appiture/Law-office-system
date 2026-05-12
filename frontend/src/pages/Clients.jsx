@@ -179,14 +179,14 @@ function Clients() {
         </div>
       )}
 
-      <section className="clients-grid premium-grid">
+      <section className="card-grid">
         {!hasLoaded && <EmptyState label="Use the filters above to load clients." />}
         {loading && <LoadingState label="Loading clients..." />}
         {hasLoaded && !loading && clients.map((client) => {
           const photoUrl = getPersistentAssetUrl(client.photoUrl, "https://placehold.co/120x120/png?text=Client");
           return (
             <div key={client.id} className="premium-client-card-wrapper">
-              <div className="standard-card client-card-item" style={{ minHeight: '420px', maxHeight: 'none' }}>
+              <div className="standard-card client-card-item">
                 <div className="premium-client-card-inner">
                   <ProfileCard
                     name={client.name}

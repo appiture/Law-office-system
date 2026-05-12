@@ -1,12 +1,10 @@
-/* ===== FULL PAGE FIX ===== */
 .clients-container {
   width: 100%;
-  padding: 30px;
+  padding: 0;
   box-sizing: border-box;
   background: var(--color-bg);
   position: relative;
   isolation: isolate;
-  font-family: "Inter", "Manrope", sans-serif;
 }
 
 .clients-container::before,
@@ -57,30 +55,7 @@
   box-shadow: 0 12px 30px var(--color-shadow-strong);
 }
 
-/* ===== GRID ===== */
-.clients-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
-  gap: 14px;
-  align-items: stretch;
-}
-
-.premium-grid {
-  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: var(--compact-gap);
-  padding: 1rem 0;
-}
-
-@media (max-width: 480px) {
-  .premium-grid {
-    grid-template-columns: 1fr;
-    gap: 2rem;
-  }
-}
-
-.premium-client-card-wrapper {
-  height: 100%;
-}
+/* Removed redundant grids — now using global .card-grid */
 
 .premium-client-card-inner {
   display: flex;
