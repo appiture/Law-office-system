@@ -12,6 +12,7 @@ import {
   splitOtherSelection,
 } from "../utils/validation";
 import { formatDateTime } from "../utils/formatters";
+import { getUserRole } from "../services/authService";
 import "./formStyles.css";
 
 const CASE_TYPES = [
@@ -64,7 +65,7 @@ function FG({ label, required, hint, className, children }) {
 }
 
 // ── Case Modal ────────────────────────────────────────────────
-function CaseModal({ clients, lawyers = [], editCase, onClose, onSaved }) {
+function CaseModal({ clients, lawyers = [], editCase, onClose, onSaved, canAssignLawyer }) {
   const isEdit = Boolean(editCase);
   const [form, setForm] = useState(() =>
     editCase ? {
@@ -176,8 +177,9 @@ function CaseModal({ clients, lawyers = [], editCase, onClose, onSaved }) {
               <FG label="Presiding Judge">
                 <input value={form.judgeName} onChange={e => set("judgeName", e.target.value)} placeholder="e.g. Hon. Justice R. Sharma" />
               </FG>
-              <FG label="Assigned Lawyer">
+              <FG label="Assigned Lawyer" hint={!canAssignLawyer ? "Only administrators can change the assigned lawyer." : ""}>
                 <select
+                  disabled={!canAssignLawyer}
                   value={form.assigned_lawyer_id || ""}
                   onChange={(e) => {
                     const selectedLawyer = lawyers.find(l => String(l.id) === String(e.target.value));
@@ -261,6 +263,9 @@ function StatusBadge({ status }) {
 // ── Cases Page ────────────────────────────────────────────────
 function Cases() {
   const [searchParams] = useSearchParams();
+  const userRole = getUserRole();
+  const isAdmin = userRole === "ADMIN" || userRole === "SUPER_ADMIN" || userRole === "OWNER";
+
   const [clients, setClients] = useState([]);
   const [lawyers, setLawyers] = useState([]);
   const [cases,   setCases]   = useState([]);
@@ -442,6 +447,7 @@ function Cases() {
           editCase={editingCase}
           onClose={closeModal}
           onSaved={loadData}
+          canAssignLawyer={isAdmin}
         />
       )}
     </AppShell>

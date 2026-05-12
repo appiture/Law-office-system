@@ -60,14 +60,14 @@
 /* ===== GRID ===== */
 .clients-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(340px, 1fr));
-  gap: 28px;
+  grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
+  gap: 14px;
   align-items: stretch;
 }
 
 .premium-grid {
   grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-  gap: 2rem;
+  gap: var(--compact-gap);
   padding: 1rem 0;
 }
 
@@ -308,21 +308,15 @@
 
 /* ===== CARD ===== */
 .client-card {
+  position: relative;
   background: var(--color-card);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
-  border-radius: 24px;
-  padding: 32px;
-  box-shadow: 0 8px 32px var(--color-shadow);
   border: 1px solid var(--color-border);
+  border-radius: 20px;
+  padding: 18px;
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-  width: auto;
-  min-width: 0;
-  min-height: 420px;
-  position: relative;
+  gap: 14px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   overflow: hidden;
 }
 
@@ -786,7 +780,7 @@
 
 @media (max-width: 760px) {
   .clients-container {
-    padding: 16px;
+    padding: 1.25rem;
   }
 
   .client-card {

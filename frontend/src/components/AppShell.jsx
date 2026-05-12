@@ -29,6 +29,7 @@ const baseNavItems = [
 
 function AppShell({ title, subtitle, actions, children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [isDesktop, setIsDesktop] = useState(window.innerWidth > 980);
   
   const [organizationName, setOrganizationName] = useState(getOrganizationName());
   const [organizationLogo, setOrganizationLogo] = useState(getOrganizationLogoUrl());
@@ -46,7 +47,9 @@ function AppShell({ title, subtitle, actions, children }) {
     checkAdminStatus({ force: true }).then(({ isPlatformAdmin: isAdmin }) => setSuperAdmin(isAdmin)).catch(() => {});
 
     const handleResize = () => {
-      if (window.innerWidth > 980) {
+      const desktop = window.innerWidth > 980;
+      setIsDesktop(desktop);
+      if (desktop) {
         setSidebarOpen(false);
       }
     };
@@ -84,11 +87,17 @@ function AppShell({ title, subtitle, actions, children }) {
   });
 
   const navItems = superAdmin
-    ? [{ to: "/platform-admin", label: "Platform Admin", shortLabel: "PA", detail: "Super admin controls" }]
+    ? [
+        { to: "/platform-admin", label: "Platform Admin", shortLabel: "PA", detail: "Super admin controls" },
+        { to: "/system-audit", label: "Audit Logs", shortLabel: "AL", detail: "System history" }
+      ]
     : [
         ...filteredBaseNavItems,
         ...(getUserRole() === "ADMIN" && canAccess("team")
-          ? [{ to: "/team", label: "Team", shortLabel: "TM", detail: "Manage organization members" }]
+          ? [
+              { to: "/team", label: "Team", shortLabel: "TM", detail: "Manage organization members" },
+              { to: "/system-audit", label: "Audit Logs", shortLabel: "AL", detail: "Organization history" }
+            ]
           : []),
       ];
 
@@ -126,19 +135,21 @@ function AppShell({ title, subtitle, actions, children }) {
 
   return (
     <div className={`app-shell${sidebarOpen ? " sidebar-open" : ""}`} style={{ position: "relative", zIndex: 0, background: "transparent" }}>
-      <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, zIndex: -1, pointerEvents: "none", opacity: theme === "dark" ? 0.3 : 0.6 }}>
-        <DotGrid
-          baseColor={theme === "dark" ? "#64748B" : "#3A5BA0"}
-          activeColor={theme === "dark" ? "#C9A34E" : "#6C8EDC"}
-          dotSize={1.5}
-          gap={24}
-          proximity={150}
-          shockRadius={200}
-          shockStrength={4}
-          resistance={800}
-          returnDuration={1.2}
-        />
-      </div>
+      {isDesktop && (
+        <div style={{ position: "fixed", top: 0, left: 0, right: 0, bottom: 0, zIndex: -1, pointerEvents: "none", opacity: theme === "dark" ? 0.3 : 0.6 }}>
+          <DotGrid
+            baseColor={theme === "dark" ? "#64748B" : "#3A5BA0"}
+            activeColor={theme === "dark" ? "#C9A34E" : "#6C8EDC"}
+            dotSize={1.5}
+            gap={24}
+            proximity={150}
+            shockRadius={200}
+            shockStrength={4}
+            resistance={800}
+            returnDuration={1.2}
+          />
+        </div>
+      )}
 
       <button
         type="button"

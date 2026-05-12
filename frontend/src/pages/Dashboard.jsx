@@ -7,11 +7,10 @@ import { supabasePlatformApi as platformApi } from "../repositories/supabaseRepo
 import { getCache, setCache } from "../lib/cache";
 import { currency, formatDate } from "../utils/formatters";
 import { isLawyerFeeLabel } from "../utils/caseDomain";
-import { getOrganizationId, getUserId } from "../services/authService";
+import { getOrganizationId, getUserId, isDemo, getDemoExpiresAt } from "../services/authService";
 import { TrendAreaChart } from "../components/DashboardCharts";
 import DashboardSearchResults from "../components/DashboardSearchResults";
 import { useTheme } from "../context/ThemeContext";
-import BorderGlow from "../components/ui/BorderGlow/BorderGlow";
 import { isOrgAdmin } from "../services/adminService";
 import { sendMonthlyReport } from "../services/adminService";
 import dayjs from "dayjs";
@@ -297,8 +296,23 @@ function Dashboard() {
         });
       });
     });
+    
+    calendarEvents.forEach((evt) => {
+      collection.push({
+        id: evt.id,
+        type: evt.event_type === "note" ? "Note" : evt.event_type.charAt(0).toUpperCase() + evt.event_type.slice(1),
+        title: evt.title,
+        date: evt.event_date,
+        key: toDateKey(evt.event_date),
+        color: evt.color,
+        isManualEvent: true,
+        client: "",
+        caseNumber: "",
+      });
+    });
+
     return collection.filter((event) => event.key).sort((left, right) => new Date(left.date) - new Date(right.date));
-  }, [cases]);
+  }, [cases, calendarEvents]);
 
   const searchMatches = useCallback(
     (...values) => {
@@ -395,6 +409,11 @@ function Dashboard() {
     { label: "Lawyer Fees Due", value: currency(Number(finance.lawyerFeesDue || 0)) },
   ];
 
+  const demoExpiresAt = getDemoExpiresAt();
+  const demoRemainingMs = demoExpiresAt ? new Date(demoExpiresAt) - new Date() : 0;
+  const demoRemainingDays = Math.max(0, Math.ceil(demoRemainingMs / (1000 * 60 * 60 * 24)));
+  const isDemoMode = isDemo();
+
   return (
     <AppShell
       title="Dashboard"
@@ -424,7 +443,7 @@ function Dashboard() {
             Notifications ({priorityQueue.length + cashChecklist.length})
           </button>
           <Link to="/tasks" className="btn-gold dashboard-task-link">
-            Tasks
+            Upcoming Follow-Ups
           </Link>
           {isOrgAdmin() && (
             <div className="dashboard-report-group">
@@ -467,6 +486,27 @@ function Dashboard() {
       </div>
       {error && <div className="form-error-banner" style={{ marginBottom: 16 }}>{error}</div>}
 
+      {isDemoMode && demoExpiresAt && (
+        <div className="demo-countdown-banner" style={{
+          backgroundColor: "rgba(255, 107, 53, 0.1)",
+          border: "1px solid rgba(255, 107, 53, 0.3)",
+          color: "#FF6B35",
+          padding: "12px 16px",
+          borderRadius: "8px",
+          marginBottom: "24px",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between"
+        }}>
+          <div>
+            <strong>Trial Mode Active:</strong> You have {demoRemainingDays} days remaining in your trial.
+          </div>
+          <Link to="/settings" className="btn-gold" style={{ padding: "6px 12px", fontSize: "14px" }}>
+            Upgrade Now
+          </Link>
+        </div>
+      )}
+
       {dashboardSearch ? (
         <DashboardSearchResults
           query={dashboardSearch}
@@ -479,158 +519,132 @@ function Dashboard() {
         <>
           <section className="dashboard-kpi-row">
             {kpis.map((item) => (
-              <div key={item.label} className="dashboard-kpi-card-wrapper">
-                <BorderGlow 
-                  borderRadius={20} 
-                  glowIntensity={0.5} 
-                  glowRadius={20} 
-                  continuous={true}
-                  backgroundColor="var(--color-card)"
-                >
-                  <div className="dashboard-kpi-card">
-                    <span>{item.label}</span>
-                    <strong>{item.value}</strong>
-                  </div>
-                </BorderGlow>
+              <div key={item.label} className="metric-card">
+                <h4>{item.label}</h4>
+                <strong>{item.value}</strong>
               </div>
             ))}
           </section>
 
           <section className="dashboard-focus-grid">
             <div className="dashboard-left-column">
-              <BorderGlow 
-                borderRadius={24} 
-                glowIntensity={0.5} 
-                glowRadius={30} 
-                className="chart-glow-wrapper"
-                backgroundColor="var(--color-card)"
-                continuous={true}
-              >
-                <div className="dashboard-chart-card">
-                  <div className="dashboard-panel-title">
-                    <div>
-                      <h3>Clients per month</h3>
-                      <span>Last {clientChartRange} months</span>
-                    </div>
-                    <div className="dashboard-filter-pills">
-                      {[3, 6, 12].map((range) => (
-                        <button key={range} type="button" className={clientChartRange === range ? "active" : ""} onClick={() => setClientChartRange(range)}>
-                          {range}M
-                        </button>
-                      ))}
-                    </div>
+              <div className="standard-card" style={{ minHeight: '320px', maxHeight: 'none' }}>
+                <div className="dashboard-panel-title">
+                  <div>
+                    <h3>Clients per month</h3>
+                    <span>Last {clientChartRange} months</span>
                   </div>
-                  <TrendAreaChart data={clientsPerMonth} valueFormatter={(value) => `${value}`} emptyMessage="No client trend data." />
-                </div>
-              </BorderGlow>
-              
-              <BorderGlow 
-                borderRadius={24} 
-                glowIntensity={0.5} 
-                glowRadius={30} 
-                className="chart-glow-wrapper"
-                backgroundColor="var(--color-card)"
-                continuous={true}
-              >
-                <div className="dashboard-chart-card">
-                  <div className="dashboard-panel-title">
-                    <div>
-                      <h3>Fee Collections</h3>
-                      <span>Last {feeChartRange} months</span>
-                    </div>
-                    <div className="dashboard-filter-pills">
-                      {[3, 6, 12].map((range) => (
-                        <button key={range} type="button" className={feeChartRange === range ? "active" : ""} onClick={() => setFeeChartRange(range)}>
-                          {range}M
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <TrendAreaChart data={paymentsPerMonth} valueFormatter={currency} emptyMessage="No fee collections recorded yet." />
-                </div>
-              </BorderGlow>
-            </div>
-
-            <aside className="dashboard-calendar-card-wrapper">
-              <BorderGlow borderRadius={24} glowIntensity={0.5} glowRadius={30}>
-                <div className="dashboard-calendar-card">
-                  <div className="dashboard-calendar-header">
-                    <button type="button" className="dashboard-month-nav" aria-label="Previous month" onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1))}>
-                      &lt;
-                    </button>
-                    <div className="dashboard-month-picker">
-                      <select
-                        value={calendarMonth.getMonth()}
-                        onChange={(event) => setCalendarMonth(new Date(calendarMonth.getFullYear(), Number(event.target.value), 1))}
-                      >
-                        {MONTH_NAMES.map((month, index) => (
-                          <option key={month} value={index}>{month}</option>
-                        ))}
-                      </select>
-                      <select
-                        value={calendarMonth.getFullYear()}
-                        onChange={(event) => setCalendarMonth(new Date(Number(event.target.value), calendarMonth.getMonth(), 1))}
-                      >
-                        {Array.from({ length: 9 }, (_, index) => new Date().getFullYear() - 4 + index).map((year) => (
-                          <option key={year} value={year}>{year}</option>
-                        ))}
-                      </select>
-                    </div>
-                    <button type="button" className="dashboard-month-nav" aria-label="Next month" onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1))}>
-                      &gt;
-                    </button>
-                  </div>
-                  <div className="dashboard-calendar-filters">
-                    {["all", "hearing", "deadline", "follow-up"].map((type) => (
-                      <button key={type} type="button" className={calendarType === type ? "active" : ""} onClick={() => setCalendarType(type)}>
-                        {type === "all" ? "All" : type}
+                  <div className="dashboard-filter-pills">
+                    {[3, 6, 12].map((range) => (
+                      <button key={range} type="button" className={clientChartRange === range ? "active" : ""} onClick={() => setClientChartRange(range)}>
+                        {range}M
                       </button>
                     ))}
                   </div>
-                  <div className="dashboard-calendar-grid">
-                    {DAY_LABELS.map((label) => (
-                      <div key={label} className="dashboard-calendar-label">{label}</div>
-                    ))}
-                    {calendarDays.map((cell) => {
-                      if (cell.blank) {
-                        return <div key={cell.key} className="dashboard-calendar-cell is-blank" />;
-                      }
-
-                      const caseEventsCount = cell.events.filter(e => e.type === "Hearing" || e.type === "Follow-up").length;
-                      const feeEventsCount = cell.events.filter(e => e.type === "Deadline").length;
-                      const calendarEventCount = calendarEvents.filter(e => e.event_date === cell.key).length;
-
-                      return (
-                        <button
-                          type="button"
-                          key={cell.key}
-                          className={`dashboard-calendar-cell ${cell.isToday ? "is-today" : ""}`}
-                          onClick={() => handleDateClick(cell.key)}
-                        >
-                          <span>{cell.day}</span>
-                          <div className="dashboard-calendar-badges">
-                            {caseEventsCount > 0 && <em className="badge-case" title="Case Events">{caseEventsCount}</em>}
-                            {feeEventsCount > 0 && <em className="badge-fee" title="Fee Deadlines">{feeEventsCount}</em>}
-                            {calendarEventCount > 0 && <em className="badge-note" title="Notes">{calendarEventCount}</em>}
-                          </div>
-                        </button>
-                      );
-                    })}
+                </div>
+                <div className="card-scroll">
+                  <TrendAreaChart data={clientsPerMonth} valueFormatter={(value) => `${value}`} emptyMessage="No client trend data." />
+                </div>
+              </div>
+              
+              <div className="standard-card" style={{ minHeight: '320px', maxHeight: 'none' }}>
+                <div className="dashboard-panel-title">
+                  <div>
+                    <h3>Fee Collections</h3>
+                    <span>Last {feeChartRange} months</span>
                   </div>
-                  <div className="dashboard-calendar-legend">
-                    <div className="legend-item">
-                      <div className="legend-dot case-dot" /> Case Events
-                    </div>
-                    <div className="legend-item">
-                      <div className="legend-dot fee-dot" /> Fee Deadlines
-                    </div>
-                    <div className="legend-item">
-                      <div className="legend-dot note-dot" /> Notes
-                    </div>
+                  <div className="dashboard-filter-pills">
+                    {[3, 6, 12].map((range) => (
+                      <button key={range} type="button" className={feeChartRange === range ? "active" : ""} onClick={() => setFeeChartRange(range)}>
+                        {range}M
+                      </button>
+                    ))}
                   </div>
                 </div>
-              </BorderGlow>
-            </aside>
+                <div className="card-scroll">
+                  <TrendAreaChart data={paymentsPerMonth} valueFormatter={currency} emptyMessage="No fee collections recorded yet." />
+                </div>
+              </div>
+            </div>
+
+            <div className="standard-card dashboard-calendar-card-full" style={{ minHeight: 'auto', maxHeight: 'none' }}>
+              <div className="dashboard-calendar-card">
+                <div className="dashboard-calendar-header">
+                  <button type="button" className="dashboard-month-nav" aria-label="Previous month" onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1))}>
+                    &lt;
+                  </button>
+                  <div className="dashboard-month-picker">
+                    <select
+                      value={calendarMonth.getMonth()}
+                      onChange={(event) => setCalendarMonth(new Date(calendarMonth.getFullYear(), Number(event.target.value), 1))}
+                    >
+                      {MONTH_NAMES.map((month, index) => (
+                        <option key={month} value={index}>{month}</option>
+                      ))}
+                    </select>
+                    <select
+                      value={calendarMonth.getFullYear()}
+                      onChange={(event) => setCalendarMonth(new Date(Number(event.target.value), calendarMonth.getMonth(), 1))}
+                    >
+                      {Array.from({ length: 9 }, (_, index) => new Date().getFullYear() - 4 + index).map((year) => (
+                        <option key={year} value={year}>{year}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <button type="button" className="dashboard-month-nav" aria-label="Next month" onClick={() => setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1))}>
+                    &gt;
+                  </button>
+                </div>
+                <div className="dashboard-calendar-filters">
+                  {["all", "hearing", "deadline", "follow-up"].map((type) => (
+                    <button key={type} type="button" className={calendarType === type ? "active" : ""} onClick={() => setCalendarType(type)}>
+                      {type === "all" ? "All" : type}
+                    </button>
+                  ))}
+                </div>
+                <div className="dashboard-calendar-grid">
+                  {DAY_LABELS.map((label) => (
+                    <div key={label} className="dashboard-calendar-label">{label}</div>
+                  ))}
+                  {calendarDays.map((cell) => {
+                    if (cell.blank) {
+                      return <div key={cell.key} className="dashboard-calendar-cell is-blank" />;
+                    }
+
+                    const caseEventsCount = cell.events.filter(e => e.type === "Hearing" || e.type === "Follow-up").length;
+                    const feeEventsCount = cell.events.filter(e => e.type === "Deadline").length;
+                    const calendarEventCount = calendarEvents.filter(e => e.event_date === cell.key).length;
+
+                    return (
+                      <button
+                        type="button"
+                        key={cell.key}
+                        className={`dashboard-calendar-cell ${cell.isToday ? "is-today" : ""}`}
+                        onClick={() => handleDateClick(cell.key)}
+                      >
+                        <span>{cell.day}</span>
+                        <div className="dashboard-calendar-badges">
+                          {caseEventsCount > 0 && <em className="badge-case" title="Case Events">{caseEventsCount}</em>}
+                          {feeEventsCount > 0 && <em className="badge-fee" title="Fee Deadlines">{feeEventsCount}</em>}
+                          {calendarEventCount > 0 && <em className="badge-note" title="Notes">{calendarEventCount}</em>}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+                <div className="dashboard-calendar-legend">
+                  <div className="legend-item">
+                    <div className="legend-dot case-dot" /> Case Events
+                  </div>
+                  <div className="legend-item">
+                    <div className="legend-dot fee-dot" /> Fee Deadlines
+                  </div>
+                  <div className="legend-item">
+                    <div className="legend-dot note-dot" /> Notes
+                  </div>
+                </div>
+              </div>
+            </div>
           </section>
         </>
       )}

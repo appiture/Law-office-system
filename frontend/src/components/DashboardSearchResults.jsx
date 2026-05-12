@@ -93,26 +93,7 @@ function DashboardSearchResults({ query, cases, tasks, putUpDates, onResultClick
     });
   }, [tasks, normalizedQuery]);
 
-  // 4. Filter Follow-ups
-  const matchedFollowUps = useMemo(() => {
-    return cases.flatMap((legalCase) =>
-      (legalCase.followUps || []).map((followUp) => ({
-        ...followUp,
-        caseId: legalCase.id,
-        caseNumber: legalCase.caseNumber,
-        clientName: legalCase.client?.name || "",
-      }))
-    ).filter((followUp) => {
-      return (
-        String(followUp.title || "").toLowerCase().includes(normalizedQuery) ||
-        String(followUp.type || "").toLowerCase().includes(normalizedQuery) ||
-        String(followUp.notes || "").toLowerCase().includes(normalizedQuery) ||
-        String(followUp.status || "").toLowerCase().includes(normalizedQuery) ||
-        String(followUp.caseNumber || "").toLowerCase().includes(normalizedQuery) ||
-        String(followUp.clientName || "").toLowerCase().includes(normalizedQuery)
-      );
-    });
-  }, [cases, normalizedQuery]);
+
 
   // 6. Filter Payment History
   const matchedPayments = useMemo(() => {
@@ -155,24 +136,12 @@ function DashboardSearchResults({ query, cases, tasks, putUpDates, onResultClick
     });
   }, [cases, normalizedQuery]);
 
-  // 8. Filter Court Dates
-  const matchedDates = useMemo(() => {
-    return putUpDates.filter((p) => {
-      const legalCase = getEventCase(p);
-      return (
-        String(getEventTitle(p)).toLowerCase().includes(normalizedQuery) ||
-        String(p.type || "").toLowerCase().includes(normalizedQuery) ||
-        String(p.notes || "").toLowerCase().includes(normalizedQuery) ||
-        String(legalCase?.caseNumber || "").toLowerCase().includes(normalizedQuery) ||
-        String(legalCase?.client?.name || "").toLowerCase().includes(normalizedQuery)
-      );
-    });
-  }, [putUpDates, normalizedQuery]);
+
 
   const totalResults =
     (canViewClients ? matchedClients.length : 0) +
     (canViewCases ? matchedCases.length : 0) +
-    (canViewFollowUps ? matchedTasks.length + matchedFollowUps.length + matchedDates.length : 0) +
+    (canViewFollowUps ? matchedTasks.length : 0) +
     (canViewPayments ? matchedPayments.length + matchedCharges.length : 0);
 
   if (totalResults === 0) {
@@ -239,7 +208,7 @@ function DashboardSearchResults({ query, cases, tasks, putUpDates, onResultClick
         {/* Tasks Section */}
         {canViewFollowUps && matchedTasks.length > 0 && (
           <div className="search-section">
-            <h3 className="section-title">📝 Action Items ({matchedTasks.length})</h3>
+            <h3 className="section-title">📝 Tasks & Follow-ups ({matchedTasks.length})</h3>
             <div className="results-list">
               {matchedTasks.map((t) => (
                 <Link key={t.id} to={getEventLink(t)} className="result-card premium-glass" onClick={onResultClick}>
@@ -256,25 +225,6 @@ function DashboardSearchResults({ query, cases, tasks, putUpDates, onResultClick
           </div>
         )}
 
-        {/* Follow-ups Section */}
-        {canViewFollowUps && matchedFollowUps.length > 0 && (
-          <div className="search-section">
-            <h3 className="section-title">📅 Follow-ups ({matchedFollowUps.length})</h3>
-            <div className="results-list">
-              {matchedFollowUps.map((followUp) => (
-                <Link key={followUp.id} to={`/cases/${followUp.caseId}?focus=followup&followupId=${encodeURIComponent(followUp.id)}#followup-${followUp.id}`} className="result-card premium-glass" onClick={onResultClick}>
-                  <div className="result-main">
-                    <strong>{followUp.title}</strong>
-                    <p className="result-sub">{followUp.type} • {followUp.caseNumber} • {followUp.clientName}</p>
-                  </div>
-                  <div className="result-side">
-                    <span className={`status-badge ${String(followUp.status).toLowerCase()}`}>{followUp.status}</span>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </div>
-        )}
 
         {/* Payments Section */}
         {canViewPayments && matchedPayments.length > 0 && (
@@ -316,25 +266,7 @@ function DashboardSearchResults({ query, cases, tasks, putUpDates, onResultClick
           </div>
         )}
 
-        {/* Court Dates Section */}
-        {canViewFollowUps && matchedDates.length > 0 && (
-          <div className="search-section">
-            <h3 className="section-title">🏛 Court Dates ({matchedDates.length})</h3>
-            <div className="results-list">
-              {matchedDates.map((p) => (
-                <Link key={p.id} to={getEventLink(p)} className="result-card premium-glass" onClick={onResultClick}>
-                  <div className="result-main">
-                    <strong>{getEventTitle(p)}</strong>
-                    <p className="result-sub">{getEventCase(p)?.caseNumber} • {getEventCase(p)?.client?.name}</p>
-                  </div>
-                  <div className="result-side">
-                    <span className="date-pill">{formatDate(getEventDate(p))}</span>
-                  </div>
-                </Link>
-              ))}
-            </div>
-          </div>
-        )}
+
       </div>
     </div>
   );

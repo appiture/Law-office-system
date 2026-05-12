@@ -14,7 +14,7 @@ import { isPlatformAdmin, checkAdminStatus } from "../services/adminService";
 import { usePermissions } from "../context/PermissionsContext";
 import DemoExpiredScreen from "./DemoExpiredScreen";
 
-function ProtectedRoute({ children, section }) {
+function ProtectedRoute({ children, section, requirePlatformAdmin = false }) {
   const location = useLocation();
   const hasCachedAccess = isAuthenticated() && (canAccessWorkspace() || isPlatformAdmin());
   const [ready, setReady]                 = useState(hasCachedAccess);
@@ -81,19 +81,28 @@ function ProtectedRoute({ children, section }) {
     return <Navigate to="/reset-password" replace />;
   }
 
+  // Explicit platform admin route protection
+  if (requirePlatformAdmin && !isAdmin) {
+    return <Navigate to="/" replace />;
+  }
+
+  // Path-based fallback for platform admin routes just in case
+  if (location.pathname.startsWith("/platform-admin") && !isAdmin) {
+    return <Navigate to="/" replace />;
+  }
+  
+  if (location.pathname.startsWith("/system-audit") && !isAdmin) {
+    return <Navigate to="/" replace />;
+  }
+
   // Platform admin with no workspace → send directly to their portal
-  if (isAdmin && !canAccessWorkspace() && location.pathname !== "/platform-admin") {
+  if (isAdmin && !canAccessWorkspace() && !location.pathname.startsWith("/platform-admin") && !location.pathname.startsWith("/system-audit")) {
     return <Navigate to="/platform-admin" replace />;
   }
 
   // Demo expired block (only platform admins are exempt)
   if (isExpired && !isAdmin) {
     return <DemoExpiredScreen demoExpiresAt={getDemoExpiresAt()} />;
-  }
-
-  // Explicit platform admin route protection
-  if (location.pathname.startsWith("/platform-admin") && !isAdmin) {
-    return <Navigate to="/" replace />;
   }
 
   // Regular user whose org is not yet approved

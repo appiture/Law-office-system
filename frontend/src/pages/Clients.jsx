@@ -7,7 +7,6 @@ import MultiStepClientWizard from "../components/MultiStepClientWizard";
 import ControlledSearchPanel, { EmptyState, ErrorState, LoadingState, PaginationControls } from "../components/ControlledSearchPanel";
 import { supabasePlatformApi as platformApi } from "../repositories/supabaseRepository";
 import { getPersistentAssetUrl } from "../services/storageService";
-import { ParticleCard } from "../components/ui/MagicBento/MagicBento";
 import "./Clients.css";
 import "./formStyles.css";
 
@@ -187,13 +186,7 @@ function Clients() {
           const photoUrl = getPersistentAssetUrl(client.photoUrl, "https://placehold.co/120x120/png?text=Client");
           return (
             <div key={client.id} className="premium-client-card-wrapper">
-              <ParticleCard 
-                className="magic-bento-card magic-bento-card--border-glow client-card-item"
-                enableTilt={false}
-                enableMagnetism={false}
-                glowColor="201, 163, 78"
-                particleCount={0}
-              >
+              <div className="standard-card client-card-item" style={{ minHeight: '420px', maxHeight: 'none' }}>
                 <div className="premium-client-card-inner">
                   <ProfileCard
                     name={client.name}
@@ -260,7 +253,7 @@ function Clients() {
                     </div>
                   </div>
                 </div>
-              </ParticleCard>
+              </div>
             </div>
           );
         })}

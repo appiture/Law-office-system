@@ -148,7 +148,24 @@ export const recordAuditEvent = async (params: {
       metadata: params.metadata || {},
     });
     if (error) {
-      console.warn("[recordAuditEvent] RPC error (non-critical):", error.code, error.message);
+      console.warn("[recordAuditEvent] old RPC error (non-critical):", error.code, error.message);
+    }
+
+    const { error: sysError } = await adminClient.rpc("log_system_event", {
+      p_organization_id: params.organizationId || null,
+      p_actor_id: params.actorId || null,
+      p_actor_email: params.actorEmail || null,
+      p_actor_role: null,
+      p_entity_type: params.targetType || null,
+      p_entity_id: params.targetId || null,
+      p_entity_name: params.targetEmail || null,
+      p_action_type: params.action,
+      p_module: "edge_function",
+      p_description: `Severity: ${params.severity || "INFO"}`,
+      p_metadata: { ...params.metadata, ipAddress: params.ipAddress, userAgent: params.userAgent }
+    });
+    if (sysError) {
+      console.warn("[log_system_event] new RPC error:", sysError.code, sysError.message);
     }
   } catch (e) {
     console.warn("[recordAuditEvent] Exception (non-critical):", e instanceof Error ? e.message : e);

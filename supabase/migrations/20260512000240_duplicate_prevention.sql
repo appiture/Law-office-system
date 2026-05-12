@@ -2,6 +2,9 @@
 -- Adds unique constraints to prevent duplicate data
 
 alter table public.cases
+drop constraint if exists unique_case_number_per_org;
+
+alter table public.cases
 add constraint unique_case_number_per_org
 unique (
     organization_id,

@@ -337,7 +337,7 @@ function FollowUps() {
 
   return (
     <AppShell
-      title="Follow-ups"
+      title="Upcoming Follow-Ups"
       subtitle="Timeline of hearings, deadlines, judgments, and notes — colour-coded by urgency."
       actions={
         <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>

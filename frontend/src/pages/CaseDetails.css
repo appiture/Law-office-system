@@ -1,18 +1,48 @@
 .case-details-container {
-  padding: 1rem 2.5rem 2.5rem;
+  padding: 1rem 1.5rem 1.5rem;
   max-width: 1600px;
   margin: 0 auto;
 }
 
-.case-details-bento {
+.case-details-bento,
+.case-details-grid {
+  display: grid;
+  grid-template-columns: repeat(1, 1fr);
+  gap: var(--compact-gap);
   margin-top: 0.5rem;
+}
+
+@media (min-width: 768px) {
+  .case-details-grid {
+    grid-template-columns: repeat(6, 1fr);
+  }
+
+  .magic-bento-card--profile,
+  .standard-card.magic-bento-card--profile {
+    grid-column: span 2;
+  }
+
+  .magic-bento-card--details,
+  .standard-card.magic-bento-card--details {
+    grid-column: span 4;
+  }
+
+  .magic-bento-card--full,
+  .standard-card.magic-bento-card--full {
+    grid-column: span 6;
+  }
+  
+  .magic-bento-card--half,
+  .standard-card.magic-bento-card--half {
+    grid-column: span 3;
+  }
 }
 
 /* Detail Navigation Styling */
 .detail-section-nav {
   display: flex;
   gap: 1.5rem;
-  padding: 0.85rem 2.5rem;
+  padding: 0.5rem 1rem;
   background: rgba(255, 255, 255, 0.03);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
@@ -69,7 +99,7 @@
 .case-info-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-  gap: 2rem;
+  gap: 1.25rem;
 }
 
 .info-rows {
@@ -82,14 +112,14 @@
 .financial-mini-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 1rem;
+  gap: 0.75rem;
   margin-top: auto;
 }
 
 .mini-stat {
   display: flex;
   flex-direction: column;
-  padding: 1rem;
+  padding: 0.75rem;
   background: var(--color-bg-tertiary);
   border-radius: 12px;
   border: 1px solid var(--color-border);

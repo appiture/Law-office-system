@@ -195,6 +195,28 @@ const getWorkspaceContextFromRpc = async (client) => {
   };
 };
 
+const logSystemEvent = async (context, module, actionType, metadata = {}) => {
+  if (!context?.organizationId) return;
+  try {
+    const client = requireSupabase();
+    await client.rpc("log_system_event", {
+      p_organization_id: context.organizationId,
+      p_actor_id: context.userId || null,
+      p_actor_email: context.email || null,
+      p_actor_role: context.role || null,
+      p_entity_type: null,
+      p_entity_id: null,
+      p_entity_name: null,
+      p_action_type: actionType,
+      p_module: module,
+      p_description: null,
+      p_metadata: metadata
+    });
+  } catch (err) {
+    console.warn("logSystemEvent error:", err);
+  }
+};
+
 const internalGetWorkspaceContext = async ({ force = false, providedUser = null } = {}) => {
   const cache = activeCache();
   if (!force && cache.context && isCacheValid(cache.contextTimestamp)) {
@@ -265,24 +287,49 @@ const getWorkspaceData = async ({ refresh = false } = {}) => {
       const client = requireSupabase();
       const organizationId = context.organizationId;
 
-      let clients = await list(client.from("clients").select("id, organization_id, name, phone, email, photo_url, photo_path, address, notes, id_proof, details, created_at, created_by, updated_by").eq("organization_id", organizationId).is("deleted_at", null).order("created_at", { ascending: false }).range(0, MAX_SERVER_PAGE - 1));
-      let cases = await list(client.from("cases").select("id, organization_id, client_id, case_number, case_type, court_name, lawyer_name, status, details, created_at, updated_at, created_by, updated_by, assigned_lawyer_id, assigned_by, assigned_at").eq("organization_id", organizationId).is("deleted_at", null).order("updated_at", { ascending: false }).range(0, MAX_SERVER_PAGE - 1));
-      let payments = await list(client.from("payments").select("id, case_id, organization_id, total_amount, created_at, created_by, updated_by").eq("organization_id", organizationId).is("deleted_at", null).order("created_at", { ascending: false }).range(0, MAX_SERVER_PAGE - 1));
-      let charges = await list(client.from("payment_charges").select("id, payment_id, case_id, organization_id, name, total, paid, balance, due_date, status, display_order, description, is_lawyer_fee, created_at, created_by, updated_by").eq("organization_id", organizationId).is("deleted_at", null).order("display_order", { ascending: true }).range(0, MAX_SERVER_PAGE - 1));
-      let paymentHistory = await list(client.from("payment_history").select("id, case_id, organization_id, payment_charge_id, charge_name, amount_paid, payment_mode, payment_reference, timestamp, updated_by, created_by").eq("organization_id", organizationId).order("timestamp", { ascending: false }).range(0, MAX_SERVER_PAGE - 1));
-      let documents = await list(client.from("documents").select("id, case_id, organization_id, file_url, file_path, file_name, file_type, file_size, category, description, created_at, uploaded_by").eq("organization_id", organizationId).is("deleted_at", null).order("created_at", { ascending: false }).range(0, MAX_SERVER_PAGE - 1));
-      let followups = await list(client.from("followups").select("id, case_id, organization_id, type, title, date, notes, status, postponed_to, created_at, created_by").eq("organization_id", organizationId).is("deleted_at", null).order("date", { ascending: true }).range(0, MAX_SERVER_PAGE - 1));
+      let clientsQuery = client.from("clients").select("id, organization_id, name, phone, email, photo_url, photo_path, address, notes, id_proof, details, created_at, created_by, updated_by").eq("organization_id", organizationId).is("deleted_at", null);
+      let casesQuery = client.from("cases").select("id, organization_id, client_id, case_number, case_type, court_name, lawyer_name, status, details, created_at, updated_at, created_by, updated_by, assigned_lawyer_id, assigned_by, assigned_at").eq("organization_id", organizationId).is("deleted_at", null);
 
       if (isLawyerContext(context)) {
-        cases = cases.filter((item) => isCaseAssignedToContext(item, context));
-        const visibleCaseIds = new Set(cases.map((item) => String(item.id)));
+        casesQuery = casesQuery.eq("assigned_lawyer_id", context.userId);
+      }
+
+      let [clients, cases] = await Promise.all([
+        list(clientsQuery.order("created_at", { ascending: false }).range(0, MAX_SERVER_PAGE - 1)),
+        list(casesQuery.order("updated_at", { ascending: false }).range(0, MAX_SERVER_PAGE - 1))
+      ]);
+
+      let paymentsQuery = client.from("payments").select("id, case_id, organization_id, total_amount, created_at, created_by, updated_by").eq("organization_id", organizationId).is("deleted_at", null);
+      let chargesQuery = client.from("payment_charges").select("id, payment_id, case_id, organization_id, name, total, paid, balance, due_date, status, display_order, description, is_lawyer_fee, created_at, created_by, updated_by").eq("organization_id", organizationId).is("deleted_at", null);
+      let paymentHistoryQuery = client.from("payment_history").select("id, case_id, organization_id, payment_charge_id, charge_name, amount_paid, payment_mode, payment_reference, timestamp, updated_by, created_by").eq("organization_id", organizationId);
+      let documentsQuery = client.from("documents").select("id, case_id, organization_id, file_url, file_path, file_name, file_type, file_size, category, description, created_at, uploaded_by").eq("organization_id", organizationId).is("deleted_at", null);
+      let followupsQuery = client.from("followups").select("id, case_id, organization_id, type, title, date, notes, status, postponed_to, created_at, created_by").eq("organization_id", organizationId).is("deleted_at", null);
+
+      if (isLawyerContext(context)) {
+        const visibleCaseIds = cases.map(c => c.id);
+        if (visibleCaseIds.length > 0) {
+          paymentsQuery = paymentsQuery.in("case_id", visibleCaseIds);
+          chargesQuery = chargesQuery.in("case_id", visibleCaseIds);
+          paymentHistoryQuery = paymentHistoryQuery.in("case_id", visibleCaseIds);
+          documentsQuery = documentsQuery.in("case_id", visibleCaseIds);
+          followupsQuery = followupsQuery.in("case_id", visibleCaseIds);
+        } else {
+          // No cases, so no related data
+          return { clients: [], cases: [], payments: [], charges: [], paymentHistory: [], documents: [], followups: [] };
+        }
+      }
+
+      let [payments, charges, paymentHistory, documents, followups] = await Promise.all([
+        list(paymentsQuery.order("created_at", { ascending: false }).range(0, MAX_SERVER_PAGE - 1)),
+        list(chargesQuery.order("display_order", { ascending: true }).range(0, MAX_SERVER_PAGE - 1)),
+        list(paymentHistoryQuery.order("timestamp", { ascending: false }).range(0, MAX_SERVER_PAGE - 1)),
+        list(documentsQuery.order("created_at", { ascending: false }).range(0, MAX_SERVER_PAGE - 1)),
+        list(followupsQuery.order("date", { ascending: true }).range(0, MAX_SERVER_PAGE - 1))
+      ]);
+
+      if (isLawyerContext(context)) {
         const visibleClientIds = new Set(cases.map((item) => String(item.client_id)));
         clients = clients.filter((item) => visibleClientIds.has(String(item.id)));
-        payments = payments.filter((item) => visibleCaseIds.has(String(item.case_id)));
-        charges = charges.filter((item) => visibleCaseIds.has(String(item.case_id)));
-        paymentHistory = paymentHistory.filter((item) => visibleCaseIds.has(String(item.case_id)));
-        documents = documents.filter((item) => visibleCaseIds.has(String(item.case_id)));
-        followups = followups.filter((item) => visibleCaseIds.has(String(item.case_id)));
       }
 
       const data = { clients, cases, payments, charges, paymentHistory, documents, followups };
@@ -930,6 +977,11 @@ const supabasePlatformApi = {
       .eq("organization_id", context.organizationId)
       .is("deleted_at", null);
 
+    // Hardened Backend Enforcement for Lawyer View
+    if (isLawyerContext(context)) {
+      query = query.eq("assigned_lawyer_id", context.userId);
+    }
+
     if (effectiveFilters.caseNumber) query = query.ilike("case_number", `%${effectiveFilters.caseNumber}%`);
     if (effectiveFilters.caseType) query = query.ilike("case_type", `%${effectiveFilters.caseType}%`);
     if (effectiveFilters.clientName) query = query.ilike("clients.name", `%${effectiveFilters.clientName}%`);
@@ -944,16 +996,19 @@ const supabasePlatformApi = {
   },
   getCase: async (caseId) => {
     const context = await internalGetWorkspaceContext();
-    const data = await single(
-      requireSupabase()
-        .from("cases")
-        .select("*")
-        .eq("id", caseId)
-        .eq("organization_id", context.organizationId)
-        .is("deleted_at", null)
-    );
+    let query = requireSupabase()
+      .from("cases")
+      .select("*")
+      .eq("id", caseId)
+      .eq("organization_id", context.organizationId)
+      .is("deleted_at", null);
+
+    if (isLawyerContext(context)) {
+      query = query.eq("assigned_lawyer_id", context.userId);
+    }
+
+    const data = await single(query);
     if (!data) throw new Error("Case not found.");
-    if (!isCaseAssignedToContext(data, context)) throw new Error("Case not found.");
     const dataset = await getWorkspaceData();
     return mapCaseRecord(data, dataset);
   },
@@ -1005,6 +1060,7 @@ const supabasePlatformApi = {
 
       if (savedCaseId) {
         await ensurePaymentShell(context.organizationId, savedCaseId);
+        await logSystemEvent(context, "cases", caseId ? "UPDATE_CASE" : "CREATE_CASE", { caseId: savedCaseId });
       }
 
       resetWorkspaceDataCache();
@@ -1032,6 +1088,7 @@ const supabasePlatformApi = {
       });
 
       if (error) throw error;
+      await logSystemEvent(context, "documents", "DOCUMENT_UPLOAD", { caseId, category: payload.category });
       resetWorkspaceDataCache();
       return supabasePlatformApi.getCase(caseId);
     });
@@ -1088,6 +1145,7 @@ const supabasePlatformApi = {
         if (historyResult.error) throw historyResult.error;
       }
 
+      await logSystemEvent(context, "payments", "CREATE_CHARGE", { caseId, chargeId: insertedCharge.id });
       await syncPaymentTotals(payment.id, context.organizationId);
       resetWorkspaceDataCache();
       return supabasePlatformApi.getCase(caseId);
@@ -1124,6 +1182,7 @@ const supabasePlatformApi = {
         .eq("organization_id", context.organizationId);
 
       if (error) throw error;
+      await logSystemEvent(context, "payments", "UPDATE_CHARGE", { caseId, chargeId: chargeItemId });
       await syncPaymentTotals(existing.payment_id, context.organizationId);
       resetWorkspaceDataCache();
       return supabasePlatformApi.getCase(caseId);
@@ -1173,6 +1232,7 @@ const supabasePlatformApi = {
         .eq("organization_id", context.organizationId);
 
       if (updateResult.error) throw updateResult.error;
+      await logSystemEvent(context, "payments", "RECORD_PAYMENT", { caseId, amount: payload.amount });
       resetWorkspaceDataCache();
       return supabasePlatformApi.getCase(caseId);
     });
@@ -1607,6 +1667,60 @@ const supabasePlatformApi = {
   getPutUpDates: async () => {
     const { cases } = await supabasePlatformApi.getDashboardPayload();
     return cases.flatMap(c => (c.followUps || []).map(f => ({ ...f, legalCase: c })));
+  },
+  getCalendarEvents: async () => {
+    const context = await internalGetWorkspaceContext();
+    if (!context?.organizationId) return [];
+    
+    const { data, error } = await requireSupabase()
+      .from("calendar_events")
+      .select("*")
+      .eq("organization_id", context.organizationId);
+      
+    if (error) throw error;
+    return data || [];
+  },
+  saveCalendarEvent: async (payload, eventId) => {
+    const context = await internalGetWorkspaceContext();
+    if (!context?.organizationId) throw new Error("No organization workspace is available.");
+    
+    const record = {
+      organization_id: context.organizationId,
+      title: payload.title?.trim() || "",
+      description: payload.description || "",
+      event_date: payload.eventDate,
+      event_type: payload.eventType || "note",
+      color: payload.color || "#3A5BA0",
+    };
+    
+    if (eventId) {
+      const { error } = await requireSupabase()
+        .from("calendar_events")
+        .update(record)
+        .eq("id", eventId)
+        .eq("organization_id", context.organizationId);
+      if (error) throw error;
+    } else {
+      const { error } = await requireSupabase()
+        .from("calendar_events")
+        .insert(record);
+      if (error) throw error;
+    }
+    
+    await logSystemEvent("CREATE_NOTE", `Calendar event ${eventId ? "updated" : "created"}: ${record.title}`);
+  },
+  deleteCalendarEvent: async (eventId) => {
+    const context = await internalGetWorkspaceContext();
+    if (!context?.organizationId) throw new Error("No organization workspace is available.");
+    
+    const { error } = await requireSupabase()
+      .from("calendar_events")
+      .delete()
+      .eq("id", eventId)
+      .eq("organization_id", context.organizationId);
+      
+    if (error) throw error;
+    await logSystemEvent("DELETE_NOTE", `Calendar event deleted: ${eventId}`);
   },
   saveOrganizationSettings: async (payload) => {
     const context = await internalGetWorkspaceContext();

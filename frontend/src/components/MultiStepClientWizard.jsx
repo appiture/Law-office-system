@@ -14,6 +14,7 @@ import {
   resolveOtherSelection,
 } from "../utils/validation";
 import { sentenceCaseStatus } from "../utils/formatters";
+import { getUserRole } from "../services/authService";
 import "../pages/formStyles.css";
 
 const ID_TYPES = ["Aadhaar", "PAN", "Passport", "Voter ID", "Driving Licence", "Other"];
@@ -174,12 +175,13 @@ function CaseStep({ form, onChange, lawyers = [] }) {
         <FG label="Court">
           <input value={form.courtName} onChange={(event) => onChange("courtName", event.target.value)} placeholder="Court name" />
         </FG>
-        <FG label="Assigned Lawyer">
+        <FG label="Assigned Lawyer" hint={userRole === "LAWYER" ? "Only admins can reassign cases." : ""}>
           <input
             value={form.assignedLawyer}
             onChange={(event) => onChange("assignedLawyer", event.target.value)}
             list="wizard-assigned-lawyers"
             placeholder="Select or type assigned lawyer"
+            disabled={userRole === "LAWYER"}
           />
           <datalist id="wizard-assigned-lawyers">
             {lawyers.map((lawyer) => (
@@ -327,6 +329,7 @@ export default function MultiStepClientWizard({ client, onClose, onSave, initial
   const [submitError, setSubmitError] = useState("");
   const [toast, setToast] = useState("");
   const [lawyers, setLawyers] = useState([]);
+  const [userRole, setUserRole] = useState("");
   const isEdit = Boolean(client);
 
   const [formData, setFormData] = useState({
@@ -384,6 +387,8 @@ export default function MultiStepClientWizard({ client, onClose, onSave, initial
       .catch(() => {
         if (!cancelled) setLawyers([]);
       });
+
+    setUserRole(getUserRole());
 
     return () => { cancelled = true; };
   }, []);
@@ -546,7 +551,7 @@ export default function MultiStepClientWizard({ client, onClose, onSave, initial
 
         <div className="flow-modal-body">
           {currentStep === 0 ? <ClientStep form={formData.client} onChange={setClientField} /> : null}
-          {currentStep === 1 ? <CaseStep form={formData.caseData} onChange={setCaseField} lawyers={lawyers} /> : null}
+          {currentStep === 1 ? <CaseStep form={formData.caseData} onChange={setCaseField} lawyers={lawyers} userRole={userRole} /> : null}
           {currentStep === 2 ? <PaymentStep payments={formData.charges} setPayments={(charges) => setFormData((current) => ({ ...current, charges }))} /> : null}
           {currentStep === 3 ? <FollowUpStep followUps={formData.followUps} setFollowUps={(followUps) => setFormData((current) => ({ ...current, followUps }))} /> : null}
         </div>

@@ -5,7 +5,6 @@ import { supabasePlatformApi as platformApi } from "../repositories/supabaseRepo
 import { getPersistentAssetUrl } from "../services/storageService";
 import { currency, formatDate, sentenceCaseStatus, textOrDash } from "../utils/formatters";
 import ProfileCard from "../components/ui/ProfileCard/ProfileCard";
-import MagicBento, { ParticleCard } from "../components/ui/MagicBento/MagicBento";
 import MultiStepClientWizard from "../components/MultiStepClientWizard";
 import { createPortal } from "react-dom";
 import { usePermissions } from "../context/PermissionsContext";
@@ -13,25 +12,24 @@ import "./CaseDetails.css";
 
 function DetailSection({ id, title, label, actions, children, className = "", style = {} }) {
   return (
-    <ParticleCard 
+    <div 
       id={id}
-      className={`magic-bento-card magic-bento-card--border-glow ${className}`}
+      className={`standard-card ${className}`}
       style={style}
-      enableTilt={false}
-      enableMagnetism={false}
-      glowColor="201, 163, 78"
     >
-      <div className="magic-bento-card__header">
-        <div className="magic-bento-card__label">{label || title}</div>
-        <div className="section-actions">{actions}</div>
+      <div className="case-card-header">
+        <div className="case-tag">{label || title}</div>
+        <div className="section-actions" style={{ marginLeft: 'auto' }}>{actions}</div>
       </div>
-      <div className="magic-bento-card__content">
-        <h2 className="magic-bento-card__title">{title}</h2>
+      <div className="card-scroll">
+        <div className="case-card-heading">
+          <h3>{title}</h3>
+        </div>
         <div className="section-body-inner">
           {children}
         </div>
       </div>
-    </ParticleCard>
+    </div>
   );
 }
 
@@ -421,7 +419,7 @@ function CaseDetails() {
       <DetailNav items={detailNavItems} />
 
       <div className="case-details-container">
-        <MagicBento className="case-details-bento" enableTilt={true}>
+        <div className="case-details-grid">
           {/* 1. Identity Summary Cell - Focused & Clean */}
           {canViewClients && (
           <DetailSection 
@@ -742,7 +740,7 @@ function CaseDetails() {
             </div>
           </DetailSection>
           )}
-        </MagicBento>
+        </div>
       </div>
 
       {/* Hidden Report Header for PDF/Print */}

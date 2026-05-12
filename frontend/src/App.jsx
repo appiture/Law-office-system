@@ -22,6 +22,7 @@ const routePreloaders = [
   () => import("./pages/TeamManagement"),
   () => import("./pages/ResetPassword"),
   () => import("./pages/SuperAdminLogin"),
+  () => import("./pages/SystemAuditLogs"),
 ];
 
 // Code splitting, with idle preloading so first section visits feel immediate.
@@ -38,6 +39,7 @@ const SuperAdminDashboard = lazy(routePreloaders[9]);
 const TeamManagement = lazy(routePreloaders[10]);
 const ResetPassword = lazy(routePreloaders[11]);
 const SuperAdminLogin = lazy(routePreloaders[12]);
+const SystemAuditLogs = lazy(routePreloaders[13]);
 
 function App() {
   useEffect(() => {
@@ -69,6 +71,7 @@ function App() {
         clearUser();
         clearAuthData();
         const redirectTo = wasPlatformAdmin ? "/super-admin-login" : "/login";
+        // Avoid full window reload if already on that page, otherwise use standard react-router flows (though onStateChange is global)
         if (window.location.pathname !== redirectTo) {
           window.location.href = redirectTo;
         }
@@ -171,22 +174,8 @@ function App() {
                 </ProtectedRoute>
               }
             />
-            <Route
-              path="/tasks"
-              element={
-                <ProtectedRoute section="followups">
-                  <FollowUps />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="/put-up-dates"
-              element={
-                <ProtectedRoute section="followups">
-                  <FollowUps />
-                </ProtectedRoute>
-              }
-            />
+            <Route path="/tasks" element={<Navigate to="/followups" replace />} />
+            <Route path="/put-up-dates" element={<Navigate to="/followups" replace />} />
             <Route
               path="/cases/:caseId"
               element={
@@ -206,8 +195,16 @@ function App() {
             <Route
               path="/platform-admin"
               element={
-                <ProtectedRoute>
+                <ProtectedRoute requirePlatformAdmin={true}>
                   <SuperAdminDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/system-audit"
+              element={
+                <ProtectedRoute requirePlatformAdmin={true}>
+                  <SystemAuditLogs />
                 </ProtectedRoute>
               }
             />

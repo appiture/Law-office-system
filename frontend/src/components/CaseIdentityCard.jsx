@@ -39,7 +39,9 @@ function CaseIdentityCard({ item, children, footer, className = "", onImageClick
         {/* Link removed from header to prioritize the standardized footer button */}
       </div>
 
-      {children}
+      <div className="card-scroll">
+        {children}
+      </div>
 
       {(detailsTarget || footer) && (
         <div className="case-card-footer">

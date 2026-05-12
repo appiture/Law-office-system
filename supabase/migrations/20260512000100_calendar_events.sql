@@ -51,6 +51,7 @@ alter table public.calendar_events
 enable row level security;
 
 -- RLS Policies
+drop policy if exists "calendar_events_select" on public.calendar_events;
 create policy "calendar_events_select"
 on public.calendar_events
 for select
@@ -58,6 +59,7 @@ using (
     organization_id = public.get_user_organization_id()
 );
 
+drop policy if exists "calendar_events_insert" on public.calendar_events;
 create policy "calendar_events_insert"
 on public.calendar_events
 for insert
@@ -65,6 +67,7 @@ with check (
     organization_id = public.get_user_organization_id()
 );
 
+drop policy if exists "calendar_events_update" on public.calendar_events;
 create policy "calendar_events_update"
 on public.calendar_events
 for update
@@ -72,6 +75,7 @@ using (
     organization_id = public.get_user_organization_id()
 );
 
+drop policy if exists "calendar_events_delete" on public.calendar_events;
 create policy "calendar_events_delete"
 on public.calendar_events
 for delete
