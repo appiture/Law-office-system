@@ -64,6 +64,7 @@ Deno.serve(async (request: Request): Promise<Response> => {
     if (organizationError) throw organizationError;
     if (!organization) throw new Error("Your organization is not active.");
 
+    // Check for existing users in public.users
     const { data: existingUsers, error: existingUserError } = await adminClient
       .from("users")
       .select("id,email,full_name,organization_id,deleted_at")
@@ -73,6 +74,10 @@ Deno.serve(async (request: Request): Promise<Response> => {
 
     const activeUser = (existingUsers || []).find((user) => !user.deleted_at);
     if (activeUser) throw new Error("A user with that email already exists.");
+
+    // Check for existing users in auth.users
+    const authUser = await findAuthUserByEmail(adminClient, emailAddress);
+    if (authUser) throw new Error("Email already registered.");
 
     const reusableProfile = (existingUsers || []).find((user) => user.organization_id === organizationId)
       || (existingUsers || [])[0]
@@ -144,6 +149,7 @@ Deno.serve(async (request: Request): Promise<Response> => {
       full_name: reusableProfile?.full_name || "",
       role,
       status: "ACTIVE",
+      invite_status: "PENDING",
       organization_id: organizationId,
       must_reset_password: true,
       deleted_at: null,

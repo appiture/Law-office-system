@@ -233,11 +233,15 @@ const deleteUser = async (
 
   const { error: profileDeleteError } = await adminClient
     .from("users")
-    .delete()
+    .update({
+      deleted_at: new Date().toISOString(),
+      status: 'DELETED',
+      invite_status: 'DELETED'
+    })
     .eq("id", userId);
   if (profileDeleteError) throw profileDeleteError;
 
-  await deleteAuthUser(adminClient, userId);
+  // Note: We keep the auth user for potential restoration
 
   return { user };
 };
@@ -334,7 +338,7 @@ Deno.serve(async (request: Request): Promise<Response> => {
 
       return jsonResponse({
         success: true,
-        message: "User was permanently deleted.",
+        message: "User was soft deleted.",
         userId,
       });
     }
