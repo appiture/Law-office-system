@@ -463,7 +463,7 @@ function TabOrganizations({ orgs, onRefresh, showToast }) {
     </div>
   );
 }
-}
+
 
 /* ── TAB: Users ── */
 function TabUsers({ users, orgs, onRefresh, showToast }) {
