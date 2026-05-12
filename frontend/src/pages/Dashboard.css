@@ -446,6 +446,10 @@
   background: var(--color-success);
 }
 
+.legend-dot.note-dot {
+  background: #3A5BA0;
+}
+
 .dashboard-calendar-cell em.badge-case {
   background: var(--color-primary);
 }
@@ -456,6 +460,10 @@
 
 .dashboard-calendar-cell em.badge-fee {
   background: var(--color-success);
+}
+
+.dashboard-calendar-cell em.badge-note {
+  background: #3A5BA0;
 }
 
 .dashboard-calendar-legend {
@@ -492,6 +500,10 @@
 
 .legend-dot.fee-dot {
   background: var(--color-success);
+}
+
+.legend-dot.note-dot {
+  background: #3A5BA0;
 }
 
 .dashboard-agenda-link {

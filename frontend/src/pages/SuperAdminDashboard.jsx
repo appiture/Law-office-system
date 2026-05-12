@@ -10,6 +10,7 @@ import {
   adminCreateOrganization,
   adminDeleteOrganization,
   adminDeleteUser,
+  adminUpdateOrganization,
 } from "../services/adminService";
 import "./formStyles.css";
 
@@ -218,6 +219,72 @@ function UserPermissionsModal({ user, onClose, showToast }) {
   return <PermissionsModal title={`User Perms: ${user.email}`} initialPerms={perms} onSave={save} onClose={onClose} />;
 }
 
+function SubscriptionModal({ org, onSave, onClose }) {
+  const [isDemo, setIsDemo] = useState(org.is_demo || false);
+  const [expiry, setExpiry] = useState(org.demo_expires_at ? org.demo_expires_at.split('T')[0] : "");
+  const [status, setStatus] = useState(org.subscription_status || "ACTIVE");
+
+  return (
+    <div style={{
+      position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
+      background: "rgba(0,0,0,0.85)", backdropFilter: "blur(12px)",
+      display: "grid", placeItems: "center", zIndex: 10000, padding: 20
+    }}>
+      <div style={{
+        background: "#1e293b", border: "1px solid rgba(255,255,255,0.1)",
+        borderRadius: 24, padding: 32, width: "100%", maxWidth: 400,
+        display: "flex", flexDirection: "column", gap: 20,
+        boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)",
+        color: "#f8fafc"
+      }}>
+        <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>Manage Subscription: {org.name}</h3>
+        
+        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          <label style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
+            <input type="checkbox" checked={isDemo} onChange={e => setIsDemo(e.target.checked)} style={{ width: 18, height: 18 }} />
+            Demo Account
+          </label>
+
+          {isDemo && (
+            <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 13, fontWeight: 600 }}>
+              Demo Expiration Date
+              <input 
+                type="date" 
+                value={expiry} 
+                onChange={e => setExpiry(e.target.value)}
+                style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(0,0,0,0.2)", color: "#fff" }}
+              />
+            </label>
+          )}
+
+          <label style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 13, fontWeight: 600 }}>
+            Subscription Status
+            <select 
+              value={status} 
+              onChange={e => setStatus(e.target.value)}
+              style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(0,0,0,0.2)", color: "#fff" }}
+            >
+              <option value="ACTIVE">Active</option>
+              <option value="EXPIRED">Expired</option>
+              <option value="CANCELLED">Cancelled</option>
+              <option value="SUSPENDED">Suspended</option>
+            </select>
+          </label>
+        </div>
+
+        <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
+          <button className="btn-gold" style={{ flex: 1, padding: 12 }} onClick={() => onSave({
+            is_demo: isDemo,
+            demo_expires_at: isDemo && expiry ? new Date(expiry).toISOString() : null,
+            subscription_status: status
+          })}>Update</button>
+          <button onClick={onClose} style={{ flex: 1, background: "transparent", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, color: "#fff", cursor: "pointer" }}>Cancel</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ── TAB: Dashboard ── */
 function TabDashboard({ orgs, users, platformAdmins }) {
   const active  = orgs.filter(o => o.status === "ACTIVE").length;
@@ -272,13 +339,23 @@ function TabOrganizations({ orgs, onRefresh, showToast }) {
 
   const handleAction = async (org, action) => {
     if (!window.confirm(`${action} "${org.name}"?`)) return;
-    setActioning(org.id);
+    setActioning({ org });
     try {
       const res = await adminReviewOrganization(org.id, action, org.requested_owner_email);
       showToast(res?.message || "Done");
       onRefresh();
     } catch (e) { showToast(e.message, "error"); }
     finally { setActioning(null); }
+  };
+
+  const handleSubscriptionSave = async (updates) => {
+    const orgId = actioning.org.id;
+    try {
+      await adminUpdateOrganization(orgId, updates);
+      showToast("Subscription details updated");
+      setActioning(null);
+      onRefresh();
+    } catch (e) { showToast(e.message, "error"); }
   };
 
   return (
@@ -313,7 +390,12 @@ function TabOrganizations({ orgs, onRefresh, showToast }) {
               </div>
               <div>
                 <p style={{ margin: 0, fontWeight: 700, fontSize: 13 }}>{org.name}</p>
-                {org.is_demo && <span style={{ fontSize: 10, color: "#8B5CF6", fontWeight: 700 }}>DEMO</span>}
+                {org.is_demo && (
+                  <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
+                    <span style={{ fontSize: 10, color: "#8B5CF6", fontWeight: 700 }}>DEMO</span>
+                    {org.demo_expires_at && <span style={{ fontSize: 9, opacity: 0.5 }}>Expires {fmtDate(org.demo_expires_at)}</span>}
+                  </div>
+                )}
               </div>
             </div>
             <StatusBadge status={org.status} />
@@ -321,6 +403,17 @@ function TabOrganizations({ orgs, onRefresh, showToast }) {
             <span style={{ fontWeight: 700, fontSize: 13 }}>{org.user_count ?? 0}</span>
             <span style={{ fontSize: 12, opacity: .5 }}>{fmtDate(org.created_at)}</span>
             <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
+              <button
+                onClick={() => setActioning({ type: "SUBSCRIPTION", org })}
+                title="Manage Subscription"
+                style={{
+                  background: "rgba(139, 92, 246, 0.18)", color: "#8B5CF6",
+                  border: "1px solid rgba(139, 92, 246, 0.4)", borderRadius: 10,
+                  padding: "6px 10px", fontSize: 13, cursor: "pointer",
+                }}
+              >
+                💳
+              </button>
               <button
                 onClick={() => setActioning({ type: "PERMS", org })}
                 style={{
@@ -366,8 +459,10 @@ function TabOrganizations({ orgs, onRefresh, showToast }) {
         ))}
       </Card>
       {actioning?.type === "PERMS" && <OrgPermissionsModal org={actioning.org} onClose={() => setActioning(null)} showToast={showToast} />}
+      {actioning?.type === "SUBSCRIPTION" && <SubscriptionModal org={actioning.org} onSave={handleSubscriptionSave} onClose={() => setActioning(null)} />}
     </div>
   );
+}
 }
 
 /* ── TAB: Users ── */

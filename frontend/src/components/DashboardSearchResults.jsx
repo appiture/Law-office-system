@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { currency, formatDate } from "../utils/formatters";
+import { usePermissions } from "../context/PermissionsContext";
 import "./DashboardSearchResults.css";
 
 function normalizeStatus(status) {
@@ -31,6 +32,11 @@ function getEventLink(item) {
 
 function DashboardSearchResults({ query, cases, tasks, putUpDates, onResultClick }) {
   const normalizedQuery = query.trim().toLowerCase();
+  const { canAccess } = usePermissions();
+  const canViewClients = canAccess("clients");
+  const canViewCases = canAccess("cases");
+  const canViewPayments = canAccess("payments");
+  const canViewFollowUps = canAccess("followups");
 
   // 1. Extract and Filter Clients
   const matchedClients = useMemo(() => {
@@ -163,7 +169,11 @@ function DashboardSearchResults({ query, cases, tasks, putUpDates, onResultClick
     });
   }, [putUpDates, normalizedQuery]);
 
-  const totalResults = matchedClients.length + matchedCases.length + matchedTasks.length + matchedFollowUps.length + matchedPayments.length + matchedCharges.length + matchedDates.length;
+  const totalResults =
+    (canViewClients ? matchedClients.length : 0) +
+    (canViewCases ? matchedCases.length : 0) +
+    (canViewFollowUps ? matchedTasks.length + matchedFollowUps.length + matchedDates.length : 0) +
+    (canViewPayments ? matchedPayments.length + matchedCharges.length : 0);
 
   if (totalResults === 0) {
     return (
@@ -184,7 +194,7 @@ function DashboardSearchResults({ query, cases, tasks, putUpDates, onResultClick
 
       <div className="search-sections-grid">
         {/* Clients Section */}
-        {matchedClients.length > 0 && (
+        {canViewClients && matchedClients.length > 0 && (
           <div className="search-section">
             <h3 className="section-title">👥 Clients ({matchedClients.length})</h3>
             <div className="results-list">
@@ -207,7 +217,7 @@ function DashboardSearchResults({ query, cases, tasks, putUpDates, onResultClick
         )}
 
         {/* Cases Section */}
-        {matchedCases.length > 0 && (
+        {canViewCases && matchedCases.length > 0 && (
           <div className="search-section">
             <h3 className="section-title">⚖️ Matters & Cases ({matchedCases.length})</h3>
             <div className="results-list">
@@ -227,7 +237,7 @@ function DashboardSearchResults({ query, cases, tasks, putUpDates, onResultClick
         )}
 
         {/* Tasks Section */}
-        {matchedTasks.length > 0 && (
+        {canViewFollowUps && matchedTasks.length > 0 && (
           <div className="search-section">
             <h3 className="section-title">📝 Action Items ({matchedTasks.length})</h3>
             <div className="results-list">
@@ -247,7 +257,7 @@ function DashboardSearchResults({ query, cases, tasks, putUpDates, onResultClick
         )}
 
         {/* Follow-ups Section */}
-        {matchedFollowUps.length > 0 && (
+        {canViewFollowUps && matchedFollowUps.length > 0 && (
           <div className="search-section">
             <h3 className="section-title">📅 Follow-ups ({matchedFollowUps.length})</h3>
             <div className="results-list">
@@ -267,7 +277,7 @@ function DashboardSearchResults({ query, cases, tasks, putUpDates, onResultClick
         )}
 
         {/* Payments Section */}
-        {matchedPayments.length > 0 && (
+        {canViewPayments && matchedPayments.length > 0 && (
           <div className="search-section">
             <h3 className="section-title">💰 Payment Records ({matchedPayments.length})</h3>
             <div className="results-list">
@@ -287,7 +297,7 @@ function DashboardSearchResults({ query, cases, tasks, putUpDates, onResultClick
         )}
 
         {/* Charge Items Section */}
-        {matchedCharges.length > 0 && (
+        {canViewPayments && matchedCharges.length > 0 && (
           <div className="search-section">
             <h3 className="section-title">⚖️ Fee Categories ({matchedCharges.length})</h3>
             <div className="results-list">
@@ -307,7 +317,7 @@ function DashboardSearchResults({ query, cases, tasks, putUpDates, onResultClick
         )}
 
         {/* Court Dates Section */}
-        {matchedDates.length > 0 && (
+        {canViewFollowUps && matchedDates.length > 0 && (
           <div className="search-section">
             <h3 className="section-title">🏛 Court Dates ({matchedDates.length})</h3>
             <div className="results-list">

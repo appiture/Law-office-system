@@ -135,6 +135,15 @@ export const adminReviewOrganization = async (orgId, action, adminEmail = null) 
   return data;
 };
 
+export const adminUpdateOrganization = async (orgId, updates) => {
+  const { data, error } = await supabase
+    .from("organizations")
+    .update(updates)
+    .eq("id", orgId);
+  if (error) throw new Error(error.message);
+  return data;
+};
+
 export const adminListAllUsers = async (filterOrgId = null, filterStatus = null) => {
   const { data, error } = await supabase.rpc("admin_list_all_users", {
     filter_org_id: filterOrgId,

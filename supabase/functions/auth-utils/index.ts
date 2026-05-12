@@ -9,11 +9,22 @@ Deno.serve(async (request: Request): Promise<Response> => {
   try {
     const actor = await getActorContext(request);
     const adminClient = createAdminClient();
-    const { data: mustReset } = await adminClient
+
+    const { data: profile } = await adminClient
       .from("users")
-      .select("must_reset_password")
+      .select("must_reset_password, organization_id")
       .eq("id", actor.user.id)
       .maybeSingle();
+
+    let organization = null;
+    if (profile?.organization_id) {
+      const { data: orgData } = await adminClient
+        .from("organizations")
+        .select("is_demo, demo_expires_at, subscription_status")
+        .eq("id", profile.organization_id)
+        .maybeSingle();
+      organization = orgData;
+    }
 
     return jsonResponse({
       authenticated: true,
@@ -22,7 +33,10 @@ Deno.serve(async (request: Request): Promise<Response> => {
       role: actor.profile?.role || null,
       organizationId: actor.profile?.organization_id || null,
       isPlatformAdmin: actor.isPlatformAdmin,
-      mustResetPassword: Boolean(mustReset?.must_reset_password),
+      mustResetPassword: Boolean(profile?.must_reset_password),
+      isDemo: Boolean(organization?.is_demo),
+      demoExpiresAt: organization?.demo_expires_at || null,
+      subscriptionStatus: organization?.subscription_status || "ACTIVE",
     });
   } catch (error) {
     return jsonResponse({

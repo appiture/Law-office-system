@@ -12,6 +12,26 @@ import { getUserId } from "../services/authService";
 import "./formStyles.css";
 
 const SECTIONS = ["dashboard", "clients", "cases", "payments", "documents", "followups", "settings", "team"];
+const STAFF_INVITE_SECTIONS = [
+  { key: "dashboard", label: "Dashboard" },
+  { key: "clients", label: "Clients" },
+  { key: "cases", label: "Matters" },
+  { key: "payments", label: "Fees" },
+  { key: "documents", label: "Documents" },
+  { key: "followups", label: "Follow-Ups" },
+  { key: "settings", label: "Settings" },
+];
+
+const defaultStaffPermissions = {
+  dashboard: true,
+  clients: true,
+  cases: true,
+  payments: false,
+  documents: false,
+  followups: true,
+  settings: false,
+  team: false,
+};
 
 function UserPermissionsModal({ user, onClose, showToast }) {
   const [perms, setPerms] = useState({});
@@ -236,6 +256,7 @@ function TempPasswordPanel({ result, onDismiss }) {
 function InviteForm({ onInvited }) {
   const [email,   setEmail]   = useState("");
   const [role,    setRole]    = useState("USER");
+  const [staffPermissions, setStaffPermissions] = useState(defaultStaffPermissions);
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState("");
   const [result,  setResult]  = useState(null);
@@ -248,9 +269,29 @@ function InviteForm({ onInvited }) {
     setResult(null);
     try {
       const data = await adminInviteTeamMember({ email: email.trim(), role });
-      setResult(data);
+      let finalData = data;
+
+      if (role === "STAFF" && data?.userId) {
+        const sectionsJson = Object.fromEntries(SECTIONS.map((section) => [
+          section,
+          section in staffPermissions ? Boolean(staffPermissions[section]) : true,
+        ]));
+        const { error: permissionsError } = await supabase.rpc("admin_set_user_permissions", {
+          target_user_id: data.userId,
+          sections_json: sectionsJson,
+        });
+        if (permissionsError) {
+          finalData = {
+            ...data,
+            message: `${data.message || "Team member invited."} Permissions could not be saved: ${permissionsError.message}`,
+          };
+        }
+      }
+
+      setResult(finalData);
       setEmail("");
       setRole("USER");
+      setStaffPermissions(defaultStaffPermissions);
       onInvited?.();
     } catch (err) {
       setError(err.message || "Failed to add team member. Please try again.");
@@ -315,6 +356,52 @@ function InviteForm({ onInvited }) {
               {loading ? "Creating…" : "✨ Add Member"}
             </button>
           </div>
+
+          {role === "STAFF" && (
+            <div style={{
+              marginTop: 18,
+              background: "rgba(255,255,255,0.035)",
+              border: "1px solid rgba(255,255,255,0.08)",
+              borderRadius: 12,
+              padding: "14px 16px",
+            }}>
+              <div style={{ marginBottom: 12 }}>
+                <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: "#fff" }}>Staff page access</p>
+                <p style={{ margin: "3px 0 0", fontSize: 11, color: "rgba(255,255,255,0.48)" }}>
+                  Controls page visibility and full-detail sections only. Entry and edit actions stay unchanged inside allowed pages.
+                </p>
+              </div>
+
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(145px, 1fr))", gap: 10 }}>
+                {STAFF_INVITE_SECTIONS.map((section) => (
+                  <label key={section.key} style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    padding: "9px 10px",
+                    borderRadius: 10,
+                    background: staffPermissions[section.key] ? "rgba(201,163,78,0.12)" : "rgba(255,255,255,0.03)",
+                    border: staffPermissions[section.key] ? "1px solid rgba(201,163,78,0.32)" : "1px solid rgba(255,255,255,0.07)",
+                    fontSize: 12,
+                    fontWeight: 700,
+                    color: staffPermissions[section.key] ? "#C9A34E" : "rgba(255,255,255,0.58)",
+                    cursor: "pointer",
+                  }}>
+                    <input
+                      type="checkbox"
+                      checked={Boolean(staffPermissions[section.key])}
+                      onChange={() => setStaffPermissions((current) => ({
+                        ...current,
+                        [section.key]: !Boolean(current[section.key]),
+                      }))}
+                      disabled={loading}
+                    />
+                    {section.label}
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
 
           {/* Info hint */}
           <div style={{

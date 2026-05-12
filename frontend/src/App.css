@@ -462,3 +462,46 @@ textarea:focus {
     flex-direction: column;
   }
 }
+
+.expired-screen {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  text-align: center;
+  padding: 40px;
+  color: var(--color-text);
+}
+
+.standard-card {
+  min-height: 320px;
+  max-height: 320px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.standard-card-scroll {
+  overflow-y: auto;
+  flex: 1;
+  padding-right: 6px;
+}
+
+textarea {
+  resize: vertical;
+  min-height: 120px;
+}
+
+.grid-form > label {
+  min-width: 0;
+}
+
+.case-card,
+.metric-card,
+.form-card {
+  overflow: hidden;
+}
+
+.card-content-scroll {
+  overflow-y: auto;
+  flex: 1;
+}

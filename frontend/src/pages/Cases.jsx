@@ -44,7 +44,7 @@ const STATUS_COLORS = {
 
 const emptyForm = {
   clientId:"", caseNumber:"", caseType:"", courtName:"",
-  judgeName:"", assignedLawyer:"", filingDate:"", firstHearingDate:"",
+  judgeName:"", assignedLawyer:"", assigned_lawyer_id:"", filingDate:"", firstHearingDate:"",
   nextHearingDate:"", opponentName:"", opponentLawyer:"",
   caseTypeOther:"",
   caseDescription:"", status:"RUNNING",
@@ -64,7 +64,7 @@ function FG({ label, required, hint, className, children }) {
 }
 
 // ── Case Modal ────────────────────────────────────────────────
-function CaseModal({ clients, editCase, onClose, onSaved }) {
+function CaseModal({ clients, lawyers = [], editCase, onClose, onSaved }) {
   const isEdit = Boolean(editCase);
   const [form, setForm] = useState(() =>
     editCase ? {
@@ -75,6 +75,7 @@ function CaseModal({ clients, editCase, onClose, onSaved }) {
       courtName:        editCase.courtName        ?? "",
       judgeName:        editCase.judgeName        ?? "",
       assignedLawyer:   editCase.assignedLawyer   ?? "",
+      assigned_lawyer_id: editCase.assignedLawyerId ?? "",
       filingDate:       editCase.filingDate        ?? "",
       firstHearingDate: editCase.firstHearingDate ?? "",
       nextHearingDate:  editCase.nextHearingDate  ?? "",
@@ -176,7 +177,24 @@ function CaseModal({ clients, editCase, onClose, onSaved }) {
                 <input value={form.judgeName} onChange={e => set("judgeName", e.target.value)} placeholder="e.g. Hon. Justice R. Sharma" />
               </FG>
               <FG label="Assigned Lawyer">
-                <input value={form.assignedLawyer} onChange={e => set("assignedLawyer", e.target.value)} placeholder="e.g. Adv. S. Mehta" />
+                <select
+                  value={form.assigned_lawyer_id || ""}
+                  onChange={(e) => {
+                    const selectedLawyer = lawyers.find(l => String(l.id) === String(e.target.value));
+                    setForm(p => ({
+                      ...p,
+                      assigned_lawyer_id: e.target.value,
+                      assignedLawyer: selectedLawyer ? selectedLawyer.fullName : ""
+                    }));
+                  }}
+                >
+                  <option value="">Select Lawyer</option>
+                  {lawyers.map((lawyer) => (
+                    <option key={lawyer.id} value={lawyer.id}>
+                      {lawyer.label}
+                    </option>
+                  ))}
+                </select>
               </FG>
             </div>
           </div>
@@ -244,6 +262,7 @@ function StatusBadge({ status }) {
 function Cases() {
   const [searchParams] = useSearchParams();
   const [clients, setClients] = useState([]);
+  const [lawyers, setLawyers] = useState([]);
   const [cases,   setCases]   = useState([]);
   const [showModal,    setShowModal]    = useState(false);
   const [editingCase,  setEditingCase]  = useState(null);
@@ -288,15 +307,19 @@ function Cases() {
   const clientOptions = useMemo(() => clients.map(c => ({ id: c.id, name: c.name })), [clients]);
 
   const ensureClientsForModal = useCallback(async () => {
-    if (clients.length > 0) return;
+    if (clients.length > 0 && lawyers.length > 0) return;
     setModalLoading(true);
     try {
-      const response = await platformApi.searchClients({ showAll: true, page: 1, pageSize: 500 });
-      setClients(Array.isArray(response.items) ? response.items : []);
+      const [clientResponse, lawyerRows] = await Promise.all([
+        platformApi.searchClients({ showAll: true, page: 1, pageSize: 500 }),
+        platformApi.getAssignableLawyers(),
+      ]);
+      setClients(Array.isArray(clientResponse.items) ? clientResponse.items : []);
+      setLawyers(Array.isArray(lawyerRows) ? lawyerRows : []);
     } finally {
       setModalLoading(false);
     }
-  }, [clients]);
+  }, [clients.length, lawyers.length]);
 
   const openCreate = async () => { setEditingCase(null); await ensureClientsForModal(); setShowModal(true); };
   const openEdit   = useCallback(async (c)  => { setEditingCase(c);   await ensureClientsForModal(); setShowModal(true); }, [ensureClientsForModal]);
@@ -415,6 +438,7 @@ function Cases() {
       {showModal && (
         <CaseModal
           clients={clientOptions}
+          lawyers={lawyers}
           editCase={editingCase}
           onClose={closeModal}
           onSaved={loadData}

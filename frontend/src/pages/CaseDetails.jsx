@@ -8,6 +8,7 @@ import ProfileCard from "../components/ui/ProfileCard/ProfileCard";
 import MagicBento, { ParticleCard } from "../components/ui/MagicBento/MagicBento";
 import MultiStepClientWizard from "../components/MultiStepClientWizard";
 import { createPortal } from "react-dom";
+import { usePermissions } from "../context/PermissionsContext";
 import "./CaseDetails.css";
 
 function DetailSection({ id, title, label, actions, children, className = "", style = {} }) {
@@ -83,6 +84,12 @@ function CaseDetails() {
   const [refreshKey, setRefreshKey] = useState(0);
   const downloadTimersRef = useRef([]);
   const focusParams = useMemo(() => new URLSearchParams(location.search), [location.search]);
+  const { canAccess } = usePermissions();
+  const canViewClients = canAccess("clients");
+  const canViewCases = canAccess("cases");
+  const canViewPayments = canAccess("payments");
+  const canViewFollowUps = canAccess("followups");
+  const canViewDocuments = canAccess("documents");
 
   const loadData = useCallback(async (isCancelled = () => false) => {
     try {
@@ -224,7 +231,7 @@ function CaseDetails() {
 
   const downloadReport = (format) => {
     const data = {
-      identity: {
+      identity: canViewClients ? {
         name: client?.name,
         occupation: client?.occupation,
         gender: client?.gender,
@@ -234,8 +241,8 @@ function CaseDetails() {
         altPhone: client?.altPhone,
         address: formatAddress(client),
         idProof: `${client?.idProofType}: ${client?.idProofNumber}`
-      },
-      case: legalCase ? {
+      } : null,
+      case: canViewCases && legalCase ? {
         number: legalCase.caseNumber,
         type: legalCase.caseType,
         court: legalCase.courtName,
@@ -244,7 +251,7 @@ function CaseDetails() {
         filingDate: legalCase.filingDate,
         assignedLawyer: legalCase.assignedLawyer
       } : null,
-      financials: {
+      financials: canViewPayments ? {
         total: totals.totalAmount,
         paid: totals.paidAmount,
         balance: totals.balanceAmount,
@@ -254,7 +261,7 @@ function CaseDetails() {
           method: ph.paymentMethod,
           status: ph.status
         }))
-      }
+      } : null
     };
 
     if (format === 'json') {
@@ -266,20 +273,24 @@ function CaseDetails() {
       link.click();
     } else if (format === 'csv') {
       let csv = "Section,Field,Value\n";
-      csv += `Identity,Name,${data.identity.name}\n`;
-      csv += `Identity,Email,${data.identity.email}\n`;
-      csv += `Identity,Phone,${data.identity.phone}\n`;
+      if (data.identity) {
+        csv += `Identity,Name,${data.identity.name}\n`;
+        csv += `Identity,Email,${data.identity.email}\n`;
+        csv += `Identity,Phone,${data.identity.phone}\n`;
+      }
       if (legalCase) {
         csv += `Case,Number,${data.case.number}\n`;
         csv += `Case,Status,${data.case.status}\n`;
       }
-      csv += `Financials,Total Fee,${data.financials.total}\n`;
-      csv += `Financials,Paid,${data.financials.paid}\n`;
-      csv += `Financials,Balance,${data.financials.balance}\n\n`;
-      csv += "Payment Date,Amount,Method,Status\n";
-      data.financials.history.forEach(ph => {
-        csv += `${ph.date},${ph.amount},${ph.method},${ph.status}\n`;
-      });
+      if (data.financials) {
+        csv += `Financials,Total Fee,${data.financials.total}\n`;
+        csv += `Financials,Paid,${data.financials.paid}\n`;
+        csv += `Financials,Balance,${data.financials.balance}\n\n`;
+        csv += "Payment Date,Amount,Method,Status\n";
+        data.financials.history.forEach(ph => {
+          csv += `${ph.date},${ph.amount},${ph.method},${ph.status}\n`;
+        });
+      }
 
       const blob = new Blob([csv], { type: 'text/csv' });
       const url = URL.createObjectURL(blob);
@@ -363,13 +374,13 @@ function CaseDetails() {
   const activeCases = clientCases.filter((item) => !["CLOSED_WON", "CLOSED_LOST", "CLOSED"].includes(String(item.status || "").toUpperCase())).length;
   const photoUrl = getPersistentAssetUrl(client?.photoUrl);
   const detailNavItems = [
-    { id: "profile", label: "Identity" },
-    { id: "client-info", label: "Core Info" },
-    { id: "case-card", label: "Matter Overview" },
-    { id: "payment-card", label: "Financials" },
-    { id: "followups-card", label: "Timeline" },
-    { id: "documents-card", label: "Files" },
-  ];
+    canViewClients ? { id: "client-profile", label: "Identity" } : null,
+    canViewClients ? { id: "client-info", label: "Core Info" } : null,
+    canViewCases ? { id: "case-card", label: "Matter Overview" } : null,
+    canViewPayments ? { id: "payment-card", label: "Financials" } : null,
+    canViewFollowUps ? { id: "followups-card", label: "Timeline" } : null,
+    canViewDocuments ? { id: "documents-card", label: "Files" } : null,
+  ].filter(Boolean);
 
   return (
     <AppShell
@@ -386,9 +397,13 @@ function CaseDetails() {
               <button onClick={() => downloadReport('print')}>📄 PDF / Professional Print</button>
               <button onClick={() => downloadReport('csv')}>📊 CSV Spreadsheet</button>
               <button onClick={() => downloadReport('json')}>🛠️ JSON Data Backup</button>
-              <div className="info-divider" style={{ margin: '8px 0' }} />
-              <div className="options-group-label">ATTACHMENTS</div>
-              <button onClick={downloadAllDocuments}>📂 Download All Documents ({documents.length})</button>
+              {canViewDocuments && (
+                <>
+                  <div className="info-divider" style={{ margin: '8px 0' }} />
+                  <div className="options-group-label">ATTACHMENTS</div>
+                  <button onClick={downloadAllDocuments}>📂 Download All Documents ({documents.length})</button>
+                </>
+              )}
             </div>
           </div>
           {isClientView ? (
@@ -408,6 +423,7 @@ function CaseDetails() {
       <div className="case-details-container">
         <MagicBento className="case-details-bento" enableTilt={true}>
           {/* 1. Identity Summary Cell - Focused & Clean */}
+          {canViewClients && (
           <DetailSection 
             id="client-profile" 
             title="Identity Summary" 
@@ -447,8 +463,10 @@ function CaseDetails() {
               </div>
             </div>
           </DetailSection>
+          )}
 
           {/* 2. Personal & KYC Cell - No Redundancy */}
+          {canViewClients && (
           <DetailSection 
             id="client-info" 
             title="Core Details & KYC" 
@@ -521,9 +539,10 @@ function CaseDetails() {
               </div>
             </div>
           </DetailSection>
+          )}
 
           {/* 3. Case Details Cell - Always Showcase Specifics */}
-          {legalCase ? (
+          {canViewCases && legalCase ? (
             <DetailSection 
               id="case-card" 
               title={isClientView ? "Primary Case Details" : "Matter Overview"} 
@@ -578,13 +597,14 @@ function CaseDetails() {
                 )}
               </div>
             </DetailSection>
-          ) : (
+          ) : canViewCases ? (
             <DetailSection id="case-card" title="No Active Case" label="Matter Details" className="magic-bento-card--full">
               <p className="empty-text">This client has no associated case records yet.</p>
             </DetailSection>
-          )}
+          ) : null}
 
           {/* 4. Financial Overview Cell */}
+          {canViewPayments && (
           <DetailSection 
             id="payment-card" 
             title="Financials" 
@@ -614,8 +634,10 @@ function CaseDetails() {
               </div>
             </div>
           </DetailSection>
+          )}
 
           {/* 5. Timeline / Follow-ups Cell */}
+          {canViewFollowUps && (
           <DetailSection 
             id="followups-card" 
             title="Next Events" 
@@ -640,8 +662,10 @@ function CaseDetails() {
               {visibleFollowUps.length === 0 && <p className="empty-text">No upcoming hearings or tasks.</p>}
             </div>
           </DetailSection>
+          )}
 
           {/* 6. Documents Cell */}
+          {canViewDocuments && (
           <DetailSection 
             id="documents-card" 
             title="Files & Attachments" 
@@ -673,8 +697,10 @@ function CaseDetails() {
               {documents.length === 0 && <p className="empty-text">No documents uploaded yet.</p>}
             </div>
           </DetailSection>
+          )}
 
           {/* 7. Full Payment History - Bottom Row */}
+          {canViewPayments && (
           <DetailSection 
             id="payment-history-full" 
             title="Full Payment Ledger" 
@@ -715,6 +741,7 @@ function CaseDetails() {
               </table>
             </div>
           </DetailSection>
+          )}
         </MagicBento>
       </div>
 

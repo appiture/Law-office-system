@@ -159,6 +159,9 @@ export const syncSupabaseSession = async (providedSession = null, options = {}) 
           ? Boolean(workspace.mustResetPassword)
           : Boolean(previousCache.mustResetPassword || false),
         canAccessWorkspace: hasWorkspaceResult ? Boolean(workspace.canAccessWorkspace) : (previousCache.canAccessWorkspace || false),
+        isDemo: hasWorkspaceResult ? Boolean(workspace.isDemoWorkspace) : (previousCache.isDemo || false),
+        demoExpiresAt: workspace?.demoExpiresAt || previousCache.demoExpiresAt || null,
+        subscriptionStatus: workspace?.subscriptionStatus || previousCache.subscriptionStatus || "ACTIVE",
         workspaceAccessMessage: workspace?.workspaceAccessMessage || workspaceAccessMessage || previousCache.workspaceAccessMessage || "",
       };
 
@@ -209,6 +212,19 @@ export const canAccessWorkspace = () => Boolean(readSessionCache().canAccessWork
 export const getWorkspaceAccessMessage = () => readSessionCache().workspaceAccessMessage || "";
 
 export const mustResetPassword = () => Boolean(readSessionCache().mustResetPassword);
+
+export const isDemo = () => Boolean(readSessionCache().isDemo);
+
+export const getDemoExpiresAt = () => readSessionCache().demoExpiresAt;
+
+export const isDemoExpired = () => {
+  if (!isDemo()) return false;
+  const expiry = getDemoExpiresAt();
+  if (!expiry) return false;
+  return new Date(expiry) < new Date();
+};
+
+export const getSubscriptionStatus = () => readSessionCache().subscriptionStatus || "ACTIVE";
 
 /**
  * Explicitly check the auth state via the auth-utils edge function.

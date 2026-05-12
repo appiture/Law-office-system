@@ -13,6 +13,27 @@ import {
 } from "../_shared/validation.ts";
 import { inviteEmail, passwordSetupRedirectUrl, sendEmail } from "../_shared/email.ts";
 
+type AdminClient = ReturnType<typeof createAdminClient>;
+
+async function findAuthUserByEmail(adminClient: AdminClient, emailAddress: string) {
+  const needle = emailAddress.toLowerCase();
+
+  for (let page = 1; page <= 20; page += 1) {
+    const { data, error } = await adminClient.auth.admin.listUsers({
+      page,
+      perPage: 1000,
+    });
+    if (error) throw error;
+
+    const users = data?.users || [];
+    const match = users.find((user) => String(user.email || "").toLowerCase() === needle);
+    if (match) return match;
+    if (users.length < 1000) break;
+  }
+
+  return null;
+}
+
 Deno.serve(async (request: Request): Promise<Response> => {
   const options = handleOptions(request);
   if (options) return options;
@@ -43,56 +64,89 @@ Deno.serve(async (request: Request): Promise<Response> => {
     if (organizationError) throw organizationError;
     if (!organization) throw new Error("Your organization is not active.");
 
-    const { data: existingUser, error: existingUserError } = await adminClient
+    const { data: existingUsers, error: existingUserError } = await adminClient
       .from("users")
-      .select("id,email,organization_id,deleted_at")
+      .select("id,email,full_name,organization_id,deleted_at")
       .eq("email", emailAddress)
-      .is("deleted_at", null)
-      .maybeSingle();
+      .order("deleted_at", { ascending: false, nullsFirst: true });
     if (existingUserError) throw existingUserError;
-    if (existingUser) throw new Error("A user with that email already exists.");
+
+    const activeUser = (existingUsers || []).find((user) => !user.deleted_at);
+    if (activeUser) throw new Error("A user with that email already exists.");
+
+    const reusableProfile = (existingUsers || []).find((user) => user.organization_id === organizationId)
+      || (existingUsers || [])[0]
+      || null;
 
     const { data: pendingInvite, error: pendingInviteError } = await adminClient
       .from("organization_invites")
-      .select("id")
+      .select("id,auth_user_id")
       .eq("organization_id", organizationId)
       .eq("email", emailAddress)
       .eq("status", "PENDING")
       .maybeSingle();
     if (pendingInviteError) throw pendingInviteError;
-    if (pendingInvite) throw new Error("There is already a pending invite for this email.");
 
     const temporaryPassword = generateTemporaryPassword();
     const passwordExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
 
-    const { data: createdUser, error: createUserError } = await adminClient.auth.admin.createUser({
-      email: emailAddress,
-      password: temporaryPassword,
-      email_confirm: true,
-      user_metadata: {
-        role,
-        organization: organization.name,
-        must_reset_password: true,
-      },
-      app_metadata: {
-        role,
-        organization_id: organizationId,
-      },
-    });
-    if (createUserError || !createdUser.user) {
-      throw createUserError || new Error("Supabase Auth did not return a user.");
+    let userId = reusableProfile?.id || pendingInvite?.auth_user_id || null;
+    let reusedExistingAccount = Boolean(userId);
+
+    if (!userId) {
+      const authUser = await findAuthUserByEmail(adminClient, emailAddress);
+      userId = authUser?.id || null;
+      reusedExistingAccount = Boolean(userId);
     }
 
-    createdUserId = createdUser.user.id;
-    const userId = createdUserId;
+    if (userId) {
+      const { error: updateAuthError } = await adminClient.auth.admin.updateUserById(userId, {
+        email: emailAddress,
+        password: temporaryPassword,
+        email_confirm: true,
+        user_metadata: {
+          role,
+          organization: organization.name,
+          must_reset_password: true,
+        },
+        app_metadata: {
+          role,
+          organization_id: organizationId,
+        },
+      });
+      if (updateAuthError) throw updateAuthError;
+    } else {
+      const { data: createdUser, error: createUserError } = await adminClient.auth.admin.createUser({
+        email: emailAddress,
+        password: temporaryPassword,
+        email_confirm: true,
+        user_metadata: {
+          role,
+          organization: organization.name,
+          must_reset_password: true,
+        },
+        app_metadata: {
+          role,
+          organization_id: organizationId,
+        },
+      });
+      if (createUserError || !createdUser.user) {
+        throw createUserError || new Error("Supabase Auth did not return a user.");
+      }
+
+      createdUserId = createdUser.user.id;
+      userId = createdUserId;
+    }
+
     const { error: profileError } = await adminClient.from("users").upsert({
       id: userId,
       email: emailAddress,
-      full_name: "",
+      full_name: reusableProfile?.full_name || "",
       role,
       status: "ACTIVE",
       organization_id: organizationId,
       must_reset_password: true,
+      deleted_at: null,
       invited_by: actor.user.id,
     }, { onConflict: "id" });
     if (profileError) throw profileError;
@@ -108,7 +162,7 @@ Deno.serve(async (request: Request): Promise<Response> => {
         auth_user_id: userId,
         invite_type: "USER",
         temporary_password_expires_at: passwordExpiresAt,
-        metadata: { source: "edge:invite-user" },
+        metadata: { source: "edge:invite-user", reusedExistingAccount },
       }, { onConflict: "organization_id,email" })
       .select("id")
       .single();
@@ -189,9 +243,12 @@ Deno.serve(async (request: Request): Promise<Response> => {
       email: emailAddress,
       role,
       organizationId,
+      reusedExistingAccount,
       message: emailSent
-        ? "Team member account created and invite email sent."
-        : "Team member account created, but the invite email failed. Check Resend configuration and email_events.",
+        ? reusedExistingAccount
+          ? "Team member account restored and invite email sent."
+          : "Team member account created and invite email sent."
+        : "Team member account was prepared, but the invite email failed. Check Resend configuration and email_events.",
     });
   } catch (error) {
     // Rollback orphaned Supabase Auth user
@@ -208,4 +265,3 @@ Deno.serve(async (request: Request): Promise<Response> => {
     }, 400);
   }
 });
-

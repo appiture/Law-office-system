@@ -1,5 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
+import { supabasePlatformApi as platformApi } from "../repositories/supabaseRepository";
 import { buildTenantAssetPrefix, getPersistentAssetUrl, uploadAsset } from "../services/storageService";
 import { supabaseBuckets } from "../services/supabaseClient";
 import {
@@ -151,7 +152,7 @@ function ClientStep({ form, onChange }) {
   );
 }
 
-function CaseStep({ form, onChange }) {
+function CaseStep({ form, onChange, lawyers = [] }) {
   return (
     <div className="form-section">
       <div className="form-section-title"><span>Case Details</span></div>
@@ -174,7 +175,17 @@ function CaseStep({ form, onChange }) {
           <input value={form.courtName} onChange={(event) => onChange("courtName", event.target.value)} placeholder="Court name" />
         </FG>
         <FG label="Assigned Lawyer">
-          <input value={form.assignedLawyer} onChange={(event) => onChange("assignedLawyer", event.target.value)} placeholder="Assigned lawyer" />
+          <input
+            value={form.assignedLawyer}
+            onChange={(event) => onChange("assignedLawyer", event.target.value)}
+            list="wizard-assigned-lawyers"
+            placeholder="Select or type assigned lawyer"
+          />
+          <datalist id="wizard-assigned-lawyers">
+            {lawyers.map((lawyer) => (
+              <option key={lawyer.id} value={lawyer.value}>{lawyer.label}</option>
+            ))}
+          </datalist>
         </FG>
         <FG label="Judge">
           <input value={form.judgeName} onChange={(event) => onChange("judgeName", event.target.value)} placeholder="Judge name" />
@@ -315,6 +326,7 @@ export default function MultiStepClientWizard({ client, onClose, onSave, initial
   const [saving, setSaving] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [toast, setToast] = useState("");
+  const [lawyers, setLawyers] = useState([]);
   const isEdit = Boolean(client);
 
   const [formData, setFormData] = useState({
@@ -347,6 +359,7 @@ export default function MultiStepClientWizard({ client, onClose, onSave, initial
       caseTypeOther: "",
       courtName: client?.cases?.[0]?.courtName || "",
       assignedLawyer: client?.cases?.[0]?.assignedLawyer || "",
+      assigned_lawyer_id: client?.cases?.[0]?.assignedLawyerId || "",
       judgeName: client?.cases?.[0]?.judgeName || "",
       filingDate: client?.cases?.[0]?.filingDate || "",
       firstHearingDate: client?.cases?.[0]?.firstHearingDate || "",
@@ -361,6 +374,19 @@ export default function MultiStepClientWizard({ client, onClose, onSave, initial
   });
 
   const title = useMemo(() => client ? `Edit ${client.name}` : "New Client", [client]);
+
+  useEffect(() => {
+    let cancelled = false;
+    platformApi.getAssignableLawyers()
+      .then((rows) => {
+        if (!cancelled) setLawyers(Array.isArray(rows) ? rows : []);
+      })
+      .catch(() => {
+        if (!cancelled) setLawyers([]);
+      });
+
+    return () => { cancelled = true; };
+  }, []);
 
   const setClientField = (field, value) => {
     setFormData((current) => ({ ...current, client: { ...current.client, [field]: value } }));
@@ -520,7 +546,7 @@ export default function MultiStepClientWizard({ client, onClose, onSave, initial
 
         <div className="flow-modal-body">
           {currentStep === 0 ? <ClientStep form={formData.client} onChange={setClientField} /> : null}
-          {currentStep === 1 ? <CaseStep form={formData.caseData} onChange={setCaseField} /> : null}
+          {currentStep === 1 ? <CaseStep form={formData.caseData} onChange={setCaseField} lawyers={lawyers} /> : null}
           {currentStep === 2 ? <PaymentStep payments={formData.charges} setPayments={(charges) => setFormData((current) => ({ ...current, charges }))} /> : null}
           {currentStep === 3 ? <FollowUpStep followUps={formData.followUps} setFollowUps={(followUps) => setFormData((current) => ({ ...current, followUps }))} /> : null}
         </div>

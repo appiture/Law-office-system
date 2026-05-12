@@ -20,7 +20,7 @@ import "./AppShell.css";
 const baseNavItems = [
   { to: "/dashboard", label: "Dashboard", shortLabel: "DB", detail: "Practice overview" },
   { to: "/clients", label: "Clients", shortLabel: "CL", detail: "Profiles and contact records" },
-  { to: "/cases", label: "Matters", shortLabel: "MT", detail: "Case portfolio and stages" },
+  { to: "/cases", label: "Cases", shortLabel: "CS", detail: "Case management" },
   { to: "/payments", label: "Fees", shortLabel: "FE", detail: "Billing and collections" },
   { to: "/documents", label: "Documents", shortLabel: "DC", detail: "Evidence and filings" },
   { to: "/followups", label: "Follow-Ups", shortLabel: "FU", detail: "Hearings and reminders" },
@@ -106,21 +106,20 @@ function AppShell({ title, subtitle, actions, children }) {
   const getSubItems = (to) => {
     if (to === "/cases" && isCaseDetail) {
       return [
-        { hash: "#case-card", label: "Overview" },
-        { hash: "#cases-portfolio", label: "Portfolio" },
-        { hash: "#payment-card", label: "Financials" },
-        { hash: "#followups-card", label: "Timeline" },
-        { hash: "#documents-card", label: "Documents" },
-      ];
+        canAccess("cases") ? { hash: "#case-card", label: "Overview" } : null,
+        canAccess("payments") ? { hash: "#payment-card", label: "Financials" } : null,
+        canAccess("followups") ? { hash: "#followups-card", label: "Timeline" } : null,
+        canAccess("documents") ? { hash: "#documents-card", label: "Documents" } : null,
+      ].filter(Boolean);
     }
     if (to === "/clients" && isClientDetail) {
       return [
-        { hash: "#client-info", label: "Identity" },
-        { hash: "#cases-portfolio", label: "Cases" },
-        { hash: "#payment-card", label: "Financials" },
-        { hash: "#followups-card", label: "Timeline" },
-        { hash: "#documents-card", label: "Documents" },
-      ];
+        canAccess("clients") ? { hash: "#client-info", label: "Identity" } : null,
+        canAccess("cases") ? { hash: "#case-card", label: "Cases" } : null,
+        canAccess("payments") ? { hash: "#payment-card", label: "Financials" } : null,
+        canAccess("followups") ? { hash: "#followups-card", label: "Timeline" } : null,
+        canAccess("documents") ? { hash: "#documents-card", label: "Documents" } : null,
+      ].filter(Boolean);
     }
     return [];
   };

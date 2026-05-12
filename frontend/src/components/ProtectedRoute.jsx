@@ -6,10 +6,13 @@ import {
   syncSupabaseSession,
   getWorkspaceAccessMessage,
   fullLogout,
-  mustResetPassword
+  mustResetPassword,
+  isDemoExpired,
+  getDemoExpiresAt
 } from "../services/authService";
 import { isPlatformAdmin, checkAdminStatus } from "../services/adminService";
 import { usePermissions } from "../context/PermissionsContext";
+import DemoExpiredScreen from "./DemoExpiredScreen";
 
 function ProtectedRoute({ children, section }) {
   const location = useLocation();
@@ -18,6 +21,7 @@ function ProtectedRoute({ children, section }) {
   const [authenticated, setAuthenticated] = useState(hasCachedAccess);
   const [hasWorkspace, setHasWorkspace]   = useState(hasCachedAccess);
   const [isAdmin, setIsAdmin]             = useState(isPlatformAdmin());
+  const [isExpired, setIsExpired]         = useState(isDemoExpired());
   const [accessMessage, setAccessMessage] = useState("");
 
   useEffect(() => {
@@ -51,6 +55,7 @@ function ProtectedRoute({ children, section }) {
           setAuthenticated(isAuthenticated());
           setHasWorkspace(canAccessWorkspace() || isPlatformAdmin());
           setIsAdmin(isPlatformAdmin());
+          setIsExpired(isDemoExpired());
           setAccessMessage(getWorkspaceAccessMessage());
           setReady(true);
         }
@@ -79,6 +84,16 @@ function ProtectedRoute({ children, section }) {
   // Platform admin with no workspace → send directly to their portal
   if (isAdmin && !canAccessWorkspace() && location.pathname !== "/platform-admin") {
     return <Navigate to="/platform-admin" replace />;
+  }
+
+  // Demo expired block (only platform admins are exempt)
+  if (isExpired && !isAdmin) {
+    return <DemoExpiredScreen demoExpiresAt={getDemoExpiresAt()} />;
+  }
+
+  // Explicit platform admin route protection
+  if (location.pathname.startsWith("/platform-admin") && !isAdmin) {
+    return <Navigate to="/" replace />;
   }
 
   // Regular user whose org is not yet approved
@@ -114,7 +129,7 @@ function ProtectedRoute({ children, section }) {
 
   const { canAccess } = usePermissions();
   if (section && !canAccess(section)) {
-    return <Navigate to="/dashboard" replace />;
+    return <Navigate to="/" replace />;
   }
 
   return children;

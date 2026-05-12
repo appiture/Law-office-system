@@ -14,6 +14,7 @@ import { useTheme } from "../context/ThemeContext";
 import BorderGlow from "../components/ui/BorderGlow/BorderGlow";
 import { isOrgAdmin } from "../services/adminService";
 import { sendMonthlyReport } from "../services/adminService";
+import dayjs from "dayjs";
 import "./Dashboard.css";
 import "./formStyles.css";
 
@@ -83,6 +84,10 @@ function Dashboard() {
   const [notificationOpen, setNotificationOpen] = useState(false);
   const [tasks, setTasks] = useState([]);
   const [putUpDates, setPutUpDates] = useState([]);
+  const [calendarEvents, setCalendarEvents] = useState([]);
+  const [selectedDate, setSelectedDate] = useState(null);
+  const [eventModalOpen, setEventModalOpen] = useState(false);
+  const [selectedEvent, setSelectedEvent] = useState(null);
   const { theme, toggleTheme } = useTheme();
 
   // Report sending state
@@ -90,6 +95,17 @@ function Dashboard() {
   const defaultMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   const [reportMonth, setReportMonth] = useState(defaultMonth);
   const [reportState, setReportState] = useState({ loading: false, toast: null }); // toast: {type:'success'|'error', msg}
+
+  const handleDateClick = (date) => {
+    setSelectedDate(date);
+    const eventsForDate = calendarEvents.filter(e => e.event_date === date);
+    if (eventsForDate.length > 0) {
+      setSelectedEvent(eventsForDate[0]); // For now, select first event
+    } else {
+      setSelectedEvent(null);
+    }
+    setEventModalOpen(true);
+  };
 
   const handleSendReport = useCallback(async (isDownload = false) => {
     setReportState({ loading: true, toast: null });
@@ -142,6 +158,10 @@ function Dashboard() {
       setCases(payload.cases);
       setTasks(payload.tasks);
       setPutUpDates(payload.putUpDates);
+
+      // Load calendar events
+      const events = await platformApi.getCalendarEvents();
+      setCalendarEvents(events || []);
     } catch (err) {
       console.error("Failed to load dashboard:", err);
       setError(err.message || "Failed to load dashboard.");
@@ -369,10 +389,10 @@ function Dashboard() {
   }
 
   const kpis = [
-    { label: "Total Clients", value: summary?.totalClients ?? clients.length },
-    { label: "Active Cases", value: activeCaseCount },
-    { label: "Overall Pending", value: currency(finance.totalDue) },
-    { label: "Lawyer Fees Due", value: currency(finance.lawyerFeesDue) },
+    { label: "Total Clients", value: Number(summary?.totalClients ?? clients.length) },
+    { label: "Active Cases", value: Number(activeCaseCount) },
+    { label: "Overall Pending", value: currency(Number(finance.totalDue || 0)) },
+    { label: "Lawyer Fees Due", value: currency(Number(finance.lawyerFeesDue || 0)) },
   ];
 
   return (
@@ -578,18 +598,20 @@ function Dashboard() {
 
                       const caseEventsCount = cell.events.filter(e => e.type === "Hearing" || e.type === "Follow-up").length;
                       const feeEventsCount = cell.events.filter(e => e.type === "Deadline").length;
+                      const calendarEventCount = calendarEvents.filter(e => e.event_date === cell.key).length;
 
                       return (
                         <button
                           type="button"
                           key={cell.key}
                           className={`dashboard-calendar-cell ${cell.isToday ? "is-today" : ""}`}
-                          onClick={() => setAgendaDate(cell.key)}
+                          onClick={() => handleDateClick(cell.key)}
                         >
                           <span>{cell.day}</span>
                           <div className="dashboard-calendar-badges">
                             {caseEventsCount > 0 && <em className="badge-case" title="Case Events">{caseEventsCount}</em>}
                             {feeEventsCount > 0 && <em className="badge-fee" title="Fee Deadlines">{feeEventsCount}</em>}
+                            {calendarEventCount > 0 && <em className="badge-note" title="Notes">{calendarEventCount}</em>}
                           </div>
                         </button>
                       );
@@ -601,6 +623,9 @@ function Dashboard() {
                     </div>
                     <div className="legend-item">
                       <div className="legend-dot fee-dot" /> Fee Deadlines
+                    </div>
+                    <div className="legend-item">
+                      <div className="legend-dot note-dot" /> Notes
                     </div>
                   </div>
                 </div>
@@ -697,7 +722,138 @@ function Dashboard() {
           </div>,
           document.body
         )}
+
+      {eventModalOpen && createPortal(
+        <EventModal
+          selectedDate={selectedDate}
+          selectedEvent={selectedEvent}
+          onClose={() => {
+            setEventModalOpen(false);
+            setSelectedEvent(null);
+            setSelectedDate(null);
+          }}
+          onSave={async (eventData) => {
+            try {
+              await platformApi.saveCalendarEvent(eventData, selectedEvent?.id);
+              await loadDashboard(); // Reload to get updated events
+              setEventModalOpen(false);
+              setSelectedEvent(null);
+              setSelectedDate(null);
+            } catch (err) {
+              alert("Failed to save event: " + err.message);
+            }
+          }}
+          onDelete={async () => {
+            if (!selectedEvent) return;
+            if (!confirm("Delete this event?")) return;
+            try {
+              await platformApi.deleteCalendarEvent(selectedEvent.id);
+              await loadDashboard();
+              setEventModalOpen(false);
+              setSelectedEvent(null);
+              setSelectedDate(null);
+            } catch (err) {
+              alert("Failed to delete event: " + err.message);
+            }
+          }}
+        />,
+        document.body
+      )}
     </AppShell>
+  );
+}
+
+function EventModal({ selectedDate, selectedEvent, onClose, onSave, onDelete }) {
+  const [form, setForm] = useState({
+    title: selectedEvent?.title || "",
+    description: selectedEvent?.description || "",
+    eventDate: selectedDate || selectedEvent?.event_date || "",
+    eventType: selectedEvent?.event_type || "note",
+    color: selectedEvent?.color || "#3A5BA0",
+  });
+  const [saving, setSaving] = useState(false);
+
+  const eventTypes = [
+    { value: "note", label: "Note", color: "#3A5BA0" },
+    { value: "hearing", label: "Hearing", color: "#FF6B35" },
+    { value: "deadline", label: "Deadline", color: "#DC2626" },
+    { value: "meeting", label: "Meeting", color: "#16A34A" },
+  ];
+
+  const handleSave = async () => {
+    if (!form.title.trim()) {
+      alert("Title is required");
+      return;
+    }
+    setSaving(true);
+    try {
+      const eventTypeData = eventTypes.find(t => t.value === form.eventType);
+      await onSave({
+        ...form,
+        color: eventTypeData ? eventTypeData.color : form.color,
+      });
+    } catch (err) {
+      // Error handled in onSave
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="flow-modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
+      <div className="flow-modal flow-modal-sm">
+        <div className="flow-modal-header">
+          <div className="flow-modal-header-info">
+            <h3>{selectedEvent ? "Edit Event" : "Add Event"}</h3>
+            <p>{selectedDate ? formatDate(new Date(selectedDate)) : ""}</p>
+          </div>
+          <button className="flow-modal-close" onClick={onClose}>x</button>
+        </div>
+        <div className="flow-modal-body">
+          <div className="form-section">
+            <div className="form-section-grid">
+              <div className="field-group fcol-full">
+                <span className="field-label">Title *</span>
+                <input
+                  value={form.title}
+                  onChange={(e) => setForm(f => ({ ...f, title: e.target.value }))}
+                  placeholder="Event title"
+                />
+              </div>
+              <div className="field-group fcol-full">
+                <span className="field-label">Description</span>
+                <textarea
+                  value={form.description}
+                  onChange={(e) => setForm(f => ({ ...f, description: e.target.value }))}
+                  rows={3}
+                  placeholder="Optional description"
+                />
+              </div>
+              <div className="field-group">
+                <span className="field-label">Type</span>
+                <select
+                  value={form.eventType}
+                  onChange={(e) => setForm(f => ({ ...f, eventType: e.target.value }))}
+                >
+                  {eventTypes.map(type => (
+                    <option key={type.value} value={type.value}>{type.label}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div className="flow-modal-footer">
+          <button className="btn-neutral" onClick={onClose}>Cancel</button>
+          {selectedEvent && (
+            <button className="btn-danger-soft" onClick={onDelete}>Delete</button>
+          )}
+          <button className="btn-gold" onClick={handleSave} disabled={saving}>
+            {saving ? "Saving..." : "Save"}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
 
