@@ -10,7 +10,6 @@ import {
   syncSupabaseSession,
 } from "../services/authService";
 import { checkMustResetPassword, checkAdminStatus } from "../services/adminService";
-import DotGrid from "../components/ui/DotGrid/DotGrid";
 import appitureLogo from "../assets/appiture_logo.png";
 import "./Login.css";
 
@@ -127,20 +126,6 @@ function Login() {
 
   return (
     <div className="login-screen" style={{ backgroundColor: "#0B1F3A" }}>
-      <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 0 }}>
-        <DotGrid
-          baseColor="#1E3A8A"
-          activeColor="#C9A34E"
-          dotSize={2}
-          gap={20}
-          proximity={150}
-          shockRadius={250}
-          shockStrength={5}
-          resistance={750}
-          returnDuration={1.5}
-        />
-      </div>
-
       <div className="glass-panel" style={{ position: "relative", zIndex: 1 }}>
         <div>
           <p className="glass-kicker">Secure Access</p>

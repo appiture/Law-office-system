@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "../services/supabaseClient";
 import { completePasswordReset } from "../services/adminService";
 import { syncSupabaseSession } from "../services/authService";
-import DotGrid from "../components/ui/DotGrid/DotGrid";
+
 import appitureLogo from "../assets/appiture_logo.png";
 import "./Login.css"; // reuse Login styles
 
@@ -136,20 +136,7 @@ export default function ResetPassword() {
         backgroundColor: "#0B1F3A",
       }}
     >
-      {/* Animated background */}
-      <div style={{ position: "absolute", inset: 0, zIndex: 0 }}>
-        <DotGrid
-          baseColor="#1E3A8A"
-          activeColor="#C9A34E"
-          dotSize={2}
-          gap={20}
-          proximity={150}
-          shockRadius={250}
-          shockStrength={5}
-          resistance={750}
-          returnDuration={1.5}
-        />
-      </div>
+
 
       <div className="glass-panel" style={{ position: "relative", zIndex: 1, maxWidth: 420, width: "100%" }}>
         {/* Header */}

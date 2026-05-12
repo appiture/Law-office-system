@@ -66,6 +66,7 @@ canvas,
 svg {
   max-width: 100%;
   height: auto;
+  display: block;
 }
 
 .page-kicker, .case-tag {
@@ -95,7 +96,7 @@ svg {
   border: 1px solid var(--color-border);
   background: var(--color-card);
   min-height: 280px;
-  height: 100%; /* Ensure it fills the grid cell */
+  height: 100%;
   padding: 18px;
   overflow: hidden;
   display: flex;
@@ -164,17 +165,17 @@ svg {
 }
 
 .app-main {
-  min-width: 0; /* Prevent grid blowout */
-  padding: var(--compact-padding);
+  min-width: 0;
+  padding: 18px;
   display: flex;
   flex-direction: column;
-  gap: var(--compact-gap);
+  gap: 16px;
   min-height: 100vh;
 }
 
 .card-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
   gap: 16px;
   align-items: stretch;
 }

@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { supabase } from "../services/supabaseClient";
 import { requiredText } from "../utils/validation";
 import { checkAdminStatus, checkMustResetPassword } from "../services/adminService";
-import DotGrid from "../components/ui/DotGrid/DotGrid";
+
 import appitureLogo from "../assets/appiture_logo.png";
 import "./Login.css"; // reuse the same glassmorphic styles
 
@@ -112,20 +112,7 @@ function SuperAdminLogin() {
         backgroundColor: "#060f1e",
       }}
     >
-      {/* Animated dot-grid background — darker purple-navy tint for super admin */}
-      <div style={{ position: "absolute", top: 0, left: 0, right: 0, bottom: 0, zIndex: 0 }}>
-        <DotGrid
-          baseColor="#1a0f3c"
-          activeColor="#C9A34E"
-          dotSize={2}
-          gap={22}
-          proximity={140}
-          shockRadius={220}
-          shockStrength={6}
-          resistance={800}
-          returnDuration={1.8}
-        />
-      </div>
+
 
       {/* Glassmorphic panel */}
       <div

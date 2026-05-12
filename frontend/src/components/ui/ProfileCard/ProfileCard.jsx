@@ -156,7 +156,9 @@ const ProfileCardComponent = ({
   }, [enableTilt]);
 
   const getOffsets = (evt, el) => {
+    if (!el) return { x: 0, y: 0 };
     const rect = el.getBoundingClientRect();
+    if (!rect) return { x: 0, y: 0 };
     return { x: evt.clientX - rect.left, y: evt.clientY - rect.top };
   };
 
