@@ -1652,13 +1652,10 @@ const supabasePlatformApi = {
         })
       )
     );
-    const clients = dataset.clients.map((client) => ({
-      id: client.id,
-      name: client.name,
-      phone: client.phone,
-      email: client.email,
-      createdAt: client.created_at,
-    }));
+    // Map clients with full details using mapClientRecord
+    const clients = await Promise.all(
+      dataset.clients.map((client) => mapClientRecord(client, { includeAssets: true }))
+    );
     const dashboard = buildDashboardSummary(cases);
 
     // Derive follow-ups (tasks/dates) from mapped cases to avoid extra DB hits
