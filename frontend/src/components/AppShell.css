@@ -131,13 +131,51 @@
 
 .page-kicker {
   color: var(--color-primary);
+  margin-bottom: 2px;
 }
 
-.page-subtitle,
-.profile-role {
+.header-title-block {
+  display: flex;
+  flex-direction: column;
+}
+
+.header-title-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.header-main-title {
   margin: 0;
-  color: white;
-  opacity: 0.7;
+  line-height: 1.2;
+}
+
+.theme-toggle-header-btn {
+  width: 38px;
+  height: 38px;
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+  background: var(--color-card);
+  color: var(--color-text);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 1.2rem;
+  transition: all 0.25s ease;
+  flex-shrink: 0;
+  box-shadow: 0 4px 12px var(--color-shadow);
+}
+
+.theme-toggle-header-btn:hover {
+  background: var(--color-bg);
+  border-color: var(--color-primary);
+  transform: translateY(-2px);
+}
+
+.dark .theme-toggle-header-btn:hover {
+  border-color: var(--color-secondary);
+}
   font-size: 0.9rem;
 }
 
@@ -327,30 +365,7 @@
   justify-content: flex-end;
 }
 
-.theme-toggle-header-btn {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
-  border: 1px solid var(--color-border);
-  background: var(--color-card);
-  color: var(--color-text);
-  cursor: pointer;
-  display: grid;
-  place-items: center;
-  font-size: 1.1rem;
-  transition: all 0.2s ease;
-  flex-shrink: 0;
-}
-
-.theme-toggle-header-btn:hover {
-  background: var(--color-bg);
-  border-color: var(--color-primary);
-  transform: scale(1.05);
-}
-
-.dark .theme-toggle-header-btn:hover {
-  border-color: var(--color-secondary);
-}
+/* Removed legacy theme toggle classes */
 
 @keyframes shellSlideIn {
   from {

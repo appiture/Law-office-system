@@ -285,21 +285,20 @@ function AppShell({ title, subtitle, actions, children }) {
               Menu
             </button>
 
-            <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
-              <div>
-                <p className="page-kicker">{superAdmin ? "Platform Admin" : organizationName}</p>
-                <h2 style={{ margin: 0 }}>{title}</h2>
-                {subtitle ? <p className="page-subtitle">{subtitle}</p> : null}
+            <div className="header-title-block">
+              <p className="page-kicker">{superAdmin ? "Platform Admin" : organizationName}</p>
+              <div className="header-title-row">
+                <h2 className="header-main-title">{title}</h2>
+                <button 
+                  type="button"
+                  className="theme-toggle-header-btn"
+                  onClick={toggleTheme}
+                  title="Toggle Theme"
+                >
+                  {theme === "light" ? "🌙" : "☀️"}
+                </button>
               </div>
-              
-              <button 
-                type="button"
-                className="theme-toggle-header-btn"
-                onClick={toggleTheme}
-                title="Toggle Theme"
-              >
-                {theme === "light" ? "🌙" : "☀️"}
-              </button>
+              {subtitle ? <p className="page-subtitle">{subtitle}</p> : null}
             </div>
           </div>
 
