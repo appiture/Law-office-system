@@ -1,37 +1,63 @@
-import { createContext, useContext, useEffect, useState } from "react";
+import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { supabase } from "../services/supabaseClient";
 import { isAuthenticated } from "../services/authService";
 
-const PermissionsContext = createContext({ permissions: {}, canAccess: () => true });
+const CORE_SECTIONS = new Set(["dashboard", "settings"]);
+
+const PermissionsContext = createContext({
+  permissions: {},
+  permissionsReady: false,
+  canAccess: () => false,
+});
 
 export function PermissionsProvider({ children }) {
   const [permissions, setPermissions] = useState({});
+  const [permissionsReady, setPermissionsReady] = useState(false);
 
-  useEffect(() => {
-    const fetchPermissions = async () => {
-      if (!isAuthenticated() || !supabase) return;
-      try {
-        const { data, error } = await supabase.rpc("get_my_permissions");
-        if (error) console.error("Permissions fetch failed:", error);
-        if (data) setPermissions(data);
-      } catch (err) {
-        console.error("Error fetching permissions:", err);
+  const fetchPermissions = useCallback(async () => {
+    setPermissionsReady(false);
+
+    if (!isAuthenticated() || !supabase) {
+      setPermissions({});
+      setPermissionsReady(true);
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase.rpc("get_my_permissions");
+      if (error) {
+        console.error("Permissions fetch failed:", error);
+        setPermissions({});
+        return;
       }
-    };
 
-    fetchPermissions();
+      setPermissions(data || {});
+    } catch (err) {
+      console.error("Error fetching permissions:", err);
+      setPermissions({});
+    } finally {
+      setPermissionsReady(true);
+    }
   }, []);
 
-  const canAccess = (section) => {
-    // Core sections always accessible
-    if (section === "dashboard" || section === "settings") return true;
+  useEffect(() => {
+    fetchPermissions();
 
-    // Fail-closed: If permission is not defined or is false, deny access.
+    window.addEventListener("sessionUpdated", fetchPermissions);
+    return () => {
+      window.removeEventListener("sessionUpdated", fetchPermissions);
+    };
+  }, [fetchPermissions]);
+
+  const canAccess = (section) => {
+    if (CORE_SECTIONS.has(section)) return true;
+
+    // Fail-closed: If permission is still loading, not defined, or false, deny access.
     return Boolean(permissions[section]);
   };
 
   return (
-    <PermissionsContext.Provider value={{ permissions, canAccess }}>
+    <PermissionsContext.Provider value={{ permissions, permissionsReady, canAccess }}>
       {children}
     </PermissionsContext.Provider>
   );

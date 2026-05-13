@@ -59,7 +59,7 @@ function InfoRow({ label, value }) {
   return (
     <div className="info-row">
       <span className="info-row-label">{label}</span>
-      <span className="info-row-value">{value}</span>
+      <span className="info-row-value" title={typeof value === "string" ? value : undefined}>{value}</span>
     </div>
   );
 }
@@ -94,36 +94,60 @@ function CaseDetails() {
       setLoading(true);
       setError("");
       setIsClientView(requestedKind === "client");
+      setClient(null);
+      setLegalCase(null);
+      setClientCases([]);
 
-      const allCasesResponse = await platformApi.getCases();
-      if (isCancelled()) return;
+      if (requestedKind === "client") {
+        if (!canViewClients) {
+          throw new Error("You do not have permission to view client details.");
+        }
 
-      const allCases = Array.isArray(allCasesResponse) ? allCasesResponse : [];
-      const matchedCase = requestedKind === "case"
-        ? allCases.find((item) => idsEqual(item.id, requestedId))
-        : null;
-
-      if (matchedCase) {
-        const clientRecord = matchedCase.client?.id ? await platformApi.getClient(matchedCase.client.id) : null;
+        const clientRecord = await platformApi.getClient(requestedId);
         if (isCancelled()) return;
-        const linkedCases = allCases.filter((item) => idsEqual(item.client?.id, clientRecord?.id || matchedCase.client?.id));
-        setIsClientView(false);
-        setLegalCase(matchedCase);
-        setClient(clientRecord || matchedCase.client || null);
-        setClientCases(linkedCases.length ? linkedCases : clientRecord?.cases || []);
+
+        let linkedCases = [];
+        if (canViewCases) {
+          const allCasesResponse = await platformApi.getCases();
+          if (isCancelled()) return;
+          const allCases = Array.isArray(allCasesResponse) ? allCasesResponse : [];
+          linkedCases = allCases.filter((item) => idsEqual(item.client?.id, requestedId));
+        }
+
+        setIsClientView(true);
+        setClient(clientRecord);
+        setClientCases(linkedCases);
+        setLegalCase(linkedCases[0] || null);
         return;
       }
 
-      const clientRecord = await platformApi.getClient(requestedId);
+      if (!canViewCases) {
+        throw new Error("You do not have permission to view case details.");
+      }
+
+      const allCasesResponse = await platformApi.getCases();
       if (isCancelled()) return;
-      const linkedCases = allCases.filter((item) => idsEqual(item.client?.id, requestedId));
-      setIsClientView(true);
-      setClient(clientRecord);
-      setClientCases(linkedCases);
-      setLegalCase(linkedCases[0] || null);
-    } catch {
+      const allCases = Array.isArray(allCasesResponse) ? allCasesResponse : [];
+      const matchedCase = allCases.find((item) => idsEqual(item.id, requestedId));
+      if (!matchedCase) throw new Error("Case not found.");
+
+      let clientRecord = null;
+      if (canViewClients && matchedCase.client?.id) {
+        clientRecord = await platformApi.getClient(matchedCase.client.id);
+        if (isCancelled()) return;
+      }
+
+      const linkedCases = canViewCases && matchedCase.client?.id
+        ? allCases.filter((item) => idsEqual(item.client?.id, matchedCase.client?.id))
+        : [matchedCase];
+
+      setIsClientView(false);
+      setLegalCase(matchedCase);
+      setClient(canViewClients ? (clientRecord || matchedCase.client || null) : null);
+      setClientCases(linkedCases.length ? linkedCases : [matchedCase]);
+    } catch (err) {
       if (!isCancelled()) {
-        setError("Failed to load the requested record.");
+        setError(err.message || "Failed to load the requested record.");
         setClient(null);
         setLegalCase(null);
         setClientCases([]);
@@ -133,7 +157,7 @@ function CaseDetails() {
         setLoading(false);
       }
     }
-  }, [requestedId, requestedKind]);
+  }, [requestedId, requestedKind, canViewClients, canViewCases]);
 
   useEffect(() => {
     let cancelled = false;
@@ -152,6 +176,7 @@ function CaseDetails() {
   }, [loadData, refreshKey, focusParams]);
 
   const openWizard = (clientData, step = 0, targetCase = null) => {
+    if (!canViewClients) return;
     let wizardClient = { ...clientData };
     const allCases = clientCases; // use loaded clientCases, not clientData.cases
     if (targetCase) {
@@ -258,8 +283,9 @@ function CaseDetails() {
         history: paymentHistory.map(ph => ({
           date: ph.paymentDate,
           amount: ph.amount,
-          method: ph.paymentMethod,
-          status: ph.status
+          method: ph.paymentMode,
+          reference: ph.paymentReference,
+          status: ph.status || "Recorded"
         }))
       } : null
     };
@@ -279,8 +305,8 @@ function CaseDetails() {
         csv += `Identity,Phone,${data.identity.phone}\n`;
       }
       if (legalCase) {
-        csv += `Case,Number,${data.case.number}\n`;
-        csv += `Case,Status,${data.case.status}\n`;
+        csv += `Case,Number,${data.case?.number || ""}\n`;
+        csv += `Case,Status,${data.case?.status || ""}\n`;
       }
       if (data.financials) {
         csv += `Financials,Total Fee,${data.financials.total}\n`;
@@ -373,6 +399,9 @@ function CaseDetails() {
 
   const activeCases = clientCases.filter((item) => !["CLOSED_WON", "CLOSED_LOST", "CLOSED"].includes(String(item.status || "").toUpperCase())).length;
   const photoUrl = getPersistentAssetUrl(client?.photoUrl);
+  const canEditClient = canViewClients && Boolean(client);
+  const canEditCase = canViewCases && canViewClients && Boolean(client);
+  const hasExportableContent = canViewClients || canViewCases || canViewPayments || canViewFollowUps || canViewDocuments;
   const detailNavItems = [
     canViewClients ? { id: "client-profile", label: "Identity" } : null,
     canViewClients ? { id: "client-info", label: "Core Info" } : null,
@@ -387,7 +416,8 @@ function CaseDetails() {
       title={isClientView ? "Client Profile" : "Case Portfolio"}
       subtitle={isClientView ? client?.name : `Case #${legalCase?.caseNumber}`}
       actions={
-        <div style={{ display: 'flex', gap: '10px' }}>
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+          {hasExportableContent && (
           <div className="download-dropdown-wrap">
             <button className="btn-gold" style={{ padding: '8px 16px', borderRadius: '10px' }} title="Export Options">
               📥 Export Record
@@ -406,15 +436,16 @@ function CaseDetails() {
               )}
             </div>
           </div>
-          {isClientView ? (
+          )}
+          {isClientView && canEditClient ? (
             <button onClick={() => openWizard(client, 0)} className="btn-gold">
               ✏️ Edit Client
             </button>
-          ) : (
+          ) : canEditCase ? (
             <button onClick={() => openWizard(client, 1, legalCase)} className="btn-gold">
               ✏️ Edit Case
             </button>
-          )}
+          ) : null}
         </div>
       }
     >
@@ -430,11 +461,11 @@ function CaseDetails() {
             label="Identity"
             className="magic-bento-card--profile"
             style={{ height: '100%' }}
-            actions={
+            actions={canEditClient ? (
               <button onClick={() => openWizard(client, 0)} className="btn-edit-section">
                 ✏️ Edit Photo
               </button>
-            }
+            ) : null}
           >
             <div className="profile-hero-section">
               <ProfileCard
@@ -450,6 +481,7 @@ function CaseDetails() {
               />
               <div className="profile-hero-meta">
                 <div className="meta-badge">{isClientView ? "Verified Client" : "Case Primary"}</div>
+                {canViewCases && (
                 <div className="meta-stats">
                   <div className="stat">
                     <strong>{clientCases.length}</strong>
@@ -460,6 +492,7 @@ function CaseDetails() {
                     <small>Active</small>
                   </div>
                 </div>
+                )}
               </div>
             </div>
           </DetailSection>
@@ -472,11 +505,11 @@ function CaseDetails() {
             title="Core Details & KYC" 
             label="Verified Records"
             className="magic-bento-card--details"
-            actions={
+            actions={canEditClient ? (
               <button onClick={() => openWizard(client, 0)} className="btn-edit-section">
                 ✏️ Edit KYC
               </button>
-            }
+            ) : null}
           >
             <div className="info-line-list">
               <div className="info-line-grid-2">
@@ -506,7 +539,7 @@ function CaseDetails() {
               <div className="info-divider" />
               <InfoRow label="Full Address" value={formatAddress(client)} />
 
-              {legalCase && (
+              {canViewCases && legalCase && (
                 <>
                   <div className="info-divider" style={{ borderTop: '2px dashed var(--color-border)', margin: '1rem 0' }} />
                   <div className="mini-matter-summary">
@@ -548,11 +581,11 @@ function CaseDetails() {
               title={isClientView ? "Primary Case Details" : "Matter Overview"} 
               label="Matter Details" 
               className="magic-bento-card--full"
-              actions={
+              actions={canEditCase ? (
                 <button onClick={() => openWizard(client, 1)} className="btn-edit-section">
                   ➕ New Case
                 </button>
-              }
+              ) : null}
             >
               <div className="info-line-list">
                 <div className="info-line-grid-2">
@@ -578,6 +611,7 @@ function CaseDetails() {
                 <div className="info-divider" />
                 <div className="info-line-grid-2" style={{ alignItems: 'center' }}>
                   <InfoRow label="Case Status" value={sentenceCaseStatus(legalCase.status, "Running")} />
+                  {canEditCase && (
                   <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
                     <button 
                       onClick={() => openWizard(client, 1, legalCase)} 
@@ -587,6 +621,7 @@ function CaseDetails() {
                       ✏️ Edit Case Details
                     </button>
                   </div>
+                  )}
                 </div>
                 
                 {legalCase.caseDescription && (
@@ -724,11 +759,11 @@ function CaseDetails() {
                         <td>{formatDate(ph.paymentDate)}</td>
                         <td>
                           <div className="pay-method-cell">
-                            <strong>{ph.paymentMethod}</strong>
-                            <small>{ph.transactionId || ph.remarks || "-"}</small>
+                            <strong>{textOrDash(ph.paymentMode, "Recorded payment")}</strong>
+                            <small>{ph.paymentReference || ph.recordedBy || "-"}</small>
                           </div>
                         </td>
-                        <td><span className={`status-tag ${statusClassName(ph.status)}`}>{ph.status}</span></td>
+                        <td><span className={`status-tag ${statusClassName(ph.status || "recorded")}`}>{ph.status || "Recorded"}</span></td>
                         <td className="text-right amount-cell">{currency(ph.amount)}</td>
                       </tr>
                     ))

@@ -15,7 +15,7 @@ import { usePermissions } from "../context/PermissionsContext";
 import DemoExpiredScreen from "./DemoExpiredScreen";
 
 function ProtectedRoute({ children, section, requirePlatformAdmin = false }) {
-  const { canAccess } = usePermissions();
+  const { canAccess, permissionsReady } = usePermissions();
   const location = useLocation();
   const hasCachedAccess = isAuthenticated() && (canAccessWorkspace() || isPlatformAdmin());
   const [ready, setReady]                 = useState(hasCachedAccess);
@@ -133,6 +133,14 @@ function ProtectedRoute({ children, section, requirePlatformAdmin = false }) {
         >
           Sign Out
         </button>
+      </div>
+    );
+  }
+
+  if (section && !permissionsReady) {
+    return (
+      <div className="page-loader">
+        Loading permissions...
       </div>
     );
   }
