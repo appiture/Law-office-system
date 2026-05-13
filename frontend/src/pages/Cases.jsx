@@ -358,7 +358,8 @@ function Cases() {
   };
 
   useEffect(() => {
-    if (hasLoaded) {
+    const hasActiveFilters = Object.values(filters).some(Boolean);
+    if (hasLoaded || hasActiveFilters) {
       handleSearch(filters);
     }
   }, [filters.searchTerm, filters.caseType, filters.status, filters.fromDate, filters.toDate, hasLoaded]);

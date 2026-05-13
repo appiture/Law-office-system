@@ -325,10 +325,11 @@ function FollowUps() {
   }, [filters, loadData]);
   
   useEffect(() => {
+    const hasActiveFilters = Object.values(filters).some(Boolean);
     if (initialSearchCase && !initialSearchTriggered) {
       setInitialSearchTriggered(true);
       handleSearch({ ...emptyFilters, searchTerm: initialSearchCase });
-    } else if (hasLoaded) {
+    } else if (hasLoaded || hasActiveFilters) {
       handleSearch(filters);
     }
   }, [filters.searchTerm, filters.type, filters.status, filters.fromDate, filters.toDate, initialSearchCase, initialSearchTriggered, handleSearch, hasLoaded]);

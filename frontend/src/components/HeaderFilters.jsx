@@ -62,27 +62,6 @@ function HeaderFilters({
           )}
         </div>
 
-        {dateRangeConfig && (
-          <div className="compact-date-range-bar">
-            <span className="compact-date-label">{dateRangeConfig.label || "Dates"}</span>
-            <input
-              type="date"
-              className="mini-date-input"
-              value={dateRangeConfig.fromDate || ""}
-              onChange={(event) => dateRangeConfig.onFromDateChange?.(event.target.value)}
-              aria-label={`${dateRangeConfig.label || "Date"} from`}
-            />
-            <span className="mini-date-sep">to</span>
-            <input
-              type="date"
-              className="mini-date-input"
-              value={dateRangeConfig.toDate || ""}
-              onChange={(event) => dateRangeConfig.onToDateChange?.(event.target.value)}
-              aria-label={`${dateRangeConfig.label || "Date"} to`}
-            />
-          </div>
-        )}
-
         {(filters.length > 0 || dateRangeConfig) && (
           <button
             type="button"

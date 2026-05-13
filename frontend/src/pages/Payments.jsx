@@ -444,10 +444,11 @@ function Payments() {
   }, [filters, loadData]);
 
   useEffect(() => {
+    const hasActiveFilters = Object.values(filters).some(Boolean);
     if (initialSearchCase && !initialSearchTriggered) {
       setInitialSearchTriggered(true);
       handleSearch({ ...emptyFilters, searchTerm: initialSearchCase });
-    } else if (hasLoaded) {
+    } else if (hasLoaded || hasActiveFilters) {
       // Auto-refresh when filters change after initial load
       handleSearch(filters);
     }

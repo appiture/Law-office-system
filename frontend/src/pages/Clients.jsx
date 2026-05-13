@@ -116,10 +116,11 @@ function Clients() {
   const [initialEditTriggered, setInitialEditTriggered] = useState(false);
 
   useEffect(() => {
+    const hasActiveFilters = Object.values(filters).some(Boolean);
     if (initialSearchName && !initialSearchTriggered) {
       setInitialSearchTriggered(true);
       handleSearch({ ...emptyFilters, searchTerm: initialSearchName });
-    } else if (hasLoaded) {
+    } else if (hasLoaded || hasActiveFilters) {
       handleSearch(filters);
     }
   }, [filters.searchTerm, filters.fromDate, filters.toDate, filters.phone, filters.email, initialSearchName, initialSearchTriggered, handleSearch, hasLoaded]);
