@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import AppShell from "../components/AppShell";
 import { supabasePlatformApi as platformApi } from "../repositories/supabaseRepository";
 import { getOrganizationId, getUserId } from "../services/authService";
+import HeaderFilters from "../components/HeaderFilters";
 import "./Tasks.css";
 
 const PRIORITY_OPTIONS = ["LOW", "MEDIUM", "HIGH", "URGENT"];
@@ -253,6 +254,8 @@ export default function Tasks() {
   const [filterStatus, setFilterStatus] = useState("ALL");
   const [filterPriority, setFilterPriority] = useState("ALL");
   const [searchQuery, setSearchQuery] = useState("");
+  const [filterFromDate, setFilterFromDate] = useState("");
+  const [filterToDate, setFilterToDate] = useState("");
 
   const showToast = (msg) => {
     setToast(msg);
@@ -365,6 +368,12 @@ export default function Tasks() {
         !String(task.assignedTo || "").toLowerCase().includes(q)
       ) return false;
     }
+    if (filterFromDate || filterToDate) {
+      if (!task.dueDate) return false;
+      const d = new Date(task.dueDate);
+      if (filterFromDate && d < new Date(filterFromDate)) return false;
+      if (filterToDate && d > new Date(filterToDate)) return false;
+    }
     return true;
   });
 
@@ -414,39 +423,46 @@ export default function Tasks() {
       {/* ── Quick Add ── */}
       <QuickAddBar onAdd={handleQuickAdd} saving={saving} />
 
-      {/* ── Filters ── */}
-      <div className="tasks-filter-bar">
-        <input
-          className="tasks-search-input"
-          placeholder="🔍 Search tasks…"
-          value={searchQuery}
-          onChange={e => setSearchQuery(e.target.value)}
-        />
-        <div className="tasks-filter-pills">
-          {["ALL", ...STATUS_OPTIONS].map(s => (
-            <button
-              key={s}
-              type="button"
-              className={`tasks-pill ${filterStatus === s ? "tasks-pill-active" : ""}`}
-              onClick={() => setFilterStatus(s)}
-            >
-              {s === "ALL" ? "All Status" : (STATUS_META[s]?.emoji + " " + STATUS_META[s]?.label)}
-            </button>
-          ))}
-        </div>
-        <div className="tasks-filter-pills">
-          {["ALL", ...PRIORITY_OPTIONS].map(p => (
-            <button
-              key={p}
-              type="button"
-              className={`tasks-pill ${filterPriority === p ? "tasks-pill-active" : ""}`}
-              onClick={() => setFilterPriority(p)}
-            >
-              {p === "ALL" ? "All Priority" : (PRIORITY_META[p]?.emoji + " " + PRIORITY_META[p]?.label)}
-            </button>
-          ))}
-        </div>
-      </div>
+      <HeaderFilters
+        searchTerm={searchQuery}
+        onSearchChange={setSearchQuery}
+        searchPlaceholder="Search tasks..."
+        filters={[
+          {
+            id: "status",
+            label: "Status",
+            options: STATUS_OPTIONS.map(s => ({ value: s, label: STATUS_META[s].label }))
+          },
+          {
+            id: "priority",
+            label: "Priority",
+            options: PRIORITY_OPTIONS.map(p => ({ value: p, label: PRIORITY_META[p].label }))
+          }
+        ]}
+        filterValues={{ status: filterStatus, priority: filterPriority }}
+        onFilterChange={(id, val) => {
+          if (id === "status") setFilterStatus(val || "ALL");
+          if (id === "priority") setFilterPriority(val || "ALL");
+        }}
+        dateRangeConfig={{
+          label: "Due Date",
+          fromDate: filterFromDate,
+          toDate: filterToDate,
+          onFromDateChange: setFilterFromDate,
+          onToDateChange: setFilterToDate
+        }}
+        onClearFilters={() => {
+          setSearchQuery("");
+          setFilterStatus("ALL");
+          setFilterPriority("ALL");
+          setFilterFromDate("");
+          setFilterToDate("");
+        }}
+        onShowAll={() => {
+          setFilterStatus("ALL");
+          setFilterPriority("ALL");
+        }}
+      />
 
       {/* ── Error Banner ── */}
       {error && <div className="form-error-banner" style={{ marginBottom: 16 }}>{error}</div>}

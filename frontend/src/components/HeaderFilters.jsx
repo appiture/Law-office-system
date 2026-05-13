@@ -11,6 +11,7 @@ function HeaderFilters({
   onClearFilters,
   showClearButton = true,
   dateRangeConfig = null,
+  onShowAll = null,
 }) {
   const [panelOpen, setPanelOpen] = useState(false);
   const [isSearchExpanded, setIsSearchExpanded] = useState(false);
@@ -152,6 +153,11 @@ function HeaderFilters({
               {hasActiveFilters || hasDateRange ? "Active filters applied" : "No filters active"}
             </div>
             <div className="filter-action-buttons">
+              {onShowAll && (
+                <button type="button" className="panel-show-all-btn" onClick={() => { onShowAll(); setPanelOpen(false); }}>
+                  Show All Contents
+                </button>
+              )}
               {showClearButton && (hasActiveFilters || hasDateRange) && (
                 <button type="button" className="panel-clear-btn" onClick={handleClearAll}>
                   Clear All Filters

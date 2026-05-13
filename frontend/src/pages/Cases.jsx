@@ -399,12 +399,13 @@ function Cases() {
         filterValues={{ caseType: filters.caseType }}
         onFilterChange={(id, val) => setFilters(p => ({ ...p, [id]: val }))}
         onClearFilters={() => {
-          setFilters({ ...emptyFilters });
+          setFilters(emptyFilters);
           setCases([]);
           setTotal(0);
           setHasLoaded(false);
           setError("");
         }}
+        onShowAll={handleShowAll}
       />
 
        {hasLoaded && !loading && (

@@ -4,6 +4,7 @@ import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import AppShell from "../components/AppShell";
 import ProfileCard from "../components/ui/ProfileCard/ProfileCard";
 import MultiStepClientWizard from "../components/MultiStepClientWizard";
+import HeaderFilters from "../components/HeaderFilters";
 import ControlledSearchPanel, { EmptyState, ErrorState, LoadingState, PaginationControls } from "../components/ControlledSearchPanel";
 import { supabasePlatformApi as platformApi } from "../repositories/supabaseRepository";
 import { getPersistentAssetUrl } from "../services/storageService";
@@ -11,7 +12,7 @@ import "./Clients.css";
 import "./formStyles.css";
 
 const PAGE_SIZE = 25;
-const emptyFilters = { name: "", phone: "", email: "" };
+const emptyFilters = { name: "", phone: "", email: "", fromDate: "", toDate: "" };
 
 function Clients() {
   const [clients, setClients] = useState([]);
@@ -118,8 +119,10 @@ function Clients() {
     if (initialSearchName && !initialSearchTriggered) {
       setInitialSearchTriggered(true);
       handleSearch({ ...emptyFilters, name: initialSearchName });
+    } else if (hasLoaded) {
+      handleSearch(filters);
     }
-  }, [initialSearchName, initialSearchTriggered, handleSearch]);
+  }, [filters.fromDate, filters.toDate, filters.phone, filters.email, initialSearchName, initialSearchTriggered, handleSearch, hasLoaded]);
 
   useEffect(() => {
     if (initialEditId && !initialEditTriggered && clients.length > 0) {
@@ -144,33 +147,31 @@ function Clients() {
       }
     >
       <ErrorState message={error} />
-      <ControlledSearchPanel
-        title="Search clients"
-        description="Search by name, phone number, or email. Use Show All only when you need a full paged list."
-        fields={[
-          { name: "name", label: "Name", placeholder: "Client name" },
-          { name: "phone", label: "Phone number", placeholder: "10 digit phone" },
-          { name: "email", label: "Email", placeholder: "client@example.com" },
+      <HeaderFilters
+        searchTerm={filters.name}
+        onSearchChange={(val) => setFilters(p => ({ ...p, name: val }))}
+        searchPlaceholder="Search client name..."
+        filters={[
+          { id: "phone", label: "Phone", options: [] }, // Using as text search for now or just placeholders
+          { id: "email", label: "Email", options: [] }
         ]}
-        values={filters}
-        onChange={setFilters}
-        onSearch={handleSearch}
-        onShowAll={handleShowAll}
-        onClear={() => {
+        filterValues={{ phone: filters.phone, email: filters.email }}
+        onFilterChange={(id, val) => setFilters(p => ({ ...p, [id]: val }))}
+        dateRangeConfig={{
+          label: "Registration Date",
+          fromDate: filters.fromDate,
+          toDate: filters.toDate,
+          onFromDateChange: (val) => setFilters(p => ({ ...p, fromDate: val })),
+          onToDateChange: (val) => setFilters(p => ({ ...p, toDate: val }))
+        }}
+        onClearFilters={() => {
           setFilters(emptyFilters);
           setClients([]);
           setTotal(0);
           setHasLoaded(false);
           setError("");
         }}
-        actions={
-          <button type="button" className="btn-primary" onClick={openCreate}>
-            + ADD NEW CLIENT
-          </button>
-        }
-        loading={loading}
-        totalResults={total}
-        pageSize={PAGE_SIZE}
+        onShowAll={handleShowAll}
       />
 
       {hasLoaded && !loading && (

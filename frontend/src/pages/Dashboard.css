@@ -27,9 +27,9 @@
 }
 
 .dashboard-search-container {
-  flex: 0 1 280px; /* Further minimized */
-  min-width: 180px;
+  flex: 1;
   display: flex;
+  justify-content: flex-end;
 }
 
 .dashboard-search-container > div {

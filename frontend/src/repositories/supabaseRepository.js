@@ -853,20 +853,32 @@ const supabasePlatformApi = {
   },
   searchClients: async ({ filters = {}, page = 1, pageSize = DEFAULT_PAGE_SIZE, showAll = false } = {}) => {
     const context = await internalGetWorkspaceContext();
+    const effectiveFilters = getEffectiveFilters(filters, showAll);
+    
     if (isLawyerContext(context)) {
-      const effectiveFilters = getEffectiveFilters(filters, showAll);
       const clients = await getMappedClients();
       const matches = clients.filter((item) => {
         const nameMatch = !effectiveFilters.name || String(item.name || "").toLowerCase().includes(String(effectiveFilters.name).toLowerCase());
         const phoneMatch = !effectiveFilters.phone || String(item.phone || "").toLowerCase().includes(String(effectiveFilters.phone).toLowerCase());
         const emailMatch = !effectiveFilters.email || String(item.email || "").toLowerCase().includes(String(effectiveFilters.email).toLowerCase());
-        return nameMatch && phoneMatch && emailMatch;
+        
+        let dateRangeMatch = true;
+        if (effectiveFilters.fromDate || effectiveFilters.toDate) {
+          const start = effectiveFilters.fromDate ? new Date(effectiveFilters.fromDate) : null;
+          const end = effectiveFilters.toDate ? new Date(effectiveFilters.toDate) : null;
+          if (start) start.setHours(0, 0, 0, 0);
+          if (end) end.setHours(23, 59, 59, 999);
+          const d = new Date(item.createdAt);
+          if (start && d < start) dateRangeMatch = false;
+          if (end && d > end) dateRangeMatch = false;
+        }
+
+        return nameMatch && phoneMatch && emailMatch && dateRangeMatch;
       });
       return paginateItems(matches, page, pageSize);
     }
 
     const client = requireSupabase();
-    const effectiveFilters = getEffectiveFilters(filters, showAll);
     let query = client.from("clients")
       .select("*", { count: "exact" })
       .eq("organization_id", context.organizationId)
@@ -875,6 +887,9 @@ const supabasePlatformApi = {
     if (effectiveFilters.name) query = query.ilike("name", `%${effectiveFilters.name}%`);
     if (effectiveFilters.phone) query = query.ilike("phone", `%${effectiveFilters.phone}%`);
     if (effectiveFilters.email) query = query.ilike("email", `%${effectiveFilters.email}%`);
+    
+    if (effectiveFilters.fromDate) query = query.gte("created_at", effectiveFilters.fromDate);
+    if (effectiveFilters.toDate) query = query.lte("created_at", `${effectiveFilters.toDate}T23:59:59`);
 
     const { safePage, safePageSize, from, to } = getPageBounds(page, pageSize);
     const { data, count, error } = await query.order("created_at", { ascending: false }).range(from, to);
@@ -1078,6 +1093,9 @@ const supabasePlatformApi = {
     if (effectiveFilters.caseNumber) query = query.ilike("case_number", `%${effectiveFilters.caseNumber}%`);
     if (effectiveFilters.caseType) query = query.ilike("case_type", `%${effectiveFilters.caseType}%`);
     if (effectiveFilters.clientName) query = query.ilike("clients.name", `%${effectiveFilters.clientName}%`);
+    
+    if (effectiveFilters.fromDate) query = query.gte("created_at", effectiveFilters.fromDate);
+    if (effectiveFilters.toDate) query = query.lte("created_at", `${effectiveFilters.toDate}T23:59:59`);
 
     const { safePage, safePageSize, from, to } = getPageBounds(page, pageSize);
     const { data, count, error } = await query.order("updated_at", { ascending: false }).range(from, to);
@@ -1505,6 +1523,9 @@ const supabasePlatformApi = {
     if (effectiveFilters.date) {
       query = query.gte("date", `${effectiveFilters.date}T00:00:00`).lte("date", `${effectiveFilters.date}T23:59:59`);
     }
+    if (effectiveFilters.fromDate) query = query.gte("date", `${effectiveFilters.fromDate}T00:00:00`);
+    if (effectiveFilters.toDate) query = query.lte("date", `${effectiveFilters.toDate}T23:59:59`);
+    
     if (effectiveFilters.clientName) query = query.ilike("cases.clients.name", `%${effectiveFilters.clientName}%`);
     if (effectiveFilters.caseNumber) query = query.ilike("cases.case_number", `%${effectiveFilters.caseNumber}%`);
 

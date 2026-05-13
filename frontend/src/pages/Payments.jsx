@@ -505,6 +505,7 @@ function Payments() {
           setHasLoaded(false);
           setError("");
         }}
+        onShowAll={handleShowAll}
       />
 
       {hasLoaded && !loading && (

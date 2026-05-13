@@ -369,6 +369,7 @@ function FollowUps() {
           setHasLoaded(false);
           setError("");
         }}
+        onShowAll={handleShowAll}
       />
 
       {hasLoaded && !loading && (

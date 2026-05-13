@@ -9,6 +9,7 @@ import {
   removeOrganizationMember,
 } from "../services/adminService";
 import { getUserId } from "../services/authService";
+import HeaderFilters from "../components/HeaderFilters";
 import "./formStyles.css";
 
 const SECTIONS = ["dashboard", "clients", "cases", "payments", "documents", "followups", "settings", "team"];
@@ -592,6 +593,8 @@ export default function TeamManagement() {
   const [toast,        setToast]        = useState(null);
   const [search,       setSearch]       = useState("");
   const [filterRole,   setFilterRole]   = useState("ALL");
+  const [filterFromDate, setFilterFromDate] = useState("");
+  const [filterToDate, setFilterToDate] = useState("");
   const [editingPerms, setEditingPerms] = useState(null);
   const currentUserId = getUserId();
 
@@ -633,7 +636,16 @@ export default function TeamManagement() {
       m.email.toLowerCase().includes(search.toLowerCase()) ||
       (m.full_name || "").toLowerCase().includes(search.toLowerCase());
     const matchRole = filterRole === "ALL" || m.role === filterRole;
-    return matchSearch && matchRole;
+    let matchDate = true;
+    if (filterFromDate || filterToDate) {
+      if (!m.created_at) matchDate = false;
+      else {
+        const d = new Date(m.created_at);
+        if (filterFromDate && d < new Date(filterFromDate)) matchDate = false;
+        if (filterToDate && d > new Date(filterToDate)) matchDate = false;
+      }
+    }
+    return matchSearch && matchRole && matchDate;
   });
 
   const activeCount  = members.filter((m) => m.status === "ACTIVE").length;
@@ -683,32 +695,40 @@ export default function TeamManagement() {
         {/* Invite form + result */}
         <InviteForm onInvited={() => { loadMembers(); showToast("Team member added!"); }} />
 
-        {/* Search + Filter bar */}
-        <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-          <input
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search by name or email…"
-            style={{
-              flex: 1, minWidth: 200,
-              padding: "9px 14px", borderRadius: 10,
-              border: "1px solid var(--color-border)",
-              background: "var(--color-surface)", color: "var(--color-text)",
-              fontSize: 13, outline: "none",
-            }}
-          />
-          {["ALL", "ADMIN", "LAWYER", "STAFF"].map((r) => (
-            <button key={r} onClick={() => setFilterRole(r)} style={{
-              background: filterRole === r ? "var(--color-primary)" : "var(--color-surface)",
-              color:      filterRole === r ? "#fff" : "var(--color-text)",
-              border: "1px solid var(--color-border)",
-              borderRadius: 10, padding: "7px 16px",
-              fontWeight: 600, fontSize: 13, cursor: "pointer",
-            }}>
-              {r === "ALL" ? "All Roles" : r.charAt(0) + r.slice(1).toLowerCase()}
-            </button>
-          ))}
-        </div>
+      <HeaderFilters
+        searchTerm={search}
+        onSearchChange={setSearch}
+        searchPlaceholder="Search name or email..."
+        filters={[
+          {
+            id: "role",
+            label: "Role",
+            options: [
+              { value: "ADMIN", label: "Admin" },
+              { value: "LAWYER", label: "Lawyer" },
+              { value: "STAFF", label: "Staff" }
+            ]
+          }
+        ]}
+        filterValues={{ role: filterRole }}
+        onFilterChange={(id, val) => setFilterRole(val || "ALL")}
+        dateRangeConfig={{
+          label: "Joined date",
+          fromDate: filterFromDate,
+          toDate: filterToDate,
+          onFromDateChange: setFilterFromDate,
+          onToDateChange: setFilterToDate
+        }}
+        onClearFilters={() => {
+          setSearch("");
+          setFilterRole("ALL");
+          setFilterFromDate("");
+          setFilterToDate("");
+        }}
+        onShowAll={() => {
+          setFilterRole("ALL");
+        }}
+      />
 
         {/* Members table */}
         <div style={{

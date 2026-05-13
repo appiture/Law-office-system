@@ -308,6 +308,7 @@ function Documents() {
           setHasLoaded(false);
           setError("");
         }}
+        onShowAll={handleShowAll}
       />
 
       {loading && !hasLoaded ? (
