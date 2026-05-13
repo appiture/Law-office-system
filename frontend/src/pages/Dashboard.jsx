@@ -342,14 +342,15 @@ function Dashboard() {
     });
     
     calendarEvents.forEach((evt) => {
+      const isHearing = evt.event_type === "hearing";
       collection.push({
-        ...evt, // Keep original fields like description, event_type
+        ...evt,
         id: evt.id,
         type: evt.event_type === "note" ? "Note" : evt.event_type.charAt(0).toUpperCase() + evt.event_type.slice(1),
         title: evt.title,
         date: evt.event_date,
         key: toDateKey(evt.event_date),
-        color: evt.color,
+        color: isHearing ? "#3b82f6" : evt.color, // Force blue for manual hearings too
         isManualEvent: true,
         client: "",
         caseNumber: "",
@@ -731,7 +732,7 @@ function Dashboard() {
                         </button>
                       ) : (
                         <Link to={item.to} className="dashboard-agenda-link" onClick={() => setAgendaDate(null)}>
-                          <span>{item.type}</span>
+                          <span className={item.type === "Hearing" || item.type === "Follow-up" ? "badge-case-type" : ""}>{item.type}</span>
                           <strong>{item.title}</strong>
                           <small>{formatDate(item.date)}</small>
                         </Link>
@@ -861,7 +862,7 @@ function EventModal({ selectedDate, selectedEvent, onClose, onSave, onDelete }) 
 
   const eventTypes = [
     { value: "note", label: "Note", color: "#A855F7" },
-    { value: "hearing", label: "Hearing", color: "#FF6B35" },
+    { value: "hearing", label: "Hearing", color: "#3b82f6" },
     { value: "deadline", label: "Deadline", color: "#DC2626" },
     { value: "meeting", label: "Meeting", color: "#16A34A" },
   ];

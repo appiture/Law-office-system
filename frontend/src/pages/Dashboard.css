@@ -11,6 +11,7 @@
 
 .dashboard-search-container .header-filters-container {
   align-items: stretch;
+  width: 100%;
 }
 
 .dashboard-search-container .header-filters-top {
@@ -20,14 +21,25 @@
 .dashboard-search-container .premium-search-box {
   width: 100%;
   max-width: 100%;
-  padding: 12px 20px;
+  height: 44px;
+  padding: 0 20px;
   background: var(--color-card);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
   border: 1px solid var(--color-border);
   box-shadow: 0 8px 24px var(--color-shadow);
-  border-radius: 16px;
+  border-radius: 12px;
   transition: all 0.3s ease;
+}
+
+.dashboard-search-container .header-filters-top {
+  height: 44px;
+  width: 100%;
+}
+
+.dashboard-search-container .header-filters-container {
+  height: 44px;
+  width: 100%;
 }
 
 .dashboard-search-container .premium-search-box:hover {
@@ -453,16 +465,28 @@
   color: var(--color-card);
 }
 
-.dashboard-calendar-cell em.badge-case {
-  background: var(--color-primary);
+.dashboard-calendar-cell em.badge-case,
+.badge-case-type,
+.legend-dot.case-dot {
+  background: #3b82f6 !important;
+  color: white !important;
 }
 
-.dark .dashboard-calendar-cell em.badge-case {
-  background: #3b82f6;
+.dark .dashboard-calendar-cell em.badge-case,
+.dark .badge-case-type,
+.dark .legend-dot.case-dot {
+  background: #3b82f6 !important;
+  color: white !important;
 }
 
-.dashboard-calendar-cell em.badge-fee {
-  background: var(--color-success);
+.dashboard-calendar-cell em.badge-fee,
+.legend-dot.fee-dot {
+  background: var(--color-success) !important;
+}
+
+.dashboard-calendar-cell em.badge-note,
+.legend-dot.note-dot {
+  background: #A855F7 !important;
 }
 
 .dashboard-calendar-legend {
@@ -471,44 +495,7 @@
   margin-top: 16px;
 }
 
-.legend-dot {
-  width: 10px;
-  height: 10px;
-  border-radius: 50%;
-  display: inline-block;
-}
-
-.legend-dot.case-dot {
-  background: var(--color-primary);
-}
-
-.dark .legend-dot.case-dot {
-  background: #3b82f6;
-}
-
-.legend-dot.fee-dot {
-  background: var(--color-success);
-}
-
-.legend-dot.note-dot {
-  background: #A855F7;
-}
-
-.dashboard-calendar-cell em.badge-case {
-  background: var(--color-primary);
-}
-
-.dark .dashboard-calendar-cell em.badge-case {
-  background: var(--color-secondary);
-}
-
-.dashboard-calendar-cell em.badge-fee {
-  background: var(--color-success);
-}
-
-.dashboard-calendar-cell em.badge-note {
-  background: #A855F7;
-}
+/* Badges and Dots moved to consolidated section above */
 
 .dashboard-calendar-legend {
   display: flex;
@@ -535,19 +522,19 @@
 }
 
 .legend-dot.case-dot {
-  background: var(--color-primary);
+  background: #3b82f6 !important;
 }
 
 .dark .legend-dot.case-dot {
-  background: #3b82f6;
+  background: #3b82f6 !important;
 }
 
 .legend-dot.fee-dot {
-  background: var(--color-success);
+  background: var(--color-success) !important;
 }
 
 .legend-dot.note-dot {
-  background: #A855F7;
+  background: #A855F7 !important;
 }
 
 .dashboard-agenda-link {
