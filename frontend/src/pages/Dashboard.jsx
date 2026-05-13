@@ -343,6 +343,7 @@ function Dashboard() {
     
     calendarEvents.forEach((evt) => {
       collection.push({
+        ...evt, // Keep original fields like description, event_type
         id: evt.id,
         type: evt.event_type === "note" ? "Note" : evt.event_type.charAt(0).toUpperCase() + evt.event_type.slice(1),
         title: evt.title,
@@ -464,13 +465,6 @@ function Dashboard() {
       subtitle="Focused practice overview with controlled operational detail."
     >
       <div className="dashboard-premium-header">
-        <div className="dashboard-search-container">
-          <HeaderFilters
-            searchTerm={dashboardSearch}
-            onSearchChange={setDashboardSearch}
-            searchPlaceholder="Search anything in your dashboard..."
-          />
-        </div>
         <div className="dashboard-action-row">
           <button
             type="button"
@@ -480,52 +474,63 @@ function Dashboard() {
           >
             {theme === 'light' ? '🌙' : '☀️'}
           </button>
-          <button type="button" className="btn-neutral notification-trigger" onClick={() => setNotificationOpen(true)}>
-            <span className="notif-bell">🔔</span>
-            Notifications ({priorityQueue.length + cashChecklist.length})
-          </button>
-          <div className="task-btn-wrap">
-            <Link to="/tasks" className="btn-gold dashboard-task-link">
-              📋 Tasks
-            </Link>
-            {pendingTaskCount > 0 && (
-              <span className="task-pending-badge" title={`${pendingTaskCount} pending tasks`}>
-                {pendingTaskCount > 99 ? "99+" : pendingTaskCount}
-              </span>
+          
+          <div className="dashboard-search-container">
+            <HeaderFilters
+              searchTerm={dashboardSearch}
+              onSearchChange={setDashboardSearch}
+              searchPlaceholder="Search anything in your dashboard..."
+            />
+          </div>
+
+          <div className="dashboard-top-actions">
+            <button type="button" className="notification-trigger" onClick={() => setNotificationOpen(true)}>
+              <span className="notif-bell">🔔</span>
+              <span className="notif-text">Notifications ({priorityQueue.length + cashChecklist.length})</span>
+            </button>
+            <div className="task-btn-wrap">
+              <Link to="/tasks" className="btn-gold dashboard-task-link">
+                📋 Tasks
+              </Link>
+              {pendingTaskCount > 0 && (
+                <span className="task-pending-badge" title={`${pendingTaskCount} pending tasks`}>
+                  {pendingTaskCount > 99 ? "99+" : pendingTaskCount}
+                </span>
+              )}
+            </div>
+            {isOrgAdmin() && (
+              <div className="dashboard-report-group">
+                <input
+                  type="month"
+                  value={reportMonth}
+                  onChange={(e) => setReportMonth(e.target.value)}
+                  className="dashboard-month-input"
+                  disabled={reportState.loading}
+                  aria-label="Report month"
+                />
+                <div className="dashboard-report-actions">
+                  <button
+                    type="button"
+                    className="btn-report btn-report--email"
+                    onClick={() => handleSendReport(false)}
+                    disabled={reportState.loading}
+                    title="Send monthly Excel report to your email"
+                  >
+                    {reportState.loading ? "..." : "📧 Email"}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-report btn-report--download"
+                    onClick={() => handleSendReport(true)}
+                    disabled={reportState.loading}
+                    title="Download monthly Excel report directly"
+                  >
+                    {reportState.loading ? "..." : "📥 Download"}
+                  </button>
+                </div>
+              </div>
             )}
           </div>
-          {isOrgAdmin() && (
-            <div className="dashboard-report-group">
-              <input
-                type="month"
-                value={reportMonth}
-                onChange={(e) => setReportMonth(e.target.value)}
-                className="dashboard-month-input"
-                disabled={reportState.loading}
-                aria-label="Report month"
-              />
-              <div className="dashboard-report-actions">
-                <button
-                  type="button"
-                  className="btn-report btn-report--email"
-                  onClick={() => handleSendReport(false)}
-                  disabled={reportState.loading}
-                  title="Send monthly Excel report to your email"
-                >
-                  {reportState.loading ? "Processing…" : "📧 Email Report"}
-                </button>
-                <button
-                  type="button"
-                  className="btn-report btn-report--download"
-                  onClick={() => handleSendReport(true)}
-                  disabled={reportState.loading}
-                  title="Download monthly Excel report directly"
-                >
-                  {reportState.loading ? "Preparing…" : "📥 Download"}
-                </button>
-              </div>
-            </div>
-          )}
         </div>
         {reportState.toast && (
           <div className={`dashboard-report-toast dashboard-report-toast--${reportState.toast.type}`}>

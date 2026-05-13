@@ -144,18 +144,20 @@ export const adminUpdateOrganization = async (orgId, updates) => {
   
   try {
     const { data: { user } } = await supabase.auth.getUser();
-    await supabase.rpc("log_system_event", {
-      p_organization_id: orgId,
-      p_actor_id: user?.id || null,
-      p_actor_email: user?.email || null,
-      p_actor_role: "PLATFORM_ADMIN",
-      p_entity_type: "organization",
-      p_entity_id: orgId,
-      p_entity_name: null,
-      p_action_type: "UPDATE_SUBSCRIPTION",
-      p_module: "admin",
-      p_description: "Updated organization subscription",
-      p_metadata: updates
+    await supabase.rpc("log_observability_event", {
+      payload: {
+        message: "Updated organization subscription",
+        category: "admin",
+        detail: {
+          orgId,
+          userEmail: user?.email,
+          updates
+        },
+        timestamp: new Date().toISOString(),
+        isCritical: false,
+        url: window.location.href,
+        userAgent: navigator.userAgent
+      }
     });
   } catch (err) {
     console.warn("Audit logging failed:", err);

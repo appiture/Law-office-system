@@ -195,25 +195,29 @@ const getWorkspaceContextFromRpc = async (client) => {
   };
 };
 
-const logSystemEvent = async (context, module, actionType, metadata = {}) => {
+const logObservabilityEvent = async (context, module, actionType, metadata = {}) => {
   if (!context?.organizationId) return;
   try {
     const client = requireSupabase();
-    await client.rpc("log_system_event", {
-      p_organization_id: context.organizationId,
-      p_actor_id: context.userId || null,
-      p_actor_email: context.email || null,
-      p_actor_role: context.role || null,
-      p_entity_type: null,
-      p_entity_id: null,
-      p_entity_name: null,
-      p_action_type: actionType,
-      p_module: module,
-      p_description: null,
-      p_metadata: metadata
+    await client.rpc("log_observability_event", {
+      payload: {
+        message: `${actionType} in ${module}`,
+        category: module,
+        detail: {
+          orgId: context.organizationId,
+          userId: context.userId,
+          userEmail: context.email,
+          userRole: context.role,
+          ...metadata
+        },
+        timestamp: new Date().toISOString(),
+        isCritical: false,
+        url: window.location.href,
+        userAgent: navigator.userAgent
+      }
     });
   } catch (err) {
-    console.warn("logSystemEvent error:", err);
+    console.warn("logObservabilityEvent error:", err);
   }
 };
 
@@ -1137,7 +1141,7 @@ const supabasePlatformApi = {
 
       if (savedCaseId) {
         await ensurePaymentShell(context.organizationId, savedCaseId);
-        await logSystemEvent(context, "cases", caseId ? "UPDATE_CASE" : "CREATE_CASE", { caseId: savedCaseId });
+        await logObservabilityEvent(context, "cases", caseId ? "UPDATE_CASE" : "CREATE_CASE", { caseId: savedCaseId });
       }
 
       resetWorkspaceDataCache();
@@ -1165,7 +1169,7 @@ const supabasePlatformApi = {
       });
 
       if (error) throw error;
-      await logSystemEvent(context, "documents", "DOCUMENT_UPLOAD", { caseId, category: payload.category });
+      await logObservabilityEvent(context, "documents", "DOCUMENT_UPLOAD", { caseId, category: payload.category });
       resetWorkspaceDataCache();
       return supabasePlatformApi.getCase(caseId);
     });
@@ -1222,7 +1226,7 @@ const supabasePlatformApi = {
         if (historyResult.error) throw historyResult.error;
       }
 
-      await logSystemEvent(context, "payments", "CREATE_CHARGE", { caseId, chargeId: insertedCharge.id });
+      await logObservabilityEvent(context, "payments", "CREATE_CHARGE", { caseId, chargeId: insertedCharge.id });
       await syncPaymentTotals(payment.id, context.organizationId);
       resetWorkspaceDataCache();
       return supabasePlatformApi.getCase(caseId);
@@ -1259,7 +1263,7 @@ const supabasePlatformApi = {
         .eq("organization_id", context.organizationId);
 
       if (error) throw error;
-      await logSystemEvent(context, "payments", "UPDATE_CHARGE", { caseId, chargeId: chargeItemId });
+      await logObservabilityEvent(context, "payments", "UPDATE_CHARGE", { caseId, chargeId: chargeItemId });
       await syncPaymentTotals(existing.payment_id, context.organizationId);
       resetWorkspaceDataCache();
       return supabasePlatformApi.getCase(caseId);
@@ -1309,7 +1313,7 @@ const supabasePlatformApi = {
         .eq("organization_id", context.organizationId);
 
       if (updateResult.error) throw updateResult.error;
-      await logSystemEvent(context, "payments", "RECORD_PAYMENT", { caseId, amount: payload.amount });
+      await logObservabilityEvent(context, "payments", "RECORD_PAYMENT", { caseId, amount: payload.amount });
       resetWorkspaceDataCache();
       return supabasePlatformApi.getCase(caseId);
     });
@@ -1786,7 +1790,7 @@ const supabasePlatformApi = {
       if (error) throw error;
     }
 
-    await logSystemEvent(context, "calendar", eventId ? "UPDATE_NOTE" : "CREATE_NOTE", { title: record.title });
+    await logObservabilityEvent(context, "calendar", eventId ? "UPDATE_NOTE" : "CREATE_NOTE", { title: record.title });
   },
   deleteCalendarEvent: async (eventId) => {
     const context = await internalGetWorkspaceContext();
@@ -1799,7 +1803,7 @@ const supabasePlatformApi = {
       .eq("organization_id", context.organizationId);
       
     if (error) throw error;
-    await logSystemEvent("DELETE_NOTE", `Calendar event deleted: ${eventId}`);
+    await logObservabilityEvent(context, "calendar", "DELETE_NOTE", { eventId });
   },
   saveOrganizationSettings: async (payload) => {
     const context = await internalGetWorkspaceContext();

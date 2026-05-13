@@ -41,11 +41,15 @@
 
 .dashboard-action-row {
   display: flex;
-  align-items: center;
+  align-items: stretch;
   gap: 12px;
   flex-wrap: nowrap;
-  overflow-x: auto;
-  padding-bottom: 4px;
+  width: 100%;
+}
+
+.dashboard-search-container {
+  flex: 1;
+  min-width: 200px;
 }
 
 .dashboard-action-row .theme-toggle-btn {
@@ -54,23 +58,40 @@
   flex-shrink: 0;
   border-radius: 12px;
   font-size: 1.1rem;
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  transition: all 0.2s ease;
 }
 
-.dashboard-action-row::-webkit-scrollbar {
-  height: 0;
+.dashboard-action-row .theme-toggle-btn:hover {
+  border-color: var(--color-primary);
+  background: var(--color-bg-secondary);
+}
+
+.dashboard-top-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
 }
 
 .notification-trigger {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 18px;
+  padding: 0 18px;
+  height: 44px;
   border-radius: 12px;
   font-weight: 700;
   border: 1px solid var(--color-border);
   background: var(--color-card);
   box-shadow: 0 2px 8px var(--color-shadow);
   transition: all 0.2s ease;
+  white-space: nowrap;
 }
 
 .notification-trigger:hover {
@@ -83,7 +104,10 @@
 }
 
 .dashboard-task-link {
-  padding: 10px 24px;
+  height: 44px;
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
   border-radius: 12px;
   box-shadow: 0 4px 12px var(--color-shadow);
   transition: all 0.25s ease;
@@ -321,9 +345,14 @@
 }
 
 @media (max-width: 980px) {
-  .dashboard-top-actions {
-    justify-content: flex-start;
-    gap: 10px;
+  .dashboard-action-row {
+    flex-wrap: wrap;
+    height: auto;
+  }
+  .dashboard-search-container {
+    order: -1;
+    width: 100%;
+    flex: none;
   }
 }
 
@@ -429,7 +458,7 @@
 }
 
 .dark .dashboard-calendar-cell em.badge-case {
-  background: var(--color-secondary);
+  background: #3b82f6;
 }
 
 .dashboard-calendar-cell em.badge-fee {
@@ -454,7 +483,7 @@
 }
 
 .dark .legend-dot.case-dot {
-  background: var(--color-secondary);
+  background: #3b82f6;
 }
 
 .legend-dot.fee-dot {
@@ -721,13 +750,23 @@
   .dashboard-notification-grid {
     grid-template-columns: 1fr;
   }
+  
+  .dashboard-top-actions {
+    flex-wrap: wrap;
+    width: 100%;
+  }
+  
+  .dashboard-report-group {
+    width: 100%;
+    justify-content: space-between;
+  }
 }
 .dashboard-report-group {
   display: flex;
-  align-items: center;
-  gap: 10px;
+  align-items: stretch;
+  gap: 8px;
   background: var(--color-card);
-  padding: 1px 1px 1px 14px;
+  padding: 4px 4px 4px 12px;
   border-radius: 12px;
   border: 1px solid var(--color-border);
   box-shadow: 0 4px 12px var(--color-shadow);
@@ -748,22 +787,28 @@
   padding: 4px 0;
 }
 
+.dark .dashboard-month-input::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+}
+
 .dashboard-report-actions {
   display: flex;
-  gap: 6px;
+  align-items: stretch;
+  gap: 4px;
 }
 
 .btn-report {
-  padding: 10px 18px;
-  border-radius: 12px;
+  padding: 0 12px;
+  border-radius: 8px;
   font-weight: 750;
-  font-size: 13px;
+  font-size: 12px;
   cursor: pointer;
   border: 1px solid transparent;
   transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
+  height: 100%;
 }
 
 .btn-report--email {
