@@ -100,6 +100,17 @@ function HeaderFilters({
             <span className="chevron-icon">{panelOpen ? "▴" : "▾"}</span>
           </button>
         )}
+
+        {/* Show All Button */}
+        {onShowAll && (
+          <button
+            type="button"
+            className="filter-toggle-btn panel-show-all-btn"
+            onClick={() => { onShowAll(); setPanelOpen(false); }}
+          >
+            Show All
+          </button>
+        )}
       </div>
 
       {/* Expandable Filter Panel (The "Drag Down" part) */}
@@ -153,11 +164,6 @@ function HeaderFilters({
               {hasActiveFilters || hasDateRange ? "Active filters applied" : "No filters active"}
             </div>
             <div className="filter-action-buttons">
-              {onShowAll && (
-                <button type="button" className="panel-show-all-btn" onClick={() => { onShowAll(); setPanelOpen(false); }}>
-                  Show All Contents
-                </button>
-              )}
               {showClearButton && (hasActiveFilters || hasDateRange) && (
                 <button type="button" className="panel-clear-btn" onClick={handleClearAll}>
                   Clear All Filters

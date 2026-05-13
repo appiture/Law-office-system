@@ -29,7 +29,7 @@
 .dashboard-search-container {
   flex: 1;
   display: flex;
-  justify-content: flex-end;
+  justify-content: flex-start;
 }
 
 .dashboard-search-container > div {

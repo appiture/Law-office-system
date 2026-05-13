@@ -508,6 +508,11 @@ function Dashboard() {
                 onFromDateChange: setFromDate,
                 onToDateChange: setToDate
               }}
+              onShowAll={() => {
+                setDashboardSearch("");
+                setFromDate("");
+                setToDate("");
+              }}
             />
           </div>
 
