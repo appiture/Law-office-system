@@ -462,16 +462,6 @@ function Dashboard() {
     <AppShell
       title="Dashboard"
       subtitle="Focused practice overview with controlled operational detail."
-      actions={
-        <button
-          type="button"
-          className="theme-toggle-btn"
-          onClick={toggleTheme}
-          title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
-        >
-          {theme === 'light' ? '🌙' : '☀️'}
-        </button>
-      }
     >
       <div className="dashboard-premium-header">
         <div className="dashboard-search-container">
@@ -482,6 +472,14 @@ function Dashboard() {
           />
         </div>
         <div className="dashboard-action-row">
+          <button
+            type="button"
+            className="theme-toggle-btn"
+            onClick={toggleTheme}
+            title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
+          >
+            {theme === 'light' ? '🌙' : '☀️'}
+          </button>
           <button type="button" className="btn-neutral notification-trigger" onClick={() => setNotificationOpen(true)}>
             <span className="notif-bell">🔔</span>
             Notifications ({priorityQueue.length + cashChecklist.length})
@@ -722,9 +720,9 @@ function Dashboard() {
                           className="dashboard-agenda-link dashboard-agenda-editable" 
                           onClick={() => openEditEventModal(item)}
                         >
-                          <span style={{ backgroundColor: item.color || "var(--color-primary)" }}>{item.type}</span>
+                          <span style={{ backgroundColor: item.color || "#A855F7" }}>{item.type}</span>
                           <strong>{item.title}</strong>
-                          <small>Edit Note</small>
+                          <small>View Details</small>
                         </button>
                       ) : (
                         <Link to={item.to} className="dashboard-agenda-link" onClick={() => setAgendaDate(null)}>
@@ -851,12 +849,13 @@ function EventModal({ selectedDate, selectedEvent, onClose, onSave, onDelete }) 
     description: selectedEvent?.description || "",
     eventDate: selectedDate || selectedEvent?.event_date || "",
     eventType: selectedEvent?.event_type || "note",
-    color: selectedEvent?.color || "#3A5BA0",
+    color: selectedEvent?.color || "#A855F7",
   });
+  const [isEditing, setIsEditing] = useState(!selectedEvent);
   const [saving, setSaving] = useState(false);
 
   const eventTypes = [
-    { value: "note", label: "Note", color: "#3A5BA0" },
+    { value: "note", label: "Note", color: "#A855F7" },
     { value: "hearing", label: "Hearing", color: "#FF6B35" },
     { value: "deadline", label: "Deadline", color: "#DC2626" },
     { value: "meeting", label: "Meeting", color: "#16A34A" },
@@ -886,53 +885,75 @@ function EventModal({ selectedDate, selectedEvent, onClose, onSave, onDelete }) 
       <div className="flow-modal flow-modal-sm">
         <div className="flow-modal-header">
           <div className="flow-modal-header-info">
-            <h3>{selectedEvent ? "Edit Event" : "Add Event"}</h3>
+            <h3>{selectedEvent ? (isEditing ? "Edit Event" : "View Event") : "Add Event"}</h3>
             <p>{selectedDate ? formatDate(new Date(selectedDate)) : ""}</p>
           </div>
           <button className="flow-modal-close" onClick={onClose}>x</button>
         </div>
         <div className="flow-modal-body">
-          <div className="form-section">
-            <div className="form-section-grid">
-              <div className="field-group fcol-full">
-                <span className="field-label">Title *</span>
-                <input
-                  value={form.title}
-                  onChange={(e) => setForm(f => ({ ...f, title: e.target.value }))}
-                  placeholder="Event title"
-                />
+          {!isEditing ? (
+            <div className="event-view-content">
+              <div className="event-view-header">
+                <span className="event-type-tag" style={{ backgroundColor: form.color }}>{form.eventType}</span>
+                <h4>{form.title}</h4>
               </div>
-              <div className="field-group fcol-full">
-                <span className="field-label">Description</span>
-                <textarea
-                  value={form.description}
-                  onChange={(e) => setForm(f => ({ ...f, description: e.target.value }))}
-                  rows={3}
-                  placeholder="Optional description"
-                />
-              </div>
-              <div className="field-group">
-                <span className="field-label">Type</span>
-                <select
-                  value={form.eventType}
-                  onChange={(e) => setForm(f => ({ ...f, eventType: e.target.value }))}
-                >
-                  {eventTypes.map(type => (
-                    <option key={type.value} value={type.value}>{type.label}</option>
-                  ))}
-                </select>
+              {form.description ? (
+                <div className="event-view-description">
+                  <h5>Description</h5>
+                  <p>{form.description}</p>
+                </div>
+              ) : (
+                <p className="empty-description">No description provided.</p>
+              )}
+            </div>
+          ) : (
+            <div className="form-section">
+              <div className="form-section-grid">
+                <div className="field-group fcol-full">
+                  <span className="field-label">Title *</span>
+                  <input
+                    value={form.title}
+                    onChange={(e) => setForm(f => ({ ...f, title: e.target.value }))}
+                    placeholder="Event title"
+                  />
+                </div>
+                <div className="field-group fcol-full">
+                  <span className="field-label">Description</span>
+                  <textarea
+                    value={form.description}
+                    onChange={(e) => setForm(f => ({ ...f, description: e.target.value }))}
+                    rows={3}
+                    placeholder="Optional description"
+                  />
+                </div>
+                <div className="field-group">
+                  <span className="field-label">Type</span>
+                  <select
+                    value={form.eventType}
+                    onChange={(e) => setForm(f => ({ ...f, eventType: e.target.value }))}
+                  >
+                    {eventTypes.map(type => (
+                      <option key={type.value} value={type.value}>{type.label}</option>
+                    ))}
+                  </select>
+                </div>
               </div>
             </div>
-          </div>
+          )}
         </div>
         <div className="flow-modal-footer">
-          <button className="btn-neutral" onClick={onClose}>Cancel</button>
-          {selectedEvent && (
+          <button className="btn-neutral" onClick={onClose}>Close</button>
+          {selectedEvent && !isEditing && (
+            <button className="btn-neutral" onClick={() => setIsEditing(true)}>Edit</button>
+          )}
+          {selectedEvent && isEditing && (
             <button className="btn-danger-soft" onClick={onDelete}>Delete</button>
           )}
-          <button className="btn-gold" onClick={handleSave} disabled={saving}>
-            {saving ? "Saving..." : "Save"}
-          </button>
+          {isEditing && (
+            <button className="btn-gold" onClick={handleSave} disabled={saving}>
+              {saving ? "Saving..." : "Save"}
+            </button>
+          )}
         </div>
       </div>
     </div>

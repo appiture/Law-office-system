@@ -43,6 +43,21 @@
   display: flex;
   align-items: center;
   gap: 12px;
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  padding-bottom: 4px;
+}
+
+.dashboard-action-row .theme-toggle-btn {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border-radius: 12px;
+  font-size: 1.1rem;
+}
+
+.dashboard-action-row::-webkit-scrollbar {
+  height: 0;
 }
 
 .notification-trigger {
@@ -447,7 +462,7 @@
 }
 
 .legend-dot.note-dot {
-  background: #3A5BA0;
+  background: #A855F7;
 }
 
 .dashboard-calendar-cell em.badge-case {
@@ -463,7 +478,7 @@
 }
 
 .dashboard-calendar-cell em.badge-note {
-  background: #3A5BA0;
+  background: #A855F7;
 }
 
 .dashboard-calendar-legend {
@@ -503,7 +518,7 @@
 }
 
 .legend-dot.note-dot {
-  background: #3A5BA0;
+  background: #A855F7;
 }
 
 .dashboard-agenda-link {
@@ -712,12 +727,13 @@
   align-items: center;
   gap: 10px;
   background: var(--color-card);
-  padding: 6px 6px 6px 14px;
-  border-radius: 16px;
+  padding: 1px 1px 1px 14px;
+  border-radius: 12px;
   border: 1px solid var(--color-border);
   box-shadow: 0 4px 12px var(--color-shadow);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
+  height: 44px;
 }
 
 .dashboard-month-input {
@@ -796,6 +812,66 @@
   align-items: center;
   gap: 12px;
   animation: slideUpFade 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.event-view-content {
+  display: grid;
+  gap: 20px;
+  padding: 8px 0;
+}
+
+.event-view-header {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.event-type-tag {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 900;
+  text-transform: uppercase;
+  color: white;
+  width: fit-content;
+}
+
+.event-view-header h4 {
+  margin: 0;
+  font-size: 1.4rem;
+  font-weight: 850;
+  color: var(--color-text);
+}
+
+.event-view-description {
+  background: var(--color-bg);
+  padding: 16px;
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+}
+
+.event-view-description h5 {
+  margin: 0 0 8px 0;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.6;
+}
+
+.event-view-description p {
+  margin: 0;
+  line-height: 1.6;
+  white-space: pre-wrap;
+}
+
+.empty-description {
+  font-style: italic;
+  opacity: 0.5;
+  text-align: center;
+  padding: 20px;
+  border: 1px dashed var(--color-border);
+  border-radius: 12px;
 }
 
 @keyframes slideUpFade {
