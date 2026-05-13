@@ -290,7 +290,7 @@ const getWorkspaceData = async ({ refresh = false } = {}) => {
       }
 
       const client = requireSupabase();
-      const organizationId = context.organizationId;
+      const { organizationId } = context;
 
       let clientsQuery = client.from("clients").select("id, organization_id, name, phone, email, photo_url, photo_path, address, notes, id_proof, details, created_at, created_by, updated_by").eq("organization_id", organizationId).is("deleted_at", null);
       let casesQuery = client.from("cases").select("id, organization_id, client_id, case_number, case_type, court_name, lawyer_name, status, details, created_at, updated_at, created_by, updated_by, assigned_lawyer_id, assigned_by, assigned_at").eq("organization_id", organizationId).is("deleted_at", null);
@@ -1046,7 +1046,19 @@ const supabasePlatformApi = {
         const caseMatch = !normalized.caseNumber || String(item.caseNumber || "").toLowerCase().includes(normalized.caseNumber);
         const typeMatch = !normalized.caseType || String(item.caseType || "").toLowerCase().includes(normalized.caseType);
         const clientMatch = !normalized.clientName || String(item.client?.name || "").toLowerCase().includes(normalized.clientName);
-        return caseMatch && typeMatch && clientMatch;
+        
+        let dateRangeMatch = true;
+        if (effectiveFilters.fromDate || effectiveFilters.toDate) {
+          const start = effectiveFilters.fromDate ? new Date(effectiveFilters.fromDate) : null;
+          const end = effectiveFilters.toDate ? new Date(effectiveFilters.toDate) : null;
+          if (start) start.setHours(0, 0, 0, 0);
+          if (end) end.setHours(23, 59, 59, 999);
+          const d = new Date(item.createdAt);
+          if (start && d < start) dateRangeMatch = false;
+          if (end && d > end) dateRangeMatch = false;
+        }
+
+        return caseMatch && typeMatch && clientMatch && dateRangeMatch;
       });
       return paginateItems(matches, page, pageSize);
     }
@@ -1336,7 +1348,24 @@ const supabasePlatformApi = {
         monthMatch = hasPaymentInMonth || hasChargeInMonth;
       }
 
-      return clientMatch && caseMatch && statusMatch && monthMatch;
+      let dateRangeMatch = true;
+      if (effectiveFilters.fromDate || effectiveFilters.toDate) {
+        const start = effectiveFilters.fromDate ? new Date(effectiveFilters.fromDate) : null;
+        const end = effectiveFilters.toDate ? new Date(effectiveFilters.toDate) : null;
+        if (start) start.setHours(0, 0, 0, 0);
+        if (end) end.setHours(23, 59, 59, 999);
+
+        dateRangeMatch = (item.chargeItems || []).some(charge => {
+          if (Number(charge.balanceAmount || 0) <= 0) return false;
+          if (!charge.dueDate) return false;
+          const d = new Date(charge.dueDate);
+          if (start && d < start) return false;
+          if (end && d > end) return false;
+          return true;
+        });
+      }
+
+      return clientMatch && caseMatch && statusMatch && monthMatch && dateRangeMatch;
     });
     return paginateItems(matches, page, pageSize);
   },
@@ -1365,7 +1394,23 @@ const supabasePlatformApi = {
         if (!caseMatch && !clientMatch && !docMatch) return false;
       }
       
-      return true;
+      let dateRangeMatch = true;
+      if (effectiveFilters.fromDate || effectiveFilters.toDate) {
+        const start = effectiveFilters.fromDate ? new Date(effectiveFilters.fromDate) : null;
+        const end = effectiveFilters.toDate ? new Date(effectiveFilters.toDate) : null;
+        if (start) start.setHours(0, 0, 0, 0);
+        if (end) end.setHours(23, 59, 59, 999);
+        
+        // Check if ANY document in the case matches the date range
+        dateRangeMatch = (item.documents || []).some(d => {
+          const docDate = new Date(d.createdAt || item.createdAt);
+          if (start && docDate < start) return false;
+          if (end && docDate > end) return false;
+          return true;
+        });
+      }
+
+      return dateRangeMatch;
     });
 
     // If category is selected, we should also filter the documents list INSIDE the matched cases
@@ -1427,10 +1472,25 @@ const supabasePlatformApi = {
       const effectiveFilters = getEffectiveFilters(filters, showAll);
       const cases = await getMappedCases();
       const matches = cases.filter((item) => {
-        const dateMatch = !effectiveFilters.date || (item.followUps || []).some((followUp) => String(followUp.scheduledAt || "").startsWith(effectiveFilters.date));
+        let dateRangeMatch = true;
+        if (effectiveFilters.fromDate || effectiveFilters.toDate) {
+          const start = effectiveFilters.fromDate ? new Date(effectiveFilters.fromDate) : null;
+          const end = effectiveFilters.toDate ? new Date(effectiveFilters.toDate) : null;
+          if (start) start.setHours(0, 0, 0, 0);
+          if (end) end.setHours(23, 59, 59, 999);
+          
+          dateRangeMatch = (item.followUps || []).some(f => {
+            if (!f.scheduledAt) return false;
+            const d = new Date(f.scheduledAt);
+            if (start && d < start) return false;
+            if (end && d > end) return false;
+            return true;
+          });
+        }
+        
         const caseMatch = !effectiveFilters.caseNumber || String(item.caseNumber || "").toLowerCase().includes(String(effectiveFilters.caseNumber).toLowerCase());
         const clientMatch = !effectiveFilters.clientName || String(item.client?.name || "").toLowerCase().includes(String(effectiveFilters.clientName).toLowerCase());
-        return dateMatch && caseMatch && clientMatch;
+        return dateRangeMatch && caseMatch && clientMatch;
       });
       return paginateItems(matches, page, pageSize);
     }

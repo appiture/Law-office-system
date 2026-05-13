@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { useSearchParams } from "react-router-dom";
 import AppShell from "../components/AppShell";
 import CaseIdentityCard from "../components/CaseIdentityCard";
+import HeaderFilters from "../components/HeaderFilters";
 import ControlledSearchPanel, { EmptyState, ErrorState, LoadingState, PaginationControls } from "../components/ControlledSearchPanel";
 import { supabasePlatformApi as platformApi } from "../repositories/supabaseRepository";
 import {
@@ -31,7 +32,7 @@ const STATUS_OPTIONS = [
 ];
 
 const PAGE_SIZE = 25;
-const emptyFilters = { caseNumber: "", clientName: "", caseType: "" };
+const emptyFilters = { caseNumber: "", clientName: "", caseType: "", fromDate: "", toDate: "" };
 
 const STATUS_COLORS = {
   RUNNING:     { bg:"rgba(37,99,235,0.1)",  color:"var(--color-primary)" },
@@ -177,7 +178,7 @@ function CaseModal({ clients, lawyers = [], editCase, onClose, onSaved, canAssig
               <FG label="Presiding Judge">
                 <input value={form.judgeName} onChange={e => set("judgeName", e.target.value)} placeholder="e.g. Hon. Justice R. Sharma" />
               </FG>
-              <FG label="Assigned Lawyer" hint={!canAssignLawyer ? "Only administrators can change the assigned lawyer." : ""}>
+              <FG label="Assigned Lawyer" hint={canAssignLawyer ? "" : "Only administrators can change the assigned lawyer."}>
                 <select
                   disabled={!canAssignLawyer}
                   value={form.assigned_lawyer_id || ""}
@@ -356,6 +357,12 @@ function Cases() {
     void loadData({ nextPage: 1, showAll: true });
   };
 
+  useEffect(() => {
+    if (hasLoaded) {
+      handleSearch(filters);
+    }
+  }, [filters.caseType, filters.fromDate, filters.toDate, hasLoaded]);
+
   return (
     <AppShell
       title="Cases"
@@ -371,27 +378,33 @@ function Cases() {
       }
     >
       <ErrorState message={error} />
-      <ControlledSearchPanel
-        title="Search cases"
-        description="Search by case number, client name, or case type. Show All uses pagination."
-        fields={[
-          { name: "caseNumber", label: "Case number", placeholder: "e.g. CIV/2024/001" },
-          { name: "clientName", label: "Client name", placeholder: "Client name" },
-          { name: "caseType", label: "Case type", placeholder: "Civil, Criminal, Family..." },
+      <HeaderFilters
+        searchTerm={filters.caseNumber}
+        onSearchChange={(val) => setFilters(p => ({ ...p, caseNumber: val }))}
+        searchPlaceholder="Search case number..."
+        dateRangeConfig={{
+          label: "Upload Date",
+          fromDate: filters.fromDate,
+          toDate: filters.toDate,
+          onFromDateChange: (val) => setFilters(p => ({ ...p, fromDate: val })),
+          onToDateChange: (val) => setFilters(p => ({ ...p, toDate: val }))
+        }}
+        filters={[
+          {
+            id: "caseType",
+            label: "Case Type",
+            options: CASE_TYPES.map(t => ({ value: t, label: t }))
+          }
         ]}
-        values={filters}
-        onChange={setFilters}
-        onSearch={handleSearch}
-        onShowAll={handleShowAll}
-        onClear={() => {
-          setFilters(emptyFilters);
+        filterValues={{ caseType: filters.caseType }}
+        onFilterChange={(id, val) => setFilters(p => ({ ...p, [id]: val }))}
+        onClearFilters={() => {
+          setFilters({ ...emptyFilters });
           setCases([]);
           setTotal(0);
           setHasLoaded(false);
           setError("");
         }}
-        loading={loading}
-        pageSize={PAGE_SIZE}
       />
 
        {hasLoaded && !loading && (

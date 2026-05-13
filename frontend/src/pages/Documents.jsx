@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { useSearchParams } from "react-router-dom";
 import AppShell from "../components/AppShell";
 import CaseIdentityCard from "../components/CaseIdentityCard";
+import HeaderFilters from "../components/HeaderFilters";
 import ControlledSearchPanel, { EmptyState, ErrorState, LoadingState, PaginationControls } from "../components/ControlledSearchPanel";
 import { supabasePlatformApi as platformApi } from "../repositories/supabaseRepository";
 import { buildTenantAssetPrefix, getPersistentAssetUrl, removeAsset, uploadAsset } from "../services/storageService";
@@ -17,7 +18,7 @@ const DOC_CATEGORIES = [
 ];
 
 const PAGE_SIZE = 25;
-const emptyFilters = { searchTerm: "", category: "" };
+const emptyFilters = { searchTerm: "", category: "", fromDate: "", toDate: "" };
 
 // ── File type icon and colour ─────────────────────────────────
 function docIcon(mimeType, fileName) {
@@ -251,8 +252,10 @@ function Documents() {
     if (initialSearchCase && !initialSearchTriggered) {
       setInitialSearchTriggered(true);
       handleSearch({ ...emptyFilters, searchTerm: initialSearchCase });
+    } else if (hasLoaded) {
+      handleSearch(filters);
     }
-  }, [initialSearchCase, initialSearchTriggered, handleSearch]);
+  }, [filters.category, filters.fromDate, filters.toDate, initialSearchCase, initialSearchTriggered, handleSearch, hasLoaded]);
 
   const deleteDocument = async (caseId, doc) => {
     if (!window.confirm(`Delete "${doc.fileName}"?`)) return;
@@ -275,34 +278,36 @@ function Documents() {
         </button>
       }
     >
-      <ControlledSearchPanel
-        title="Search Documents"
-        description="Search by case number, file name, or category. Use Show All for a full paged list."
-        fields={[
-          { name: "searchTerm", label: "Search keyword", placeholder: "Case #, file name..." },
-          { 
-            name: "category", 
-            label: "Category", 
-            type: "select",
+      <HeaderFilters
+        searchTerm={filters.searchTerm}
+        onSearchChange={(val) => setFilters(p => ({ ...p, searchTerm: val }))}
+        searchPlaceholder="Search case #, file name..."
+        dateRangeConfig={{
+          label: "Upload Date",
+          fromDate: filters.fromDate,
+          toDate: filters.toDate,
+          onFromDateChange: (val) => setFilters(p => ({ ...p, fromDate: val })),
+          onToDateChange: (val) => setFilters(p => ({ ...p, toDate: val }))
+        }}
+        filters={[
+          {
+            id: "category",
+            label: "Category",
             options: [
               { value: "", label: "All Categories" },
               ...DOC_CATEGORIES.map(c => ({ value: c, label: c }))
             ]
-          },
+          }
         ]}
-        values={filters}
-        onChange={setFilters}
-        onSearch={handleSearch}
-        onShowAll={handleShowAll}
-        onClear={() => {
+        filterValues={{ category: filters.category }}
+        onFilterChange={(id, val) => setFilters(p => ({ ...p, [id]: val }))}
+        onClearFilters={() => {
           setFilters(emptyFilters);
           setCases([]);
           setTotal(0);
           setHasLoaded(false);
           setError("");
         }}
-        loading={loading}
-        pageSize={PAGE_SIZE}
       />
 
       {loading && !hasLoaded ? (

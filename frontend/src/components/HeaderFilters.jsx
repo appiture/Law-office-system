@@ -13,6 +13,7 @@ function HeaderFilters({
   dateRangeConfig = null,
 }) {
   const [panelOpen, setPanelOpen] = useState(false);
+  const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const containerRef = useRef(null);
 
   const activeFilterCount = Object.values(filterValues).filter(v => v && v !== "all" && v !== "").length;
@@ -23,11 +24,12 @@ function HeaderFilters({
     const handleClickOutside = (event) => {
       if (containerRef.current && !containerRef.current.contains(event.target)) {
         setPanelOpen(false);
+        if (!searchTerm) setIsSearchExpanded(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
+  }, [searchTerm]);
 
   const handleFilterSelect = (filterId, value) => {
     if (onFilterChange) onFilterChange(filterId, value);
@@ -42,22 +44,43 @@ function HeaderFilters({
   };
 
   return (
-    <div className={`header-filters-container${panelOpen ? " is-open" : ""}`} ref={containerRef}>
+    <div className={`header-filters-container${panelOpen ? " is-open" : ""}${isSearchExpanded ? " search-expanded" : ""}`} ref={containerRef}>
       <div className="header-filters-top">
-        {/* Search Field */}
-        <div className="premium-search-box">
-          <span className="search-icon">🔍</span>
+        {/* Search Field - Collapsible */}
+        <div className={`premium-search-box ${isSearchExpanded ? "expanded" : "collapsed"}`}>
+          <span className="search-icon" onClick={() => setIsSearchExpanded(!isSearchExpanded)}>🔍</span>
           <input
             type="text"
             className="search-input"
             value={searchTerm}
             onChange={(e) => onSearchChange && onSearchChange(e.target.value)}
-            placeholder={searchPlaceholder}
+            onFocus={() => setIsSearchExpanded(true)}
+            placeholder={isSearchExpanded ? searchPlaceholder : ""}
           />
-          {searchTerm && (
+          {searchTerm && isSearchExpanded && (
             <button className="search-clear-btn" onClick={() => onSearchChange("")}>✕</button>
           )}
         </div>
+
+        {/* Compact Date Range - New! */}
+        {dateRangeConfig && !isSearchExpanded && (
+          <div className="compact-date-range-bar">
+            <span className="compact-date-label">{dateRangeConfig.label || "Dates"}:</span>
+            <input 
+              type="date" 
+              className="mini-date-input" 
+              value={dateRangeConfig.fromDate || ""} 
+              onChange={(e) => dateRangeConfig.onFromDateChange?.(e.target.value)}
+            />
+            <span className="mini-date-sep">to</span>
+            <input 
+              type="date" 
+              className="mini-date-input" 
+              value={dateRangeConfig.toDate || ""} 
+              onChange={(e) => dateRangeConfig.onToDateChange?.(e.target.value)}
+            />
+          </div>
+        )}
 
         {/* Filter Toggle Button */}
         {(filters.length > 0 || dateRangeConfig) && (
@@ -103,7 +126,7 @@ function HeaderFilters({
             {dateRangeConfig && (
               <>
                 <div className="filter-item">
-                  <label className="filter-item-label">From Date</label>
+                  <label className="filter-item-label">{dateRangeConfig.label || "From Date"}</label>
                   <input
                     type="date"
                     className="filter-item-input"
@@ -112,7 +135,7 @@ function HeaderFilters({
                   />
                 </div>
                 <div className="filter-item">
-                  <label className="filter-item-label">To Date</label>
+                  <label className="filter-item-label">{dateRangeConfig.label ? "To" : "To Date"}</label>
                   <input
                     type="date"
                     className="filter-item-input"
@@ -142,6 +165,7 @@ function HeaderFilters({
         </div>
       </div>
     </div>
+
   );
 }
 

@@ -89,6 +89,26 @@ function Dashboard() {
   const { theme, toggleTheme } = useTheme();
 
   const [pendingTaskCount, setPendingTaskCount] = useState(0);
+  const [fromDate, setFromDate] = useState("");
+  const [toDate, setToDate] = useState("");
+
+  const isDateInRange = useCallback((dateValue, fallbackDate = null) => {
+    if (!fromDate && !toDate) return true;
+    const dateStr = dateValue || fallbackDate;
+    if (!dateStr) return false;
+    
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return true;
+    
+    const start = fromDate ? new Date(fromDate) : null;
+    const end = toDate ? new Date(toDate) : null;
+    if (start) start.setHours(0, 0, 0, 0);
+    if (end) end.setHours(23, 59, 59, 999);
+
+    if (start && d < start) return false;
+    if (end && d > end) return false;
+    return true;
+  }, [fromDate, toDate]);
 
   useEffect(() => {
     const refresh = async () => {
@@ -220,6 +240,9 @@ function Dashboard() {
     return cases.reduce(
       (totals, legalCase) => {
         (legalCase.chargeItems || []).forEach((item) => {
+          // For payments/fees, filter by due date as requested
+          if (!isDateInRange(item.dueDate, item.createdAt)) return;
+
           const due = Number(item.balanceAmount || 0);
           const paid = Number(item.paidAmount || 0);
           totals.totalDue += due;
@@ -233,18 +256,21 @@ function Dashboard() {
       },
       { totalDue: 0, lawyerFeesDue: 0, totalPaid: 0, lawyerFeesPaid: 0 }
     );
-  }, [cases]);
+  }, [cases, isDateInRange]);
 
   const activeCaseCount = useMemo(
-    () => cases.filter((item) => !["CLOSED", "CLOSED_WON", "CLOSED_LOST"].includes(normalizeStatus(item.status))).length,
-    [cases]
+    () => cases.filter((item) => {
+      if (!isDateInRange(item.createdAt)) return false;
+      return !["CLOSED", "CLOSED_WON", "CLOSED_LOST"].includes(normalizeStatus(item.status));
+    }).length,
+    [cases, isDateInRange]
   );
 
   const clientTrendMonths = useMemo(() => lastMonths(clientChartRange), [clientChartRange]);
   const feeTrendMonths = useMemo(() => lastMonths(feeChartRange), [feeChartRange]);
   const clientsPerMonth = useMemo(
-    () => buildMonthTrend(clientTrendMonths, clients, (client) => client.createdAt),
-    [clients, clientTrendMonths]
+    () => buildMonthTrend(clientTrendMonths, clients.filter(c => isDateInRange(c.createdAt)), (client) => client.createdAt),
+    [clients, clientTrendMonths, isDateInRange]
   );
   const paymentsPerMonth = useMemo(
     () =>
@@ -256,13 +282,15 @@ function Dashboard() {
               .filter(charge => charge.isLawyerFee || isLawyerFeeLabel(charge.label))
               .map(charge => String(charge.id))
           );
-          const history = (legalCase.paymentHistory || []).filter(entry =>
-            entry.isLawyerFee ||
-            isLawyerFeeLabel(entry.chargeLabel) ||
-            lawyerFeeChargeIds.has(String(entry.chargeItemId))
-          );
           
-          // Synthesize history for legacy charges that have paidAmount > 0 but missing history records
+          const history = (legalCase.paymentHistory || []).filter(entry => {
+            if (!isDateInRange(entry.createdAt || entry.paymentDate)) return false;
+            return entry.isLawyerFee ||
+                   isLawyerFeeLabel(entry.chargeLabel) ||
+                   lawyerFeeChargeIds.has(String(entry.chargeItemId));
+          });
+          
+          // Synthesize history logic omitted for brevity but applies to syntheticHistory as well
           const historyAmountsByChargeId = new Map();
           (legalCase.paymentHistory || []).forEach(h => {
             const chargeKey = String(h.chargeItemId);
@@ -273,6 +301,8 @@ function Dashboard() {
           const syntheticHistory = (legalCase.chargeItems || [])
             .filter(charge => charge.isLawyerFee || isLawyerFeeLabel(charge.label))
             .map(charge => {
+              if (!isDateInRange(charge.createdAt || legalCase.createdAt)) return null;
+              
               const recordedAmount = historyAmountsByChargeId.get(String(charge.id)) || 0;
               const actualPaid = Number(charge.paidAmount || 0);
               const unrecordedAmount = Math.max(0, actualPaid - recordedAmount);
@@ -292,7 +322,7 @@ function Dashboard() {
         (entry) => entry.createdAt || entry.paymentDate,
         (entry) => entry.amount
       ),
-    [cases, feeTrendMonths]
+    [cases, feeTrendMonths, isDateInRange]
   );
 
   const events = useMemo(() => {
@@ -470,7 +500,14 @@ function Dashboard() {
             <HeaderFilters
               searchTerm={dashboardSearch}
               onSearchChange={setDashboardSearch}
-              searchPlaceholder="Search anything in your dashboard..."
+              searchPlaceholder="Search dashboard..."
+              dateRangeConfig={{
+                label: "Activity Period",
+                fromDate,
+                toDate,
+                onFromDateChange: setFromDate,
+                onToDateChange: setToDate
+              }}
             />
           </div>
 
@@ -889,22 +926,7 @@ function EventModal({ selectedDate, selectedEvent, onClose, onSave, onDelete }) 
           <button className="flow-modal-close" onClick={onClose}>x</button>
         </div>
         <div className="flow-modal-body">
-          {!isEditing ? (
-            <div className="event-view-content">
-              <div className="event-view-header">
-                <span className="event-type-tag" style={{ backgroundColor: form.color }}>{form.eventType}</span>
-                <h4>{form.title}</h4>
-              </div>
-              {form.description ? (
-                <div className="event-view-description">
-                  <h5>Description</h5>
-                  <p>{form.description}</p>
-                </div>
-              ) : (
-                <p className="empty-description">No description provided.</p>
-              )}
-            </div>
-          ) : (
+          {isEditing ? (
             <div className="form-section">
               <div className="form-section-grid">
                 <div className="field-group fcol-full">
@@ -936,6 +958,21 @@ function EventModal({ selectedDate, selectedEvent, onClose, onSave, onDelete }) 
                   </select>
                 </div>
               </div>
+            </div>
+          ) : (
+            <div className="event-view-content">
+              <div className="event-view-header">
+                <span className="event-type-tag" style={{ backgroundColor: form.color }}>{form.eventType}</span>
+                <h4>{form.title}</h4>
+              </div>
+              {form.description ? (
+                <div className="event-view-description">
+                  <h5>Description</h5>
+                  <p>{form.description}</p>
+                </div>
+              ) : (
+                <p className="empty-description">No description provided.</p>
+              )}
             </div>
           )}
         </div>

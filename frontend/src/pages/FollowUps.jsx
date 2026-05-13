@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { useSearchParams } from "react-router-dom";
 import AppShell from "../components/AppShell";
 import CaseIdentityCard from "../components/CaseIdentityCard";
+import HeaderFilters from "../components/HeaderFilters";
 import ControlledSearchPanel, { EmptyState, ErrorState, LoadingState, PaginationControls } from "../components/ControlledSearchPanel";
 import CaseCombobox from "../components/CaseCombobox";
 import { supabasePlatformApi as platformApi } from "../repositories/supabaseRepository";
@@ -18,7 +19,7 @@ import "./formStyles.css";
 
 const EVENT_TYPES = ["HEARING", "DEADLINE", "JUDGMENT", "NOTE", "BAIL", "CHARGE", "SUBMISSION", "OTHER"];
 const PAGE_SIZE = 25;
-const emptyFilters = { date: "", clientName: "", caseNumber: "" };
+const emptyFilters = { date: "", clientName: "", caseNumber: "", fromDate: "", toDate: "" };
 
 const ALERT_GROUPS = [
   { key:"missed",   label:"⚠️ Missed / Needs Attention", color:"var(--color-error)" },
@@ -327,8 +328,10 @@ function FollowUps() {
     if (initialSearchCase && !initialSearchTriggered) {
       setInitialSearchTriggered(true);
       handleSearch({ ...emptyFilters, caseNumber: initialSearchCase });
+    } else if (hasLoaded) {
+      handleSearch(filters);
     }
-  }, [initialSearchCase, initialSearchTriggered, handleSearch]);
+  }, [filters.fromDate, filters.toDate, initialSearchCase, initialSearchTriggered, handleSearch, hasLoaded]);
 
   const handleShowAll = () => {
     setShowAllMode(true);
@@ -348,27 +351,24 @@ function FollowUps() {
       }
     >
       <ErrorState message={error} />
-      <ControlledSearchPanel
-        title="Search Timeline"
-        description="Search court dates by scheduled date, client name, or case number."
-        fields={[
-          { name: "date", label: "Date", type: "date" },
-          { name: "clientName", label: "Client name", placeholder: "Client name" },
-          { name: "caseNumber", label: "Case number", placeholder: "Case number" },
-        ]}
-        values={filters}
-        onChange={setFilters}
-        onSearch={handleSearch}
-        onShowAll={handleShowAll}
-        onClear={() => {
+      <HeaderFilters
+        searchTerm={filters.caseNumber}
+        onSearchChange={(val) => setFilters(p => ({ ...p, caseNumber: val }))}
+        searchPlaceholder="Search case number..."
+        dateRangeConfig={{
+          label: "Event Date",
+          fromDate: filters.fromDate,
+          toDate: filters.toDate,
+          onFromDateChange: (val) => setFilters(p => ({ ...p, fromDate: val })),
+          onToDateChange: (val) => setFilters(p => ({ ...p, toDate: val }))
+        }}
+        onClearFilters={() => {
           setFilters(emptyFilters);
           setCases([]);
           setTotal(0);
           setHasLoaded(false);
           setError("");
         }}
-        loading={loading}
-        pageSize={PAGE_SIZE}
       />
 
       {hasLoaded && !loading && (

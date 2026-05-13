@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { useSearchParams } from "react-router-dom";
 import AppShell from "../components/AppShell";
 import CaseIdentityCard from "../components/CaseIdentityCard";
+import HeaderFilters from "../components/HeaderFilters";
 import ControlledSearchPanel, { EmptyState, ErrorState, LoadingState, PaginationControls } from "../components/ControlledSearchPanel";
 import CaseCombobox from "../components/CaseCombobox";
 import { supabasePlatformApi as platformApi } from "../repositories/supabaseRepository";
@@ -18,7 +19,7 @@ import "./formStyles.css";
 
 const PAYMENT_MODES = ["Cash", "UPI", "Bank Transfer", "NEFT/RTGS", "Cheque", "Demand Draft", "Other"];
 const PAGE_SIZE = 25;
-const emptyFilters = { clientName: "", caseNumber: "", status: "", month: "" };
+const emptyFilters = { clientName: "", caseNumber: "", status: "", month: "", fromDate: "", toDate: "" };
 
 const emptyCharge  = { label:"", isLawyerFee:false, totalAmount:"", paidAmount:"", dueDate:"", displayOrder:0, notes:"", description:"" };
 const emptyPayment = {
@@ -446,8 +447,11 @@ function Payments() {
     if (initialSearchCase && !initialSearchTriggered) {
       setInitialSearchTriggered(true);
       handleSearch({ ...emptyFilters, caseNumber: initialSearchCase });
+    } else if (hasLoaded) {
+      // Auto-refresh when filters change after initial load
+      handleSearch(filters);
     }
-  }, [initialSearchCase, initialSearchTriggered, handleSearch]);
+  }, [filters.status, filters.fromDate, filters.toDate, initialSearchCase, initialSearchTriggered, handleSearch, hasLoaded]);
 
   const handleShowAll = () => {
     setShowAllMode(true);
@@ -470,38 +474,37 @@ function Payments() {
       }
     >
       <ErrorState message={error} />
-      <ControlledSearchPanel
-        title="Search payments"
-        description="Search by client name, case number, or payment status."
-        fields={[
-          { name: "clientName", label: "Client name", placeholder: "Client name" },
-          { name: "caseNumber", label: "Case number", placeholder: "Case number" },
-          { name: "month", label: "Month", type: "month" },
+      <HeaderFilters
+        searchTerm={filters.caseNumber}
+        onSearchChange={(val) => setFilters(p => ({ ...p, caseNumber: val }))}
+        searchPlaceholder="Search case number..."
+        dateRangeConfig={{
+          label: "Payment Due",
+          fromDate: filters.fromDate,
+          toDate: filters.toDate,
+          onFromDateChange: (val) => setFilters(p => ({ ...p, fromDate: val })),
+          onToDateChange: (val) => setFilters(p => ({ ...p, toDate: val }))
+        }}
+        filters={[
           {
-            name: "status",
-            label: "Payment status",
-            type: "select",
+            id: "status",
+            label: "Status",
             options: [
-              { value: "", label: "Any status" },
               { value: "paid", label: "Paid" },
               { value: "partial", label: "Partial" },
               { value: "overdue", label: "Overdue" },
-            ],
-          },
+            ]
+          }
         ]}
-        values={filters}
-        onChange={setFilters}
-        onSearch={handleSearch}
-        onShowAll={handleShowAll}
-        onClear={() => {
-          setFilters(emptyFilters);
+        filterValues={{ status: filters.status }}
+        onFilterChange={(id, val) => setFilters(p => ({ ...p, [id]: val }))}
+        onClearFilters={() => {
+          setFilters({ ...emptyFilters });
           setCases([]);
           setTotal(0);
           setHasLoaded(false);
           setError("");
         }}
-        loading={loading}
-        pageSize={PAGE_SIZE}
       />
 
       {hasLoaded && !loading && (

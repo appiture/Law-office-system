@@ -27,8 +27,8 @@
 }
 
 .dashboard-search-container {
-  flex: 1;
-  min-width: 0;
+  flex: 0 1 280px; /* Further minimized */
+  min-width: 180px;
   display: flex;
 }
 
@@ -39,14 +39,10 @@
 .dashboard-search-container .header-filters-container,
 .dashboard-search-container .header-filters-top {
   height: 40px;
-  width: 100% !important;
 }
 
 .dashboard-search-container .premium-search-box {
-  width: 100% !important;
-  max-width: none !important;
   height: 40px;
-  padding: 0 16px;
   background: var(--color-card);
   border: 1px solid var(--color-border);
   border-radius: 12px;
