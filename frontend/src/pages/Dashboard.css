@@ -7,27 +7,51 @@
   align-items: center;
   gap: 12px;
   width: 100%;
+  flex-wrap: wrap;
+}
+
+@media (max-width: 768px) {
+  .dashboard-action-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  
+  .dashboard-search-container {
+    width: 100%;
+  }
+  
+  .dashboard-top-actions {
+    justify-content: space-between;
+    width: 100%;
+  }
 }
 
 .dashboard-search-container {
   flex: 1;
   min-width: 0;
+  display: flex;
+}
+
+.dashboard-search-container > div {
+  width: 100%;
 }
 
 .dashboard-search-container .header-filters-container,
 .dashboard-search-container .header-filters-top {
   height: 40px;
-  width: 100%;
+  width: 100% !important;
 }
 
 .dashboard-search-container .premium-search-box {
-  width: 100%;
+  width: 100% !important;
+  max-width: none !important;
   height: 40px;
   padding: 0 16px;
   background: var(--color-card);
   border: 1px solid var(--color-border);
-  border-radius: 10px;
+  border-radius: 12px;
   transition: all 0.2s ease;
+  box-shadow: 0 4px 12px var(--color-shadow);
 }
 
 .dashboard-top-actions {
@@ -63,9 +87,20 @@
 
 .dashboard-month-input {
   border: none !important;
-  background: transparent !important;
-  width: 120px !important;
-  padding: 0 8px !important;
+  background: rgba(255, 255, 255, 0.05) !important;
+  width: 140px !important;
+  height: 34px !important;
+  font-size: 13px !important;
+  font-weight: 800 !important;
+  color: var(--color-text) !important;
+  padding: 0 12px !important;
+  border-radius: 8px;
+  color-scheme: dark;
+}
+
+.light .dashboard-month-input {
+  background: rgba(0, 0, 0, 0.03) !important;
+  color-scheme: light;
 }
 
 .btn-report {
@@ -118,6 +153,18 @@
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 14px;
   margin-bottom: 18px;
+}
+
+@media (max-width: 1200px) {
+  .dashboard-kpi-row {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 640px) {
+  .dashboard-kpi-row {
+    grid-template-columns: 1fr;
+  }
 }
 
 .dashboard-kpi-card-wrapper {
@@ -176,6 +223,12 @@
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 14px;
   align-items: stretch;
+}
+
+@media (max-width: 1024px) {
+  .dashboard-focus-grid {
+    grid-template-columns: 1fr;
+  }
 }
 
 .dashboard-left-column {
