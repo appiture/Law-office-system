@@ -23,9 +23,10 @@ export function PermissionsProvider({ children }) {
   }, []);
 
   const canAccess = (section) => {
-    // If permissions object is empty (e.g. not loaded yet), default to true or handle accordingly
-    // Given the prompt: default allow if section not in permissions
-    if (!(section in permissions)) return true; 
+    // Core sections always accessible
+    if (section === \"dashboard\" || section === \"settings\") return true;
+
+    // Fail-closed: If permission is not defined or is false, deny access.
     return Boolean(permissions[section]);
   };
 

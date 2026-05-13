@@ -14,6 +14,7 @@ import { checkAdminStatus, isPlatformAdmin } from "../services/adminService";
 import { useTheme } from "../context/ThemeContext";
 import { usePermissions } from "../context/PermissionsContext";
 import appitureLogo from "../assets/appiture_logo.png";
+import { supabase } from "../services/supabaseClient";
 import "./AppShell.css";
 
 
@@ -23,7 +24,7 @@ const baseNavItems = [
   { to: "/cases", label: "Cases", shortLabel: "CS", detail: "Case management" },
   { to: "/payments", label: "Fees", shortLabel: "FE", detail: "Billing and collections" },
   { to: "/documents", label: "Documents", shortLabel: "DC", detail: "Evidence and filings" },
-  { to: "/followups", label: "Follow-Ups", shortLabel: "FU", detail: "Hearings and reminders" },
+  { to: "/followups", label: "Timeline", shortLabel: "TL", detail: "Hearings and Court Dates" },
   { to: "/tasks", label: "Tasks", shortLabel: "TK", detail: "Team action items & deadlines" },
   { to: "/settings", label: "Settings", shortLabel: "ST", detail: "App and profile config" },
 ];
@@ -76,15 +77,40 @@ function AppShell({ title, subtitle, actions, children }) {
     window.addEventListener("storage", handleStorageEvent);
 
     // Count pending tasks from localStorage (fast, no API call needed in sidebar)
-    const refreshPendingTasks = () => {
+    const refreshPendingTasks = async () => {
       try {
-        const orgId = getOrganizationId ? getOrganizationId() : "";
-        if (!orgId) { setPendingTaskCount(0); return; }
-        const raw = localStorage.getItem(`lawoffice.tasks.${orgId}`) || "[]";
-        const tasks = JSON.parse(raw);
-        const pending = tasks.filter(t => t.status === "PENDING" || t.status === "IN_PROGRESS").length;
-        setPendingTaskCount(pending);
-      } catch { setPendingTaskCount(0); }
+        const orgId = getOrganizationId();
+
+        if (!orgId) {
+          setPendingTaskCount(0);
+          return;
+        }
+
+        const { count, error } = await supabase
+          .from("tasks")
+          .select("*", {
+            count: "exact",
+            head: true
+          })
+          .eq("organization_id", orgId)
+          .is("deleted_at", null)
+          .in("status", [
+            "PENDING",
+            "IN_PROGRESS"
+          ]);
+
+        if (error) throw error;
+
+        setPendingTaskCount(count || 0);
+
+      } catch (err) {
+        console.error(
+          "Failed to fetch pending tasks",
+          err
+        );
+
+        setPendingTaskCount(0);
+      }
     };
     refreshPendingTasks();
     window.addEventListener("tasksUpdated", refreshPendingTasks);
@@ -101,8 +127,6 @@ function AppShell({ title, subtitle, actions, children }) {
   // Platform admins only see their own portal — no case/workspace items.
   const filteredBaseNavItems = baseNavItems.filter(item => {
     const sectionKey = item.to.replace("/", ""); // "/clients" -> "clients"
-    // Tasks is always visible (no section permission required)
-    if (sectionKey === "tasks") return true;
     return canAccess(sectionKey);
   });
 

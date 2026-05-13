@@ -30,13 +30,14 @@ function getEventLink(item) {
   return `/cases/${caseId}?focus=followup&followupId=${encodeURIComponent(item.id)}#followup-${item.id}`;
 }
 
-function DashboardSearchResults({ query, cases, tasks, onResultClick }) {
+function DashboardSearchResults({ query, cases, tasks, timelineEvents, onResultClick }) {
   const normalizedQuery = query.trim().toLowerCase();
   const { canAccess } = usePermissions();
   const canViewClients = canAccess("clients");
   const canViewCases = canAccess("cases");
   const canViewPayments = canAccess("payments");
   const canViewFollowUps = canAccess("followups");
+  const canViewTasks = canAccess("tasks");
 
   // 1. Extract and Filter Clients
   const matchedClients = useMemo(() => {
@@ -76,24 +77,32 @@ function DashboardSearchResults({ query, cases, tasks, onResultClick }) {
     });
   }, [cases, normalizedQuery]);
 
-  // 3. Filter Tasks
-  const matchedTasks = useMemo(() => {
-    return tasks.filter((t) => {
-      const legalCase = getEventCase(t);
+  // 3. Filter Team Tasks (Action Items)
+  const matchedTeamTasks = useMemo(() => {
+    return (tasks || []).filter((t) => {
       return (
-        String(getEventTitle(t)).toLowerCase().includes(normalizedQuery) ||
+        String(t.title || "").toLowerCase().includes(normalizedQuery) ||
         String(t.description || "").toLowerCase().includes(normalizedQuery) ||
-        String(t.notes || "").toLowerCase().includes(normalizedQuery) ||
-        String(t.type || "").toLowerCase().includes(normalizedQuery) ||
-        String(t.priority || "").toLowerCase().includes(normalizedQuery) ||
         String(t.status || "").toLowerCase().includes(normalizedQuery) ||
-        String(legalCase?.caseNumber || "").toLowerCase().includes(normalizedQuery) ||
-        String(legalCase?.client?.name || "").toLowerCase().includes(normalizedQuery)
+        String(t.priority || "").toLowerCase().includes(normalizedQuery) ||
+        String(t.legalCase?.caseNumber || "").toLowerCase().includes(normalizedQuery) ||
+        String(t.legalCase?.client?.name || "").toLowerCase().includes(normalizedQuery)
       );
     });
   }, [tasks, normalizedQuery]);
 
-
+  // 4. Filter Timeline Events (Hearings/Deadlines)
+  const matchedTimelineEvents = useMemo(() => {
+    return (timelineEvents || []).filter((e) => {
+      return (
+        String(getEventTitle(e)).toLowerCase().includes(normalizedQuery) ||
+        String(e.notes || "").toLowerCase().includes(normalizedQuery) ||
+        String(e.type || "").toLowerCase().includes(normalizedQuery) ||
+        String(e.legalCase?.caseNumber || "").toLowerCase().includes(normalizedQuery) ||
+        String(e.legalCase?.client?.name || "").toLowerCase().includes(normalizedQuery)
+      );
+    });
+  }, [timelineEvents, normalizedQuery]);
 
   // 6. Filter Payment History
   const matchedPayments = useMemo(() => {
@@ -136,12 +145,11 @@ function DashboardSearchResults({ query, cases, tasks, onResultClick }) {
     });
   }, [cases, normalizedQuery]);
 
-
-
   const totalResults =
     (canViewClients ? matchedClients.length : 0) +
     (canViewCases ? matchedCases.length : 0) +
-    (canViewFollowUps ? matchedTasks.length : 0) +
+    (canViewTasks ? matchedTeamTasks.length : 0) +
+    (canViewFollowUps ? matchedTimelineEvents.length : 0) +
     (canViewPayments ? matchedPayments.length + matchedCharges.length : 0);
 
   if (totalResults === 0) {
@@ -205,19 +213,39 @@ function DashboardSearchResults({ query, cases, tasks, onResultClick }) {
           </div>
         )}
 
-        {/* Tasks Section */}
-        {canViewFollowUps && matchedTasks.length > 0 && (
+        {/* Team Tasks Section */}
+        {canViewTasks && matchedTeamTasks.length > 0 && (
           <div className="search-section">
-            <h3 className="section-title">📝 Tasks & Follow-ups ({matchedTasks.length})</h3>
+            <h3 className="section-title">📋 Team Tasks ({matchedTeamTasks.length})</h3>
             <div className="results-list">
-              {matchedTasks.map((t) => (
-                <Link key={t.id} to={getEventLink(t)} className="result-card premium-glass" onClick={onResultClick}>
+              {matchedTeamTasks.map((t) => (
+                <Link key={t.id} to="/tasks" className="result-card premium-glass" onClick={onResultClick}>
                   <div className="result-main">
-                    <strong>{getEventTitle(t)}</strong>
-                    <p className="result-sub cutoff-text">{t.notes || getEventCase(t)?.caseNumber || ""}</p>
+                    <strong>{t.title}</strong>
+                    <p className="result-sub cutoff-text">{t.description || t.legalCase?.caseNumber || "Action Item"}</p>
                   </div>
                   <div className="result-side">
                     <span className={`status-badge ${String(t.status || "pending").toLowerCase()}`}>{t.status || "PENDING"}</span>
+                  </div>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Timeline Events Section */}
+        {canViewFollowUps && matchedTimelineEvents.length > 0 && (
+          <div className="search-section">
+            <h3 className="section-title">📅 Court Dates & Hearings ({matchedTimelineEvents.length})</h3>
+            <div className="results-list">
+              {matchedTimelineEvents.map((e) => (
+                <Link key={e.id} to={getEventLink(e)} className="result-card premium-glass" onClick={onResultClick}>
+                  <div className="result-main">
+                    <strong>{getEventTitle(e)}</strong>
+                    <p className="result-sub cutoff-text">{e.notes || e.legalCase?.caseNumber || "Timeline Event"}</p>
+                  </div>
+                  <div className="result-side">
+                    <span className={`status-badge hearing`}>{formatDate(getEventDate(e))}</span>
                   </div>
                 </Link>
               ))}

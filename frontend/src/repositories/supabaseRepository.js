@@ -274,6 +274,7 @@ const getWorkspaceData = async ({ refresh = false } = {}) => {
           paymentHistory: [],
           documents: [],
           followups: [],
+          tasks: [],
         };
         cache.data = empty;
         cache.dataTimestamp = Date.now();
@@ -304,6 +305,7 @@ const getWorkspaceData = async ({ refresh = false } = {}) => {
       let paymentHistoryQuery = client.from("payment_history").select("id, case_id, organization_id, payment_charge_id, charge_name, amount_paid, payment_mode, payment_reference, timestamp, updated_by, created_by").eq("organization_id", organizationId);
       let documentsQuery = client.from("documents").select("id, case_id, organization_id, file_url, file_path, file_name, file_type, file_size, category, description, created_at, uploaded_by").eq("organization_id", organizationId).is("deleted_at", null);
       let followupsQuery = client.from("followups").select("id, case_id, organization_id, type, title, date, notes, status, postponed_to, created_at, created_by").eq("organization_id", organizationId).is("deleted_at", null);
+      let tasksQuery = client.from("tasks").select("*").eq("organization_id", organizationId).is("deleted_at", null);
 
       if (isLawyerContext(context)) {
         const visibleCaseIds = cases.map(c => c.id);
@@ -313,18 +315,22 @@ const getWorkspaceData = async ({ refresh = false } = {}) => {
           paymentHistoryQuery = paymentHistoryQuery.in("case_id", visibleCaseIds);
           documentsQuery = documentsQuery.in("case_id", visibleCaseIds);
           followupsQuery = followupsQuery.in("case_id", visibleCaseIds);
+          // Note: tasks might not be linked to a case_id, but if they are, they should be filtered.
+          // However, action items are often personal or team-wide.
+          // For now, we fetch all org tasks unless we decide to strictly filter by case.
         } else {
           // No cases, so no related data
-          return { clients: [], cases: [], payments: [], charges: [], paymentHistory: [], documents: [], followups: [] };
+          return { clients: [], cases: [], payments: [], charges: [], paymentHistory: [], documents: [], followups: [], tasks: [] };
         }
       }
 
-      let [payments, charges, paymentHistory, documents, followups] = await Promise.all([
+      let [payments, charges, paymentHistory, documents, followups, tasks] = await Promise.all([
         list(paymentsQuery.order("created_at", { ascending: false }).range(0, MAX_SERVER_PAGE - 1)),
         list(chargesQuery.order("display_order", { ascending: true }).range(0, MAX_SERVER_PAGE - 1)),
         list(paymentHistoryQuery.order("timestamp", { ascending: false }).range(0, MAX_SERVER_PAGE - 1)),
         list(documentsQuery.order("created_at", { ascending: false }).range(0, MAX_SERVER_PAGE - 1)),
-        list(followupsQuery.order("date", { ascending: true }).range(0, MAX_SERVER_PAGE - 1))
+        list(followupsQuery.order("date", { ascending: true }).range(0, MAX_SERVER_PAGE - 1)),
+        list(tasksQuery.order("created_at", { ascending: false }).range(0, MAX_SERVER_PAGE - 1))
       ]);
 
       if (isLawyerContext(context)) {
@@ -332,7 +338,7 @@ const getWorkspaceData = async ({ refresh = false } = {}) => {
         clients = clients.filter((item) => visibleClientIds.has(String(item.id)));
       }
 
-      const data = { clients, cases, payments, charges, paymentHistory, documents, followups };
+      const data = { clients, cases, payments, charges, paymentHistory, documents, followups, tasks };
       cache.data = data;
       cache.dataTimestamp = Date.now();
       cache.mappedCases = null;
@@ -436,7 +442,14 @@ const buildDatasetIndexes = (dataset) => {
     historyByCase.get(item.case_id).push(item);
   });
 
-  return { clientsById, chargesById, chargesByCase, documentsByCase, followUpsByCase, historyByCase };
+  const tasksByCase = new Map();
+  dataset.tasks.forEach((item) => {
+    if (!item.case_id) return;
+    if (!tasksByCase.has(item.case_id)) tasksByCase.set(item.case_id, []);
+    tasksByCase.get(item.case_id).push(item);
+  });
+
+  return { clientsById, chargesById, chargesByCase, documentsByCase, followUpsByCase, historyByCase, tasksByCase };
 };
 
 const mapCaseRecord = async (
@@ -449,6 +462,7 @@ const mapCaseRecord = async (
     documentsByCase,
     followUpsByCase,
     historyByCase,
+    tasksByCase,
     includeClientAssets = true,
     includeDocuments = true,
   } = {}
@@ -502,6 +516,9 @@ const mapCaseRecord = async (
       }),
     }));
 
+  const caseTasks = tasksByCase ? (tasksByCase.get(legalCase.id) || []) : dataset.tasks.filter((item) => item.case_id === legalCase.id);
+  const tasks = caseTasks.map(_mapTask);
+
   const caseHistory = historyByCase ? (historyByCase.get(legalCase.id) || []) : dataset.paymentHistory.filter((item) => item.case_id === legalCase.id);
   const history = caseHistory
     .map((item) => {
@@ -549,6 +566,7 @@ const mapCaseRecord = async (
     paymentHistory: history,
     documents,
     followUps,
+    tasks,
     totalAmount: totals.totalAmount,
     paidAmount: totals.paidAmount,
     balanceAmount: totals.balanceAmount,
@@ -1708,15 +1726,21 @@ const supabasePlatformApi = {
     );
     const dashboard = buildDashboardSummary(cases);
 
-    // Derive follow-ups (tasks/dates) from mapped cases to avoid extra DB hits
-    const followUps = cases.flatMap(c => (c.followUps || []).map(f => ({ ...f, legalCase: c })));
+    // Timeline Events (Follow-ups/Hearings) derived from cases
+    const timelineEvents = cases.flatMap(c => (c.followUps || []).map(f => ({ ...f, legalCase: c })));
+
+    // Team Action Items (Actual Tasks) - mapped from the dataset
+    const actionItems = (dataset.tasks || []).map(_mapTask).map(t => {
+      const linkedCase = cases.find(c => String(c.id) === String(t.case_id || t.caseId));
+      return { ...t, legalCase: linkedCase };
+    });
 
     return {
       dashboard,
       cases,
       clients,
-      tasks: followUps,
-      putUpDates: followUps
+      tasks: actionItems,
+      putUpDates: timelineEvents
     };
   },
   getPutUpDates: async () => {

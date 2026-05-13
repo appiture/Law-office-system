@@ -636,12 +636,12 @@ function CaseDetails() {
           </DetailSection>
           )}
 
-          {/* 5. Timeline / Follow-ups Cell */}
+          {/* 5. Timeline & Court Dates Cell */}
           {canViewFollowUps && (
           <DetailSection 
             id="followups-card" 
-            title="Next Events" 
-            label="Action Items"
+            title="Upcoming Dates" 
+            label="Timeline"
             className="magic-bento-card--half"
             actions={
               <button 
@@ -659,7 +659,7 @@ function CaseDetails() {
                   <div className="desc">{fu.title}</div>
                 </div>
               ))}
-              {visibleFollowUps.length === 0 && <p className="empty-text">No upcoming hearings or tasks.</p>}
+              {visibleFollowUps.length === 0 && <p className="empty-text">No upcoming hearings or deadlines.</p>}
             </div>
           </DetailSection>
           )}

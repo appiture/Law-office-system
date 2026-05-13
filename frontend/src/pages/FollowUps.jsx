@@ -244,12 +244,12 @@ function FollowUps() {
   const [modalCases, setModalCases] = useState([]);
   const [eventModal, setEventModal] = useState(null); // { caseId, editItem? }
   const [searchParams] = useSearchParams();
-  const initialSearchCase = searchParams.get("searchCase") || "";
+  const initialSearchCase = searchParams.get(\"searchCase\") || \"\";
   const [filters, setFilters] = useState({ ...emptyFilters, caseNumber: initialSearchCase });
   const [hasLoaded, setHasLoaded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [modalLoading, setModalLoading] = useState(false);
-  const [error, setError] = useState("");
+  const [error, setError] = useState(\"\");
   const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
   const [showAllMode, setShowAllMode] = useState(false);
@@ -257,7 +257,7 @@ function FollowUps() {
 
   const loadData = useCallback(async ({ nextPage = page, showAll = showAllMode, nextFilters = filters } = {}) => {
     setLoading(true);
-    setError("");
+    setError(\"\");
     try {
       const response = await platformApi.searchFollowUps({
         filters: nextFilters,
@@ -271,8 +271,8 @@ function FollowUps() {
       setHasLoaded(true);
       setShowAllMode(showAll);
     } catch (err) {
-      console.error("Failed to load follow-ups:", err);
-      setError(err.message || "Failed to load follow-ups.");
+      console.error(\"Failed to load timeline events:\", err);
+      setError(err.message || \"Failed to load timeline events.\");
       setCases([]);
       setTotal(0);
       setHasLoaded(true);
@@ -289,8 +289,8 @@ function FollowUps() {
       setModalCases(Array.isArray(response.items) ? response.items : []);
       return true;
     } catch (err) {
-      console.error("Failed to load cases for event modal:", err);
-      setError(err.message || "Failed to load cases for the event modal.");
+      console.error(\"Failed to load cases for event modal:\", err);
+      setError(err.message || \"Failed to load cases for the event modal.\");
       return false;
     } finally {
       setModalLoading(false);
@@ -306,13 +306,13 @@ function FollowUps() {
   const markCompleted = async (caseId, item) => {
     await platformApi.updateFollowUp(caseId, item.id, {
       type: item.type, title: item.title, scheduledAt: item.scheduledAt,
-      status: "COMPLETED", notes: item.notes || "", postponedTo: item.postponedTo || null,
+      status: \"COMPLETED\", notes: item.notes || \"\", postponedTo: item.postponedTo || null,
     });
     await loadData();
   };
 
   const deleteEvent = async (caseId, followUpId) => {
-    if (!window.confirm("Remove this timeline event?")) return;
+    if (!window.confirm(\"Remove this timeline event?\")) return;
     await platformApi.deleteFollowUp(caseId, followUpId);
     await loadData();
   };
@@ -337,24 +337,24 @@ function FollowUps() {
 
   return (
     <AppShell
-      title="Upcoming Follow-Ups"
-      subtitle="Timeline of hearings, deadlines, judgments, and notes — colour-coded by urgency."
+      title=\"Timeline & Court Dates\"
+      subtitle=\"Central timeline for hearings, deadlines, and key case milestones — colour-coded by urgency.\"
       actions={
-        <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
-          <button type="button" className="btn-gold" onClick={() => void openEventModal({})} disabled={modalLoading} style={{ whiteSpace: 'nowrap' }}>
-            {modalLoading ? "Loading..." : "+ Add Event"}
+        <div style={{ display: \"flex\", alignItems: \"center\", gap: \"12px\", flexWrap: \"wrap\" }}>
+          <button type=\"button\" className=\"btn-gold\" onClick={() => void openEventModal({})} disabled={modalLoading} style={{ whiteSpace: 'nowrap' }}>
+            {modalLoading ? \"Loading...\" : \"+ Add Event\"}
           </button>
         </div>
       }
     >
       <ErrorState message={error} />
       <ControlledSearchPanel
-        title="Search follow-ups"
-        description="Search by date, client name, or case number. Show All loads a paged timeline."
+        title=\"Search Timeline\"
+        description=\"Search court dates by scheduled date, client name, or case number.\"
         fields={[
-          { name: "date", label: "Date", type: "date" },
-          { name: "clientName", label: "Client name", placeholder: "Client name" },
-          { name: "caseNumber", label: "Case number", placeholder: "Case number" },
+          { name: \"date\", label: \"Date\", type: \"date\" },
+          { name: \"clientName\", label: \"Client name\", placeholder: \"Client name\" },
+          { name: \"caseNumber\", label: \"Case number\", placeholder: \"Case number\" },
         ]}
         values={filters}
         onChange={setFilters}
@@ -365,7 +365,7 @@ function FollowUps() {
           setCases([]);
           setTotal(0);
           setHasLoaded(false);
-          setError("");
+          setError(\"\");
         }}
         loading={loading}
         pageSize={PAGE_SIZE}

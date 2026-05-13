@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import AppShell from "../components/AppShell";
 import HeaderFilters from "../components/HeaderFilters";
 import { supabasePlatformApi as platformApi } from "../repositories/supabaseRepository";
+import { supabase } from "../services/supabaseClient";
 import { getCache, setCache } from "../lib/cache";
 import { currency, formatDate } from "../utils/formatters";
 import { isLawyerFeeLabel } from "../utils/caseDomain";
@@ -88,27 +89,35 @@ function Dashboard() {
   const [selectedEvent, setSelectedEvent] = useState(null);
   const { theme, toggleTheme } = useTheme();
 
-  // Pending task count from localStorage (fast, no extra API call)
-  const [pendingTaskCount, setPendingTaskCount] = useState(() => {
-    try {
-      const orgId = getOrganizationId();
-      if (!orgId) return 0;
-      const raw = localStorage.getItem(`lawoffice.tasks.${orgId}`) || "[]";
-      const t = JSON.parse(raw);
-      return t.filter(x => x.status === "PENDING" || x.status === "IN_PROGRESS").length;
-    } catch { return 0; }
-  });
+  const [pendingTaskCount, setPendingTaskCount] = useState(0);
 
   useEffect(() => {
-    const refresh = () => {
+    const refresh = async () => {
       try {
         const orgId = getOrganizationId();
-        if (!orgId) return;
-        const raw = localStorage.getItem(`lawoffice.tasks.${orgId}`) || "[]";
-        const t = JSON.parse(raw);
-        setPendingTaskCount(t.filter(x => x.status === "PENDING" || x.status === "IN_PROGRESS").length);
-      } catch { /* ignore */ }
+        if (!orgId) {
+          setPendingTaskCount(0);
+          return;
+        }
+
+        const { count, error } = await supabase
+          .from("tasks")
+          .select("*", {
+            count: "exact",
+            head: true
+          })
+          .eq("organization_id", orgId)
+          .is("deleted_at", null)
+          .in("status", ["PENDING", "IN_PROGRESS"]);
+
+        if (error) throw error;
+        setPendingTaskCount(count || 0);
+      } catch (err) {
+        console.error("Dashboard failed to refresh task count", err);
+        setPendingTaskCount(0);
+      }
     };
+    refresh();
     window.addEventListener("tasksUpdated", refresh);
     window.addEventListener("storage", refresh);
     return () => {
@@ -124,14 +133,21 @@ function Dashboard() {
   const [reportState, setReportState] = useState({ loading: false, toast: null }); // toast: {type:'success'|'error', msg}
 
   const handleDateClick = (date) => {
-    setSelectedDate(date);
-    const eventsForDate = calendarEvents.filter(e => e.event_date === date);
-    if (eventsForDate.length > 0) {
-      setSelectedEvent(eventsForDate[0]); // For now, select first event
-    } else {
-      setSelectedEvent(null);
-    }
+    setAgendaDate(date);
+  };
+
+  const openAddEventModal = (date) => {
+    setSelectedDate(date || agendaDate);
+    setSelectedEvent(null);
     setEventModalOpen(true);
+    setAgendaDate(null); // Close agenda when adding
+  };
+
+  const openEditEventModal = (event) => {
+    setSelectedDate(event.event_date || event.date);
+    setSelectedEvent(event);
+    setEventModalOpen(true);
+    setAgendaDate(null);
   };
 
   const handleSendReport = useCallback(async (isDownload = false) => {
@@ -547,6 +563,7 @@ function Dashboard() {
           query={dashboardSearch}
           cases={cases}
           tasks={tasks}
+          timelineEvents={putUpDates}
           onResultClick={() => setDashboardSearch("")}
         />
       ) : (
@@ -696,16 +713,33 @@ function Dashboard() {
               </div>
               <div className="flow-modal-body">
                 {agendaItems.length === 0 && <div className="empty-box">No events scheduled for this date.</div>}
-                {agendaItems.map((item) => (
-                  <Link key={item.id} to={item.to} className="dashboard-agenda-link" onClick={() => setAgendaDate(null)}>
-                    <span>{item.type}</span>
-                    <strong>{item.title}</strong>
-                    <small>{formatDate(item.date)}</small>
-                  </Link>
-                ))}
+                <div className="dashboard-agenda-list">
+                  {agendaItems.map((item) => (
+                    <div key={item.id} className="dashboard-agenda-item">
+                      {item.isManualEvent ? (
+                        <button 
+                          type="button" 
+                          className="dashboard-agenda-link dashboard-agenda-editable" 
+                          onClick={() => openEditEventModal(item)}
+                        >
+                          <span style={{ backgroundColor: item.color || "var(--color-primary)" }}>{item.type}</span>
+                          <strong>{item.title}</strong>
+                          <small>Edit Note</small>
+                        </button>
+                      ) : (
+                        <Link to={item.to} className="dashboard-agenda-link" onClick={() => setAgendaDate(null)}>
+                          <span>{item.type}</span>
+                          <strong>{item.title}</strong>
+                          <small>{formatDate(item.date)}</small>
+                        </Link>
+                      )}
+                    </div>
+                  ))}
+                </div>
               </div>
               <div className="flow-modal-footer">
                 <button type="button" className="btn-neutral" onClick={() => setAgendaDate(null)}>Close</button>
+                <button type="button" className="btn-gold" onClick={() => openAddEventModal(agendaDate)}>+ Add Note</button>
               </div>
             </div>
           </div>,
