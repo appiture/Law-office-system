@@ -24,7 +24,7 @@ export function PermissionsProvider({ children }) {
 
   const canAccess = (section) => {
     // Core sections always accessible
-    if (section === \"dashboard\" || section === \"settings\") return true;
+    if (section === "dashboard" || section === "settings") return true;
 
     // Fail-closed: If permission is not defined or is false, deny access.
     return Boolean(permissions[section]);
