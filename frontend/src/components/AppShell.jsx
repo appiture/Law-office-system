@@ -42,7 +42,7 @@ function AppShell({ title, subtitle, actions, children }) {
   const [superAdmin, setSuperAdmin] = useState(isPlatformAdmin());
   const [pendingTaskCount, setPendingTaskCount] = useState(0);
 
-  const { theme } = useTheme();
+  const { theme, toggleTheme } = useTheme();
   const { canAccess } = usePermissions();
 
   useEffect(() => {
@@ -285,10 +285,21 @@ function AppShell({ title, subtitle, actions, children }) {
               Menu
             </button>
 
-            <div>
-              <p className="page-kicker">{superAdmin ? "Platform Admin" : organizationName}</p>
-              <h2>{title}</h2>
-              {subtitle ? <p className="page-subtitle">{subtitle}</p> : null}
+            <div style={{ display: "flex", alignItems: "center", gap: "16px" }}>
+              <div>
+                <p className="page-kicker">{superAdmin ? "Platform Admin" : organizationName}</p>
+                <h2 style={{ margin: 0 }}>{title}</h2>
+                {subtitle ? <p className="page-subtitle">{subtitle}</p> : null}
+              </div>
+              
+              <button 
+                type="button"
+                className="theme-toggle-header-btn"
+                onClick={toggleTheme}
+                title="Toggle Theme"
+              >
+                {theme === "light" ? "🌙" : "☀️"}
+              </button>
             </div>
           </div>
 

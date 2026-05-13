@@ -12,8 +12,7 @@ import { getOrganizationId, getUserId, isDemo, getDemoExpiresAt } from "../servi
 import { TrendAreaChart } from "../components/DashboardCharts";
 import DashboardSearchResults from "../components/DashboardSearchResults";
 import { useTheme } from "../context/ThemeContext";
-import { isOrgAdmin } from "../services/adminService";
-import { sendMonthlyReport } from "../services/adminService";
+import { isOrgAdmin, sendMonthlyReport } from "../services/adminService";
 import "./Dashboard.css";
 import "./formStyles.css";
 
@@ -467,15 +466,6 @@ function Dashboard() {
     >
       <div className="dashboard-premium-header">
         <div className="dashboard-action-row">
-          <button
-            type="button"
-            className="theme-toggle-btn"
-            onClick={toggleTheme}
-            title={`Switch to ${theme === 'light' ? 'dark' : 'light'} mode`}
-          >
-            {theme === 'light' ? '🌙' : '☀️'}
-          </button>
-          
           <div className="dashboard-search-container">
             <HeaderFilters
               searchTerm={dashboardSearch}
@@ -574,9 +564,11 @@ function Dashboard() {
         <>
           <section className="dashboard-kpi-row">
             {kpis.map((item) => (
-              <div key={item.label} className="metric-card">
-                <h4>{item.label}</h4>
-                <strong>{item.value}</strong>
+              <div key={item.label} className="dashboard-kpi-card-wrapper">
+                <div className="dashboard-kpi-card">
+                  <span>{item.label}</span>
+                  <strong>{item.value}</strong>
+                </div>
               </div>
             ))}
           </section>
@@ -597,7 +589,7 @@ function Dashboard() {
                     ))}
                   </div>
                 </div>
-                <div className="card-scroll">
+                <div className="card-scroll chart-glow-wrapper">
                   <TrendAreaChart data={clientsPerMonth} valueFormatter={(value) => `${value}`} emptyMessage="No client trend data." />
                 </div>
               </div>
@@ -616,7 +608,7 @@ function Dashboard() {
                     ))}
                   </div>
                 </div>
-                <div className="card-scroll">
+                <div className="card-scroll chart-glow-wrapper">
                   <TrendAreaChart data={paymentsPerMonth} valueFormatter={currency} emptyMessage="No fee collections recorded yet." />
                 </div>
               </div>
