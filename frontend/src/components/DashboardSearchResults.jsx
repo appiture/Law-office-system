@@ -30,7 +30,7 @@ function getEventLink(item) {
   return `/cases/${caseId}?focus=followup&followupId=${encodeURIComponent(item.id)}#followup-${item.id}`;
 }
 
-function DashboardSearchResults({ query, cases, tasks, putUpDates, onResultClick }) {
+function DashboardSearchResults({ query, cases, tasks, onResultClick }) {
   const normalizedQuery = query.trim().toLowerCase();
   const { canAccess } = usePermissions();
   const canViewClients = canAccess("clients");

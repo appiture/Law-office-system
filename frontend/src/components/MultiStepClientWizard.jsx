@@ -15,6 +15,7 @@ import {
 } from "../utils/validation";
 import { sentenceCaseStatus } from "../utils/formatters";
 import { getUserRole } from "../services/authService";
+import IndiaLocationSelect from "./IndiaLocationSelect";
 import "../pages/formStyles.css";
 
 const ID_TYPES = ["Aadhaar", "PAN", "Passport", "Voter ID", "Driving Licence", "Other"];
@@ -22,6 +23,9 @@ const CASE_TYPES = ["Civil", "Criminal", "Family", "Property", "Consumer", "Labo
 const CASE_STATUS_OPTIONS = ["DRAFT", "RUNNING", "PENDING", "WAITING", "CLOSED_WON", "CLOSED_LOST", "CLOSED", "ON_HOLD"];
 const FOLLOW_UP_TYPES = ["HEARING", "DEADLINE", "JUDGMENT", "NOTE", "BAIL", "CHARGE", "SUBMISSION", "OTHER"];
 const FOLLOW_UP_STATUS_OPTIONS = ["PENDING", "COMPLETED", "POSTPONED"];
+
+// Alias must be declared before the components that use it
+const sentence = sentenceCaseStatus;
 
 const STEPS = [
   { key: "client", label: "Client Details" },
@@ -107,15 +111,16 @@ function ClientStep({ form, onChange }) {
         <FG label="Occupation">
           <input value={form.occupation} onChange={(event) => onChange("occupation", event.target.value)} placeholder="Occupation" />
         </FG>
-        <FG label="City">
-          <input value={form.city} onChange={(event) => onChange("city", event.target.value)} placeholder="City" />
-        </FG>
-        <FG label="State">
-          <input value={form.state} onChange={(event) => onChange("state", event.target.value)} placeholder="State" />
-        </FG>
-        <FG label="PIN Code">
-          <input value={form.pinCode} onChange={(event) => onChange("pinCode", String(event.target.value || "").replace(/\D/g, "").slice(0, 6))} inputMode="numeric" maxLength={6} placeholder="6-digit PIN" />
-        </FG>
+        <div className="fcol-full">
+          <IndiaLocationSelect
+            city={form.city}
+            state={form.state}
+            pinCode={form.pinCode}
+            onCityChange={(v) => onChange("city", v)}
+            onStateChange={(v) => onChange("state", v)}
+            onPinCodeChange={(v) => onChange("pinCode", v)}
+          />
+        </div>
         <FG label="Address" className="fcol-full">
           <textarea value={form.address} onChange={(event) => onChange("address", event.target.value)} rows={3} placeholder="House, street, area, city" />
         </FG>
@@ -153,7 +158,7 @@ function ClientStep({ form, onChange }) {
   );
 }
 
-function CaseStep({ form, onChange, lawyers = [] }) {
+function CaseStep({ form, onChange, lawyers = [], userRole = "" }) {
   return (
     <div className="form-section">
       <div className="form-section-title"><span>Case Details</span></div>
@@ -321,7 +326,7 @@ function FollowUpStep({ followUps, setFollowUps }) {
   );
 }
 
-const sentence = sentenceCaseStatus;
+// sentence alias is defined above near the constants
 
 export default function MultiStepClientWizard({ client, onClose, onSave, initialStep = 0 }) {
   const [currentStep, setCurrentStep] = useState(initialStep);

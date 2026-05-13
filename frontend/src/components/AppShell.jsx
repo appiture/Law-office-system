@@ -4,6 +4,7 @@ import {
   fullLogout, 
   getOrganizationName, 
   getOrganizationLogoUrl,
+  getOrganizationId,
   getUserEmail, 
   getUserRole,
   getUserFullName,
@@ -23,6 +24,7 @@ const baseNavItems = [
   { to: "/payments", label: "Fees", shortLabel: "FE", detail: "Billing and collections" },
   { to: "/documents", label: "Documents", shortLabel: "DC", detail: "Evidence and filings" },
   { to: "/followups", label: "Follow-Ups", shortLabel: "FU", detail: "Hearings and reminders" },
+  { to: "/tasks", label: "Tasks", shortLabel: "TK", detail: "Team action items & deadlines" },
   { to: "/settings", label: "Settings", shortLabel: "ST", detail: "App and profile config" },
 ];
 
@@ -37,6 +39,7 @@ function AppShell({ title, subtitle, actions, children }) {
   const [userRole, setUserRole] = useState(getUserRole());
   const [userEmail, setUserEmailState] = useState(getUserEmail());
   const [superAdmin, setSuperAdmin] = useState(isPlatformAdmin());
+  const [pendingTaskCount, setPendingTaskCount] = useState(0);
 
   const { theme } = useTheme();
   const { canAccess } = usePermissions();
@@ -71,10 +74,26 @@ function AppShell({ title, subtitle, actions, children }) {
     window.addEventListener("resize", handleResize);
     window.addEventListener("sessionUpdated", handleSessionUpdate);
     window.addEventListener("storage", handleStorageEvent);
+
+    // Count pending tasks from localStorage (fast, no API call needed in sidebar)
+    const refreshPendingTasks = () => {
+      try {
+        const orgId = getOrganizationId ? getOrganizationId() : "";
+        if (!orgId) { setPendingTaskCount(0); return; }
+        const raw = localStorage.getItem(`lawoffice.tasks.${orgId}`) || "[]";
+        const tasks = JSON.parse(raw);
+        const pending = tasks.filter(t => t.status === "PENDING" || t.status === "IN_PROGRESS").length;
+        setPendingTaskCount(pending);
+      } catch { setPendingTaskCount(0); }
+    };
+    refreshPendingTasks();
+    window.addEventListener("tasksUpdated", refreshPendingTasks);
+
     return () => {
       window.removeEventListener("resize", handleResize);
       window.removeEventListener("sessionUpdated", handleSessionUpdate);
       window.removeEventListener("storage", handleStorageEvent);
+      window.removeEventListener("tasksUpdated", refreshPendingTasks);
     };
   }, []);
 
@@ -82,6 +101,8 @@ function AppShell({ title, subtitle, actions, children }) {
   // Platform admins only see their own portal — no case/workspace items.
   const filteredBaseNavItems = baseNavItems.filter(item => {
     const sectionKey = item.to.replace("/", ""); // "/clients" -> "clients"
+    // Tasks is always visible (no section permission required)
+    if (sectionKey === "tasks") return true;
     return canAccess(sectionKey);
   });
 
@@ -95,7 +116,6 @@ function AppShell({ title, subtitle, actions, children }) {
         ...(getUserRole() === "ADMIN" && canAccess("team")
           ? [
               { to: "/team", label: "Team", shortLabel: "TM", detail: "Manage organization members" },
-              { to: "/system-audit", label: "Audit Logs", shortLabel: "AL", detail: "Organization history" }
             ]
           : []),
       ];
@@ -178,7 +198,14 @@ function AppShell({ title, subtitle, actions, children }) {
                 >
                   <span className="nav-link-mark" aria-hidden="true">{item.shortLabel}</span>
                   <span className="nav-link-copy">
-                    <strong>{item.label}</strong>
+                    <strong>
+                      {item.label}
+                      {item.to === "/tasks" && pendingTaskCount > 0 && (
+                        <span className="nav-badge" title={`${pendingTaskCount} pending tasks`}>
+                          {pendingTaskCount > 99 ? "99+" : pendingTaskCount}
+                        </span>
+                      )}
+                    </strong>
                     <small>{item.detail}</small>
                   </span>
                 </NavLink>

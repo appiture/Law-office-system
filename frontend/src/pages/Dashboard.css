@@ -853,3 +853,35 @@
 .dark .dashboard-month-input::-webkit-calendar-picker-indicator {
   filter: invert(1);
 }
+
+/* ── Tasks button with pending badge ─────────────────────────────── */
+.task-btn-wrap {
+  position: relative;
+  display: inline-flex;
+}
+
+.task-pending-badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  min-width: 20px;
+  height: 20px;
+  border-radius: 10px;
+  background: #ef4444;
+  color: #fff;
+  font-size: 10px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 5px;
+  pointer-events: none;
+  box-shadow: 0 0 0 2px var(--color-bg, #0a0f1e);
+  animation: badge-pulse-db 2s ease-in-out infinite;
+  z-index: 1;
+}
+
+@keyframes badge-pulse-db {
+  0%, 100% { box-shadow: 0 0 0 2px var(--color-bg, #0a0f1e), 0 0 0 4px rgba(239,68,68,0.3); }
+  50%       { box-shadow: 0 0 0 2px var(--color-bg, #0a0f1e), 0 0 0 7px rgba(239,68,68,0); }
+}

@@ -15,6 +15,7 @@ import { usePermissions } from "../context/PermissionsContext";
 import DemoExpiredScreen from "./DemoExpiredScreen";
 
 function ProtectedRoute({ children, section, requirePlatformAdmin = false }) {
+  const { canAccess } = usePermissions();
   const location = useLocation();
   const hasCachedAccess = isAuthenticated() && (canAccessWorkspace() || isPlatformAdmin());
   const [ready, setReady]                 = useState(hasCachedAccess);
@@ -136,7 +137,6 @@ function ProtectedRoute({ children, section, requirePlatformAdmin = false }) {
     );
   }
 
-  const { canAccess } = usePermissions();
   if (section && !canAccess(section)) {
     return <Navigate to="/" replace />;
   }

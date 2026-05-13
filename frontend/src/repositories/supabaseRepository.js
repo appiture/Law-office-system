@@ -597,7 +597,8 @@ const getMappedClients = async ({ refresh = false } = {}) => {
 
   _pendingMappedClientsPromise = (async () => {
     try {
-      const mappedCases = await getMappedCases();
+      const options = { ...buildDatasetIndexes(dataset), includeDocuments: false, includeClientAssets: false };
+      const mappedCases = await Promise.all(dataset.cases.map(c => mapCaseRecord(c, dataset, options)));
 
       const casesByClient = new Map();
       mappedCases.forEach(item => {
@@ -743,6 +744,64 @@ const checkServerRateLimit = async (key) => {
     _window_seconds: 60,
   });
   if (error) throw error;
+};
+
+/* ── Task helpers (localStorage fallback when DB table absent) ──────── */
+const _TASKS_KEY = (orgId) => `lawoffice.tasks.${orgId}`;
+
+const _mapTask = (row) => ({
+  id: row.id || row._id,
+  title: row.title || "",
+  description: row.description || "",
+  priority: row.priority || "MEDIUM",
+  status: row.status || "PENDING",
+  dueDate: row.due_date || row.dueDate || null,
+  assignedTo: row.assigned_to || row.assignedTo || "",
+  createdBy: row.created_by || row.createdBy || "",
+  createdAt: row.created_at || row.createdAt || new Date().toISOString(),
+  updatedAt: row.updated_at || row.updatedAt || null,
+});
+
+const _localTasks = (orgId) => {
+  try {
+    return JSON.parse(localStorage.getItem(_TASKS_KEY(orgId)) || "[]");
+  } catch { return []; }
+};
+
+const _localSaveTasks = (orgId, tasks) => {
+  localStorage.setItem(_TASKS_KEY(orgId), JSON.stringify(tasks));
+};
+
+const _localCreateTask = (orgId, payload) => {
+  const tasks = _localTasks(orgId);
+  const task = {
+    id: `local-${Date.now()}`,
+    title: payload.title || "",
+    description: payload.description || "",
+    priority: payload.priority || "MEDIUM",
+    status: payload.status || "PENDING",
+    dueDate: payload.dueDate || null,
+    assignedTo: payload.assignedTo || "",
+    createdBy: "",
+    createdAt: new Date().toISOString(),
+    updatedAt: null,
+  };
+  _localSaveTasks(orgId, [task, ...tasks]);
+  return task;
+};
+
+const _localUpdateTask = (orgId, id, payload) => {
+  const tasks = _localTasks(orgId);
+  const task = tasks.find(t => t.id === id);
+  if (!task) throw new Error("Task not found.");
+  const updated = { ...task, ...payload, id, updatedAt: new Date().toISOString() };
+  _localSaveTasks(orgId, tasks.map(t => t.id === id ? updated : t));
+  return updated;
+};
+
+const _localDeleteTask = (orgId, id) => {
+  const tasks = _localTasks(orgId);
+  _localSaveTasks(orgId, tasks.filter(t => t.id !== id));
 };
 
 const supabasePlatformApi = {
@@ -1339,15 +1398,6 @@ const supabasePlatformApi = {
       if (error) throw error;
     }
   },
-  deleteCalendarEvent: async (eventId) => {
-    const context = await internalGetWorkspaceContext();
-    const { error } = await requireSupabase()
-      .from("calendar_events")
-      .delete()
-      .eq("id", eventId)
-      .eq("organization_id", context.organizationId);
-    if (error) throw error;
-  },
   getFollowUps: async () => getMappedCases(),
   searchFollowUps: async ({ filters = {}, page = 1, pageSize = DEFAULT_PAGE_SIZE, showAll = false } = {}) => {
     const context = await internalGetWorkspaceContext();
@@ -1711,8 +1761,8 @@ const supabasePlatformApi = {
         .insert(record);
       if (error) throw error;
     }
-    
-    await logSystemEvent("CREATE_NOTE", `Calendar event ${eventId ? "updated" : "created"}: ${record.title}`);
+
+    await logSystemEvent(context, "calendar", eventId ? "UPDATE_NOTE" : "CREATE_NOTE", { title: record.title });
   },
   deleteCalendarEvent: async (eventId) => {
     const context = await internalGetWorkspaceContext();
@@ -1783,6 +1833,129 @@ const supabasePlatformApi = {
     resetWorkspaceContextCache();
     return internalGetWorkspaceContext({ force: true });
   },
+
+  /* ── Tasks CRUD ─────────────────────────────────────────────────── */
+  /**
+   * Tasks are stored in a `tasks` table scoped to organization_id.
+   * Falls back to localStorage if the table does not exist yet so the
+   * UI always works during development / demos.
+   */
+  getTasks: async () => {
+    const context = await internalGetWorkspaceContext();
+    if (!context?.organizationId) return [];
+
+    try {
+      const { data, error } = await requireSupabase()
+        .from("tasks")
+        .select("*")
+        .eq("organization_id", context.organizationId)
+        .is("deleted_at", null)
+        .order("created_at", { ascending: false });
+
+      if (error && (error.code === "42P01" || error.code === "PGRST200")) {
+        // Table doesn't exist yet — use localStorage fallback
+        return _localTasks(context.organizationId);
+      }
+      if (error) throw error;
+      return (data || []).map(_mapTask);
+    } catch (err) {
+      if (err?.code === "42P01" || err?.code === "PGRST200" || String(err?.message || "").includes("does not exist")) {
+        return _localTasks(context.organizationId);
+      }
+      throw err;
+    }
+  },
+
+  createTask: async (payload) => {
+    const context = await internalGetWorkspaceContext();
+    if (!context?.organizationId) throw new Error("No workspace.");
+
+    const record = {
+      organization_id: context.organizationId,
+      title: String(payload.title || "").trim(),
+      description: payload.description || "",
+      priority: payload.priority || "MEDIUM",
+      status: payload.status || "PENDING",
+      due_date: payload.dueDate || null,
+      assigned_to: payload.assignedTo || "",
+      created_by: context.email || "",
+    };
+
+    try {
+      const { data, error } = await requireSupabase()
+        .from("tasks")
+        .insert(record)
+        .select("*")
+        .maybeSingle();
+      if (error && (error.code === "42P01" || error.code === "PGRST200")) {
+        return _localCreateTask(context.organizationId, payload);
+      }
+      if (error) throw error;
+      return _mapTask(data);
+    } catch (err) {
+      if (err?.code === "42P01" || String(err?.message || "").includes("does not exist")) {
+        return _localCreateTask(context.organizationId, payload);
+      }
+      throw err;
+    }
+  },
+
+  updateTask: async (id, payload) => {
+    const context = await internalGetWorkspaceContext();
+    if (!context?.organizationId) throw new Error("No workspace.");
+
+    const updates = {
+      title: String(payload.title || "").trim(),
+      description: payload.description || "",
+      priority: payload.priority || "MEDIUM",
+      status: payload.status || "PENDING",
+      due_date: payload.dueDate || null,
+      assigned_to: payload.assignedTo || "",
+      updated_at: new Date().toISOString(),
+    };
+
+    try {
+      const { data, error } = await requireSupabase()
+        .from("tasks")
+        .update(updates)
+        .eq("id", id)
+        .eq("organization_id", context.organizationId)
+        .select("*")
+        .maybeSingle();
+      if (error && (error.code === "42P01" || error.code === "PGRST200")) {
+        return _localUpdateTask(context.organizationId, id, payload);
+      }
+      if (error) throw error;
+      return _mapTask(data);
+    } catch (err) {
+      if (err?.code === "42P01" || String(err?.message || "").includes("does not exist")) {
+        return _localUpdateTask(context.organizationId, id, payload);
+      }
+      throw err;
+    }
+  },
+
+  deleteTask: async (id) => {
+    const context = await internalGetWorkspaceContext();
+    if (!context?.organizationId) throw new Error("No workspace.");
+
+    try {
+      const { error } = await requireSupabase()
+        .from("tasks")
+        .update({ deleted_at: new Date().toISOString() })
+        .eq("id", id)
+        .eq("organization_id", context.organizationId);
+      if (error && (error.code === "42P01" || error.code === "PGRST200")) {
+        return _localDeleteTask(context.organizationId, id);
+      }
+      if (error) throw error;
+    } catch (err) {
+      if (err?.code === "42P01" || String(err?.message || "").includes("does not exist")) {
+        return _localDeleteTask(context.organizationId, id);
+      }
+      throw err;
+    }
+  },
 };
 
 /**
@@ -1795,7 +1968,7 @@ Object.keys(supabasePlatformApi).forEach((key) => {
     platformProxy[key] = async (...args) => {
       try {
         if (isWriteOperation(key)) {
-          await checkServerRateLimit(key);
+          try { await checkServerRateLimit(key); } catch { /* RPC absent — skip */ }
         }
         return await withRetry(async () => {
           return await original(...args);

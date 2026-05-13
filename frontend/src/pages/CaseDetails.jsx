@@ -152,11 +152,13 @@ function CaseDetails() {
   }, [loadData, refreshKey, focusParams]);
 
   const openWizard = (clientData, step = 0, targetCase = null) => {
-    // If targetCase is provided, reorder cases so it's the primary one being edited
     let wizardClient = { ...clientData };
-    if (targetCase && wizardClient.cases) {
-      const otherCases = wizardClient.cases.filter(c => !idsEqual(c.id, targetCase.id));
-      wizardClient.cases = [targetCase, ...otherCases];
+    const allCases = clientCases; // use loaded clientCases, not clientData.cases
+    if (targetCase) {
+      const others = allCases.filter(c => !idsEqual(c.id, targetCase.id));
+      wizardClient.cases = [targetCase, ...others];
+    } else {
+      wizardClient.cases = allCases;
     }
     setWizardConfig({ client: wizardClient, step });
     setShowWizard(true);

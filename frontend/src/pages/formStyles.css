@@ -182,6 +182,22 @@
   grid-column: 1 / -1;
 }
 
+/* ── INDIA LOCATION GRID ────────────────────────────────────── */
+.india-location-grid {
+  display: grid;
+  gap: 12px;
+}
+.ilg-3 { grid-template-columns: 1fr 1fr 120px; }
+.ilg-2 { grid-template-columns: 1fr 1fr; }
+
+@media (max-width: 640px) {
+  .india-location-grid {
+    grid-template-columns: 1fr !important;
+    display: flex;
+    flex-direction: column;
+  }
+}
+
 /* ── FIELD GROUP ────────────────────────────────────────────── */
 .field-group {
   display: flex;

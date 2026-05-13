@@ -362,9 +362,11 @@ function Cases() {
       subtitle="Search first, then load matching case records."
       actions={
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          <button type="button" className="btn-gold" onClick={() => void openCreate()} disabled={modalLoading} style={{ whiteSpace: 'nowrap' }}>
-            {modalLoading ? "Loading..." : "+ Add Case"}
-          </button>
+          {userRole !== "LAWYER" && (
+            <button type="button" className="btn-gold" onClick={() => void openCreate()} disabled={modalLoading} style={{ whiteSpace: 'nowrap' }}>
+              {modalLoading ? "Loading..." : "+ Add Case"}
+            </button>
+          )}
         </div>
       }
     >

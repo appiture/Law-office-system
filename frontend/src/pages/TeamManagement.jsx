@@ -134,7 +134,6 @@ function RoleBadge({ role }) {
     ADMIN:  { bg: "rgba(201,163,78,0.15)",  color: "#C9A34E",  label: "Admin" },
     LAWYER: { bg: "rgba(99,102,241,0.15)",  color: "#818CF8",  label: "Lawyer" },
     STAFF:  { bg: "rgba(100,116,139,0.15)", color: "#94A3B8",  label: "Staff" },
-    USER:   { bg: "rgba(20,184,166,0.15)",  color: "#2DD4BF",  label: "User" },
   };
   const s = map[role] || { bg: "rgba(148,163,184,0.1)", color: "#94A3B8", label: role };
   return (
@@ -255,7 +254,7 @@ function TempPasswordPanel({ result, onDismiss }) {
 /* ── Invite form ──────────────────────────────────────────────────── */
 function InviteForm({ onInvited }) {
   const [email,   setEmail]   = useState("");
-  const [role,    setRole]    = useState("USER");
+  const [role,    setRole]    = useState("LAWYER");
   const [staffPermissions, setStaffPermissions] = useState(defaultStaffPermissions);
   const [loading, setLoading] = useState(false);
   const [error,   setError]   = useState("");
@@ -271,7 +270,7 @@ function InviteForm({ onInvited }) {
       const data = await adminInviteTeamMember({ email: email.trim(), role });
       let finalData = data;
 
-      if (role === "STAFF" && data?.userId) {
+      if ((role === "STAFF" || role === "LAWYER") && data?.userId) {
         const sectionsJson = Object.fromEntries(SECTIONS.map((section) => [
           section,
           section in staffPermissions ? Boolean(staffPermissions[section]) : true,
@@ -290,7 +289,7 @@ function InviteForm({ onInvited }) {
 
       setResult(finalData);
       setEmail("");
-      setRole("USER");
+      setRole("LAWYER");
       setStaffPermissions(defaultStaffPermissions);
       onInvited?.();
     } catch (err) {
@@ -341,7 +340,6 @@ function InviteForm({ onInvited }) {
             <div className="field-group" style={{ margin: 0 }}>
               <label className="field-label">Role *</label>
               <select value={role} onChange={(e) => setRole(e.target.value)} disabled={loading}>
-                <option value="USER">User</option>
                 <option value="LAWYER">⚖️ Lawyer</option>
                 <option value="STAFF">🗂️ Staff</option>
                 <option value="ADMIN">🔑 Admin</option>
@@ -357,7 +355,7 @@ function InviteForm({ onInvited }) {
             </button>
           </div>
 
-          {role === "STAFF" && (
+          {(role === "STAFF" || role === "LAWYER") && (
             <div style={{
               marginTop: 18,
               background: "rgba(255,255,255,0.035)",
@@ -512,7 +510,6 @@ function MemberRow({ member, currentUserId, onUpdated, onRemoved, onEditPerms })
             <option value="ADMIN">Admin</option>
             <option value="LAWYER">Lawyer</option>
             <option value="STAFF">Staff</option>
-            <option value="USER">User</option>
           </select>
         ) : (
           <span onClick={() => !isSelf && setRoleEditing(true)}
@@ -700,7 +697,7 @@ export default function TeamManagement() {
               fontSize: 13, outline: "none",
             }}
           />
-          {["ALL", "ADMIN", "LAWYER", "STAFF", "USER"].map((r) => (
+          {["ALL", "ADMIN", "LAWYER", "STAFF"].map((r) => (
             <button key={r} onClick={() => setFilterRole(r)} style={{
               background: filterRole === r ? "var(--color-primary)" : "var(--color-surface)",
               color:      filterRole === r ? "#fff" : "var(--color-text)",

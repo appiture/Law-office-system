@@ -260,19 +260,20 @@ export const removeOrganizationMember = async (userId) => {
  * Creates a new organization and admin user through the invite-admin Edge Function.
  * Temporary credentials are sent by server-side email and are never returned to the browser.
  */
-export const adminCreateOrganization = async ({
-  orgName,
-  adminEmail,
-  orgPlan = "STANDARD",
-  sendInviteEmail = true,
-}) => {
+export const adminCreateOrganization = async ({ orgName, adminEmail, orgPlan = "STANDARD", sendInviteEmail = true }) => {
+  // Try direct RPC first
+  const { data: rpcData, error: rpcError } = await supabase.rpc(
+    "admin_create_organization",
+    { org_name: orgName.trim(), admin_email: adminEmail.trim().toLowerCase(), org_plan: orgPlan }
+  );
+  if (!rpcError) return rpcData;
+
+  // RPC not found → fall back to edge fn
+  if (rpcError.code !== "42883" && rpcError.code !== "PGRST202") {
+    throw new Error(rpcError.message);
+  }
   const { data, error } = await supabase.functions.invoke("invite-admin", {
-    body: {
-      organizationName: orgName.trim(),
-      adminEmail: adminEmail.trim().toLowerCase(),
-      plan: orgPlan,
-      sendInviteEmail,
-    },
+    body: { organizationName: orgName.trim(), adminEmail: adminEmail.trim().toLowerCase(), plan: orgPlan, sendInviteEmail },
   });
   if (error) throw new Error(error.message);
   if (data?.error) throw new Error(data.error);
@@ -310,11 +311,19 @@ export const completePasswordReset = async () => {
  * Temporary credentials are sent by server-side email and are never returned to the browser.
  */
 export const adminInviteTeamMember = async ({ email, role }) => {
+  // Try direct RPC first
+  const { data: rpcData, error: rpcError } = await supabase.rpc(
+    "admin_invite_team_member",
+    { invite_email: email.trim().toLowerCase(), invite_role: role }
+  );
+  if (!rpcError) return rpcData;
+
+  // RPC not found → fall back to edge function
+  if (rpcError.code !== "42883" && rpcError.code !== "PGRST202") {
+    throw new Error(rpcError.message);
+  }
   const { data, error } = await supabase.functions.invoke("invite-user", {
-    body: {
-      email: email.trim().toLowerCase(),
-      role,
-    },
+    body: { email: email.trim().toLowerCase(), role },
   });
   if (error) throw await fnError(error, data);
   if (data?.error) throw new Error(data.error);

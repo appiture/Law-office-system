@@ -23,6 +23,7 @@ const routePreloaders = [
   () => import("./pages/ResetPassword"),
   () => import("./pages/SuperAdminLogin"),
   () => import("./pages/SystemAuditLogs"),
+  () => import("./pages/Tasks"),
 ];
 
 // Code splitting, with idle preloading so first section visits feel immediate.
@@ -40,6 +41,7 @@ const TeamManagement = lazy(routePreloaders[10]);
 const ResetPassword = lazy(routePreloaders[11]);
 const SuperAdminLogin = lazy(routePreloaders[12]);
 const SystemAuditLogs = lazy(routePreloaders[13]);
+const Tasks = lazy(routePreloaders[14]);
 
 function App() {
   useEffect(() => {
@@ -174,7 +176,14 @@ function App() {
                 </ProtectedRoute>
               }
             />
-            <Route path="/tasks" element={<Navigate to="/followups" replace />} />
+            <Route
+              path="/tasks"
+              element={
+                <ProtectedRoute section="tasks">
+                  <Tasks />
+                </ProtectedRoute>
+              }
+            />
             <Route path="/put-up-dates" element={<Navigate to="/followups" replace />} />
             <Route
               path="/cases/:caseId"

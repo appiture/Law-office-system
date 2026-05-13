@@ -13,7 +13,6 @@ import DashboardSearchResults from "../components/DashboardSearchResults";
 import { useTheme } from "../context/ThemeContext";
 import { isOrgAdmin } from "../services/adminService";
 import { sendMonthlyReport } from "../services/adminService";
-import dayjs from "dayjs";
 import "./Dashboard.css";
 import "./formStyles.css";
 
@@ -88,6 +87,35 @@ function Dashboard() {
   const [eventModalOpen, setEventModalOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState(null);
   const { theme, toggleTheme } = useTheme();
+
+  // Pending task count from localStorage (fast, no extra API call)
+  const [pendingTaskCount, setPendingTaskCount] = useState(() => {
+    try {
+      const orgId = getOrganizationId();
+      if (!orgId) return 0;
+      const raw = localStorage.getItem(`lawoffice.tasks.${orgId}`) || "[]";
+      const t = JSON.parse(raw);
+      return t.filter(x => x.status === "PENDING" || x.status === "IN_PROGRESS").length;
+    } catch { return 0; }
+  });
+
+  useEffect(() => {
+    const refresh = () => {
+      try {
+        const orgId = getOrganizationId();
+        if (!orgId) return;
+        const raw = localStorage.getItem(`lawoffice.tasks.${orgId}`) || "[]";
+        const t = JSON.parse(raw);
+        setPendingTaskCount(t.filter(x => x.status === "PENDING" || x.status === "IN_PROGRESS").length);
+      } catch { /* ignore */ }
+    };
+    window.addEventListener("tasksUpdated", refresh);
+    window.addEventListener("storage", refresh);
+    return () => {
+      window.removeEventListener("tasksUpdated", refresh);
+      window.removeEventListener("storage", refresh);
+    };
+  }, []);
 
   // Report sending state
   const now = new Date();
@@ -442,9 +470,16 @@ function Dashboard() {
             <span className="notif-bell">🔔</span>
             Notifications ({priorityQueue.length + cashChecklist.length})
           </button>
-          <Link to="/tasks" className="btn-gold dashboard-task-link">
-            Upcoming Follow-Ups
-          </Link>
+          <div className="task-btn-wrap">
+            <Link to="/tasks" className="btn-gold dashboard-task-link">
+              📋 Tasks
+            </Link>
+            {pendingTaskCount > 0 && (
+              <span className="task-pending-badge" title={`${pendingTaskCount} pending tasks`}>
+                {pendingTaskCount > 99 ? "99+" : pendingTaskCount}
+              </span>
+            )}
+          </div>
           {isOrgAdmin() && (
             <div className="dashboard-report-group">
               <input
@@ -512,7 +547,6 @@ function Dashboard() {
           query={dashboardSearch}
           cases={cases}
           tasks={tasks}
-          putUpDates={putUpDates}
           onResultClick={() => setDashboardSearch("")}
         />
       ) : (

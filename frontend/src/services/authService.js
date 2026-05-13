@@ -119,12 +119,7 @@ export const syncSupabaseSession = async (providedSession = null, options = {}) 
             organizationId: authUtils.organizationId,
             canAccessWorkspace: Boolean(authUtils.organizationId),
             mustResetPassword: Boolean(authUtils.mustResetPassword),
-            // We still want the rich profile data from the RPC if available
-            ...(await getWorkspaceContext({ force: shouldRefreshWorkspace, providedUser: session?.user }).catch(() => ({})))
           };
-          // Override with auth-utils truth
-          workspace.role = authUtils.role || workspace.role;
-          workspace.organizationId = authUtils.organizationId || workspace.organizationId;
         } else {
           workspace = await withTimeout(
             getWorkspaceContext({ force: shouldRefreshWorkspace, providedUser: session?.user }),
