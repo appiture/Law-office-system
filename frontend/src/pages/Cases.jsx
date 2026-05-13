@@ -359,10 +359,15 @@ function Cases() {
 
   useEffect(() => {
     const hasActiveFilters = Object.values(filters).some(Boolean);
-    if (hasLoaded || hasActiveFilters) {
+    if (hasActiveFilters) {
       handleSearch(filters);
+    } else if (hasLoaded && !showAllMode) {
+      setCases([]);
+      setTotal(0);
+      setHasLoaded(false);
+      setError("");
     }
-  }, [filters.searchTerm, filters.caseType, filters.status, filters.fromDate, filters.toDate, hasLoaded]);
+  }, [filters.searchTerm, filters.caseType, filters.status, filters.fromDate, filters.toDate, hasLoaded, showAllMode]);
 
   return (
     <AppShell
@@ -409,6 +414,7 @@ function Cases() {
           setCases([]);
           setTotal(0);
           setHasLoaded(false);
+          setShowAllMode(false);
           setError("");
         }}
         onShowAll={handleShowAll}

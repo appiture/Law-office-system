@@ -448,11 +448,16 @@ function Payments() {
     if (initialSearchCase && !initialSearchTriggered) {
       setInitialSearchTriggered(true);
       handleSearch({ ...emptyFilters, searchTerm: initialSearchCase });
-    } else if (hasLoaded || hasActiveFilters) {
+    } else if (hasActiveFilters) {
       // Auto-refresh when filters change after initial load
       handleSearch(filters);
+    } else if (hasLoaded && !showAllMode) {
+      setCases([]);
+      setTotal(0);
+      setHasLoaded(false);
+      setError("");
     }
-  }, [filters.searchTerm, filters.status, filters.month, filters.fromDate, filters.toDate, initialSearchCase, initialSearchTriggered, handleSearch, hasLoaded]);
+  }, [filters.searchTerm, filters.status, filters.month, filters.fromDate, filters.toDate, initialSearchCase, initialSearchTriggered, handleSearch, hasLoaded, showAllMode]);
 
   const handleShowAll = () => {
     setShowAllMode(true);
@@ -512,6 +517,7 @@ function Payments() {
           setCases([]);
           setTotal(0);
           setHasLoaded(false);
+          setShowAllMode(false);
           setError("");
         }}
         onShowAll={handleShowAll}

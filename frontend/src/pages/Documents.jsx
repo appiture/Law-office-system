@@ -253,10 +253,15 @@ function Documents() {
     if (initialSearchCase && !initialSearchTriggered) {
       setInitialSearchTriggered(true);
       handleSearch({ ...emptyFilters, searchTerm: initialSearchCase });
-    } else if (hasLoaded || hasActiveFilters) {
+    } else if (hasActiveFilters) {
       handleSearch(filters);
+    } else if (hasLoaded && !showAllMode) {
+      setCases([]);
+      setTotal(0);
+      setHasLoaded(false);
+      setError("");
     }
-  }, [filters.searchTerm, filters.category, filters.fromDate, filters.toDate, initialSearchCase, initialSearchTriggered, handleSearch, hasLoaded]);
+  }, [filters.searchTerm, filters.category, filters.fromDate, filters.toDate, initialSearchCase, initialSearchTriggered, handleSearch, hasLoaded, showAllMode]);
 
   const deleteDocument = async (caseId, doc) => {
     if (!window.confirm(`Delete "${doc.fileName}"?`)) return;
@@ -304,6 +309,7 @@ function Documents() {
           setCases([]);
           setTotal(0);
           setHasLoaded(false);
+          setShowAllMode(false);
           setError("");
         }}
         onShowAll={handleShowAll}

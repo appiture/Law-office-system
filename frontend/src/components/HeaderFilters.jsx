@@ -38,7 +38,11 @@ function HeaderFilters({
   };
 
   const handleClearAll = () => {
-    onClearFilters?.();
+    if (onClearFilters) {
+      onClearFilters();
+    } else {
+      onSearchChange?.("");
+    }
     dateRangeConfig?.onFromDateChange?.("");
     dateRangeConfig?.onToDateChange?.("");
   };
@@ -56,7 +60,7 @@ function HeaderFilters({
             placeholder={searchPlaceholder}
           />
           {searchTerm && (
-            <button type="button" className="search-clear-btn" onClick={() => onSearchChange?.("")} aria-label="Clear search">
+            <button type="button" className="search-clear-btn" onClick={handleClearAll} aria-label="Clear search and filters">
               <X size={12} />
             </button>
           )}

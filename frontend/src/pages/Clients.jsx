@@ -120,10 +120,15 @@ function Clients() {
     if (initialSearchName && !initialSearchTriggered) {
       setInitialSearchTriggered(true);
       handleSearch({ ...emptyFilters, searchTerm: initialSearchName });
-    } else if (hasLoaded || hasActiveFilters) {
+    } else if (hasActiveFilters) {
       handleSearch(filters);
+    } else if (hasLoaded && !showAllMode) {
+      setClients([]);
+      setTotal(0);
+      setHasLoaded(false);
+      setError("");
     }
-  }, [filters.searchTerm, filters.fromDate, filters.toDate, filters.phone, filters.email, initialSearchName, initialSearchTriggered, handleSearch, hasLoaded]);
+  }, [filters.searchTerm, filters.fromDate, filters.toDate, filters.phone, filters.email, initialSearchName, initialSearchTriggered, handleSearch, hasLoaded, showAllMode]);
 
   useEffect(() => {
     if (initialEditId && !initialEditTriggered && clients.length > 0) {
@@ -170,6 +175,7 @@ function Clients() {
           setClients([]);
           setTotal(0);
           setHasLoaded(false);
+          setShowAllMode(false);
           setError("");
         }}
         onShowAll={handleShowAll}

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { NavLink, useLocation } from "react-router-dom";
+import { NavLink, useLocation, useNavigate } from "react-router-dom";
+import { ArrowLeft } from "lucide-react";
 import { 
   fullLogout, 
   getOrganizationName, 
@@ -32,6 +33,7 @@ const baseNavItems = [
 function AppShell({ title, subtitle, actions, children }) {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [isDesktop, setIsDesktop] = useState(window.innerWidth > 980);
+  const navigate = useNavigate();
   
   const [organizationName, setOrganizationName] = useState(getOrganizationName());
   const [organizationLogo, setOrganizationLogo] = useState(getOrganizationLogoUrl());
@@ -154,6 +156,16 @@ function AppShell({ title, subtitle, actions, children }) {
   const location = useLocation();
   const isCaseDetail = location.pathname.startsWith("/cases/") && location.pathname !== "/cases";
   const isClientDetail = location.pathname.startsWith("/clients/") && location.pathname !== "/clients";
+  const defaultRoute = superAdmin ? "/platform-admin" : "/dashboard";
+  const canGoBack = location.pathname !== defaultRoute;
+
+  const handleBack = () => {
+    if (window.history.length > 1 && canGoBack) {
+      navigate(-1);
+      return;
+    }
+    navigate(defaultRoute);
+  };
 
   const getSubItems = (to) => {
     if (to === "/cases" && isCaseDetail) {
@@ -283,6 +295,16 @@ function AppShell({ title, subtitle, actions, children }) {
               onClick={() => setSidebarOpen(true)}
             >
               Menu
+            </button>
+            <button
+              type="button"
+              className="page-back-button"
+              onClick={handleBack}
+              disabled={!canGoBack}
+              title={canGoBack ? "Go back" : "You are on the home page"}
+            >
+              <ArrowLeft size={16} />
+              <span>Back</span>
             </button>
 
             <div className="header-title-block">
