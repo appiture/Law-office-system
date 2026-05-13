@@ -361,7 +361,7 @@ function Cases() {
     if (hasLoaded) {
       handleSearch(filters);
     }
-  }, [filters.caseType, filters.fromDate, filters.toDate, hasLoaded]);
+  }, [filters.caseNumber, filters.caseType, filters.fromDate, filters.toDate, hasLoaded]);
 
   return (
     <AppShell

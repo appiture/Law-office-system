@@ -14,7 +14,6 @@ function HeaderFilters({
   onShowAll = null,
 }) {
   const [panelOpen, setPanelOpen] = useState(false);
-  const [isSearchExpanded, setIsSearchExpanded] = useState(false);
   const containerRef = useRef(null);
 
   const activeFilterCount = Object.values(filterValues).filter(v => v && v !== "all" && v !== "").length;
@@ -25,7 +24,6 @@ function HeaderFilters({
     const handleClickOutside = (event) => {
       if (containerRef.current && !containerRef.current.contains(event.target)) {
         setPanelOpen(false);
-        if (!searchTerm) setIsSearchExpanded(false);
       }
     };
     document.addEventListener("mousedown", handleClickOutside);
@@ -45,26 +43,25 @@ function HeaderFilters({
   };
 
   return (
-    <div className={`header-filters-container${panelOpen ? " is-open" : ""}${isSearchExpanded ? " search-expanded" : ""}`} ref={containerRef}>
+    <div className={`header-filters-container${panelOpen ? " is-open" : ""}`} ref={containerRef}>
       <div className="header-filters-top">
-        {/* Search Field - Collapsible */}
-        <div className={`premium-search-box ${isSearchExpanded ? "expanded" : "collapsed"}`}>
-          <span className="search-icon" onClick={() => setIsSearchExpanded(!isSearchExpanded)}>🔍</span>
+        {/* Search Field */}
+        <div className="premium-search-box">
+          <span className="search-icon">🔍</span>
           <input
             type="text"
             className="search-input"
             value={searchTerm}
             onChange={(e) => onSearchChange && onSearchChange(e.target.value)}
-            onFocus={() => setIsSearchExpanded(true)}
-            placeholder={isSearchExpanded ? searchPlaceholder : ""}
+            placeholder={searchPlaceholder}
           />
-          {searchTerm && isSearchExpanded && (
+          {searchTerm && (
             <button className="search-clear-btn" onClick={() => onSearchChange("")}>✕</button>
           )}
         </div>
 
         {/* Compact Date Range - New! */}
-        {dateRangeConfig && !isSearchExpanded && (
+        {dateRangeConfig && (
           <div className="compact-date-range-bar">
             <span className="compact-date-label">{dateRangeConfig.label || "Dates"}:</span>
             <input 

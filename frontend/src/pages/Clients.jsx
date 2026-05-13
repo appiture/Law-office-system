@@ -122,7 +122,7 @@ function Clients() {
     } else if (hasLoaded) {
       handleSearch(filters);
     }
-  }, [filters.fromDate, filters.toDate, filters.phone, filters.email, initialSearchName, initialSearchTriggered, handleSearch, hasLoaded]);
+  }, [filters.name, filters.fromDate, filters.toDate, filters.phone, filters.email, initialSearchName, initialSearchTriggered, handleSearch, hasLoaded]);
 
   useEffect(() => {
     if (initialEditId && !initialEditTriggered && clients.length > 0) {

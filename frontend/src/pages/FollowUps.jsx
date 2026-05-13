@@ -331,7 +331,7 @@ function FollowUps() {
     } else if (hasLoaded) {
       handleSearch(filters);
     }
-  }, [filters.fromDate, filters.toDate, initialSearchCase, initialSearchTriggered, handleSearch, hasLoaded]);
+  }, [filters.caseNumber, filters.fromDate, filters.toDate, initialSearchCase, initialSearchTriggered, handleSearch, hasLoaded]);
 
   const handleShowAll = () => {
     setShowAllMode(true);

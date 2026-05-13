@@ -501,17 +501,8 @@ function Dashboard() {
               searchTerm={dashboardSearch}
               onSearchChange={setDashboardSearch}
               searchPlaceholder="Search dashboard..."
-              dateRangeConfig={{
-                label: "Activity Period",
-                fromDate,
-                toDate,
-                onFromDateChange: setFromDate,
-                onToDateChange: setToDate
-              }}
               onShowAll={() => {
                 setDashboardSearch("");
-                setFromDate("");
-                setToDate("");
               }}
             />
           </div>

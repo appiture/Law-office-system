@@ -255,7 +255,7 @@ function Documents() {
     } else if (hasLoaded) {
       handleSearch(filters);
     }
-  }, [filters.category, filters.fromDate, filters.toDate, initialSearchCase, initialSearchTriggered, handleSearch, hasLoaded]);
+  }, [filters.searchTerm, filters.category, filters.fromDate, filters.toDate, initialSearchCase, initialSearchTriggered, handleSearch, hasLoaded]);
 
   const deleteDocument = async (caseId, doc) => {
     if (!window.confirm(`Delete "${doc.fileName}"?`)) return;

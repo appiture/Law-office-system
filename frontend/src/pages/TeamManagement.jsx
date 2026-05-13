@@ -712,18 +712,9 @@ export default function TeamManagement() {
         ]}
         filterValues={{ role: filterRole }}
         onFilterChange={(id, val) => setFilterRole(val || "ALL")}
-        dateRangeConfig={{
-          label: "Joined date",
-          fromDate: filterFromDate,
-          toDate: filterToDate,
-          onFromDateChange: setFilterFromDate,
-          onToDateChange: setFilterToDate
-        }}
         onClearFilters={() => {
           setSearch("");
           setFilterRole("ALL");
-          setFilterFromDate("");
-          setFilterToDate("");
         }}
         onShowAll={() => {
           setFilterRole("ALL");

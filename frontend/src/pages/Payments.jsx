@@ -451,7 +451,7 @@ function Payments() {
       // Auto-refresh when filters change after initial load
       handleSearch(filters);
     }
-  }, [filters.status, filters.fromDate, filters.toDate, initialSearchCase, initialSearchTriggered, handleSearch, hasLoaded]);
+  }, [filters.caseNumber, filters.status, filters.fromDate, filters.toDate, initialSearchCase, initialSearchTriggered, handleSearch, hasLoaded]);
 
   const handleShowAll = () => {
     setShowAllMode(true);
