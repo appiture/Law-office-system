@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { supabase } from "../services/supabaseClient";
 import AppShell from "../components/AppShell";
+import HeaderFilters from "../components/HeaderFilters";
 import { isPlatformAdmin } from "../services/adminService";
 import dayjs from "dayjs";
 import "./SystemAuditLogs.css";
@@ -87,12 +88,7 @@ function SystemAuditLogs() {
   useEffect(() => {
     fetchLogs();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters.organizationId, filters.userId, filters.module, filters.actionType]);
-
-  const handleSearch = (e) => {
-    e.preventDefault();
-    fetchLogs();
-  };
+  }, [filters.organizationId, filters.userId, filters.module, filters.actionType, filters.search]);
 
   const getActionColor = (actionType) => {
     if (actionType.includes("CREATE")) return "var(--color-success, green)";
@@ -106,61 +102,43 @@ function SystemAuditLogs() {
   return (
     <AppShell title="Audit Logs" subtitle="System global audit history">
       <div className="audit-logs-container fade-in">
-        <form className="audit-filters surface-card" onSubmit={handleSearch}>
-          <div className="filter-group">
-            <input 
-              type="text" 
-              placeholder="Search description, email, entity..." 
-              value={filters.search}
-              onChange={(e) => handleFilterChange("search", e.target.value)}
-              className="text-input"
-            />
-          </div>
-          
-          {superAdmin && (
-            <div className="filter-group">
-              <select 
-                value={filters.organizationId} 
-                onChange={(e) => handleFilterChange("organizationId", e.target.value)}
-                className="select-input"
-              >
-                <option value="">All Organizations</option>
-                {organizations.map(org => (
-                  <option key={org.id} value={org.id}>{org.name}</option>
-                ))}
-              </select>
-            </div>
-          )}
-
-          <div className="filter-group">
-            <select 
-              value={filters.module} 
-              onChange={(e) => handleFilterChange("module", e.target.value)}
-              className="select-input"
-            >
-              <option value="">All Modules</option>
-              <option value="users">Users</option>
-              <option value="cases">Cases</option>
-              <option value="payments">Payments</option>
-              <option value="documents">Documents</option>
-              <option value="platform">Platform</option>
-            </select>
-          </div>
-
-          <div className="filter-group">
-            <button type="submit" className="primary-button">Search</button>
-            <button 
-              type="button" 
-              className="ghost-button" 
-              onClick={() => {
-                setFilters({ organizationId: "", userId: "", module: "", actionType: "", search: "" });
-                setTimeout(fetchLogs, 0);
-              }}
-            >
-              Reset
-            </button>
-          </div>
-        </form>
+        <HeaderFilters
+          searchTerm={filters.search}
+          onSearchChange={(value) => handleFilterChange("search", value)}
+          searchPlaceholder="Search logs by any word..."
+          filters={[
+            ...(superAdmin ? [{
+              id: "organizationId",
+              label: "Organization",
+              options: organizations.map((org) => ({ value: org.id, label: org.name }))
+            }] : []),
+            {
+              id: "module",
+              label: "Module",
+              options: [
+                { value: "users", label: "Users" },
+                { value: "cases", label: "Cases" },
+                { value: "payments", label: "Payments" },
+                { value: "documents", label: "Documents" },
+                { value: "platform", label: "Platform" }
+              ]
+            },
+            {
+              id: "actionType",
+              label: "Action",
+              type: "text",
+              placeholder: "CREATE, UPDATE, DELETE..."
+            }
+          ]}
+          filterValues={{
+            organizationId: filters.organizationId,
+            module: filters.module,
+            actionType: filters.actionType
+          }}
+          onFilterChange={handleFilterChange}
+          onClearFilters={() => setFilters({ organizationId: "", userId: "", module: "", actionType: "", search: "" })}
+          onShowAll={() => setFilters({ organizationId: "", userId: "", module: "", actionType: "", search: "" })}
+        />
 
         <div className="surface-card p-0" style={{ marginTop: '20px', overflowX: 'auto' }}>
           {loading ? (

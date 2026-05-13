@@ -32,7 +32,7 @@ const STATUS_OPTIONS = [
 ];
 
 const PAGE_SIZE = 25;
-const emptyFilters = { caseNumber: "", clientName: "", caseType: "", fromDate: "", toDate: "" };
+const emptyFilters = { searchTerm: "", caseType: "", status: "", fromDate: "", toDate: "" };
 
 const STATUS_COLORS = {
   RUNNING:     { bg:"rgba(37,99,235,0.1)",  color:"var(--color-primary)" },
@@ -272,7 +272,7 @@ function Cases() {
   const [cases,   setCases]   = useState([]);
   const [showModal,    setShowModal]    = useState(false);
   const [editingCase,  setEditingCase]  = useState(null);
-  const [filters, setFilters] = useState(() => ({ ...emptyFilters, caseNumber: searchParams.get("search") || "" }));
+  const [filters, setFilters] = useState(() => ({ ...emptyFilters, searchTerm: searchParams.get("search") || "" }));
   const [hasLoaded, setHasLoaded] = useState(Boolean(searchParams.get("search")));
   const [loading, setLoading] = useState(false);
   const [modalLoading, setModalLoading] = useState(false);
@@ -361,12 +361,12 @@ function Cases() {
     if (hasLoaded) {
       handleSearch(filters);
     }
-  }, [filters.caseNumber, filters.caseType, filters.fromDate, filters.toDate, hasLoaded]);
+  }, [filters.searchTerm, filters.caseType, filters.status, filters.fromDate, filters.toDate, hasLoaded]);
 
   return (
     <AppShell
       title="Cases"
-      subtitle="Search first, then load matching case records."
+      subtitle="Search cases by case number, client, court, lawyer, opponent, or notes."
       actions={
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
           {userRole !== "LAWYER" && (
@@ -379,9 +379,9 @@ function Cases() {
     >
       <ErrorState message={error} />
       <HeaderFilters
-        searchTerm={filters.caseNumber}
-        onSearchChange={(val) => setFilters(p => ({ ...p, caseNumber: val }))}
-        searchPlaceholder="Search case number..."
+        searchTerm={filters.searchTerm}
+        onSearchChange={(val) => setFilters(p => ({ ...p, searchTerm: val }))}
+        searchPlaceholder="Search cases by any word..."
         dateRangeConfig={{
           label: "Upload Date",
           fromDate: filters.fromDate,
@@ -394,9 +394,14 @@ function Cases() {
             id: "caseType",
             label: "Case Type",
             options: CASE_TYPES.map(t => ({ value: t, label: t }))
+          },
+          {
+            id: "status",
+            label: "Status",
+            options: STATUS_OPTIONS.map(({ value, label }) => ({ value, label }))
           }
         ]}
-        filterValues={{ caseType: filters.caseType }}
+        filterValues={{ caseType: filters.caseType, status: filters.status }}
         onFilterChange={(id, val) => setFilters(p => ({ ...p, [id]: val }))}
         onClearFilters={() => {
           setFilters(emptyFilters);

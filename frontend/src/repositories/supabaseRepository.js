@@ -739,6 +739,44 @@ const validateCaseScopedPath = (filePath, organizationId, caseId) => {
 
 const getEffectiveFilters = (filters = {}, showAll = false) => showAll ? {} : filters;
 
+const normalizeSearchText = (value) =>
+  String(value ?? "")
+    .toLowerCase()
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const getSearchTokens = (...values) =>
+  normalizeSearchText(values.filter(Boolean).join(" "))
+    .split(" ")
+    .map((token) => token.trim())
+    .filter(Boolean);
+
+const matchesSearchTokens = (tokens, values) => {
+  if (!tokens.length) return true;
+  const haystack = normalizeSearchText(
+    values
+      .flatMap((value) => Array.isArray(value) ? value : [value])
+      .filter((value) => value !== null && value !== undefined)
+      .join(" ")
+  );
+  return tokens.every((token) => haystack.includes(token));
+};
+
+const isDateWithinRange = (value, fromDate, toDate) => {
+  if (!fromDate && !toDate) return true;
+  if (!value) return false;
+  const current = new Date(value);
+  if (Number.isNaN(current.getTime())) return false;
+  const start = fromDate ? new Date(fromDate) : null;
+  const end = toDate ? new Date(toDate) : null;
+  if (start) start.setHours(0, 0, 0, 0);
+  if (end) end.setHours(23, 59, 59, 999);
+  if (start && current < start) return false;
+  if (end && current > end) return false;
+  return true;
+};
+
 const getPageBounds = (page = 1, pageSize = DEFAULT_PAGE_SIZE) => {
   const safePage = Math.max(1, Number(page) || 1);
   const safePageSize = Math.max(1, Number(pageSize) || DEFAULT_PAGE_SIZE);
@@ -852,51 +890,31 @@ const supabasePlatformApi = {
     }));
   },
   searchClients: async ({ filters = {}, page = 1, pageSize = DEFAULT_PAGE_SIZE, showAll = false } = {}) => {
-    const context = await internalGetWorkspaceContext();
     const effectiveFilters = getEffectiveFilters(filters, showAll);
-    
-    if (isLawyerContext(context)) {
-      const clients = await getMappedClients();
-      const matches = clients.filter((item) => {
-        const nameMatch = !effectiveFilters.name || String(item.name || "").toLowerCase().includes(String(effectiveFilters.name).toLowerCase());
-        const phoneMatch = !effectiveFilters.phone || String(item.phone || "").toLowerCase().includes(String(effectiveFilters.phone).toLowerCase());
-        const emailMatch = !effectiveFilters.email || String(item.email || "").toLowerCase().includes(String(effectiveFilters.email).toLowerCase());
-        
-        let dateRangeMatch = true;
-        if (effectiveFilters.fromDate || effectiveFilters.toDate) {
-          const start = effectiveFilters.fromDate ? new Date(effectiveFilters.fromDate) : null;
-          const end = effectiveFilters.toDate ? new Date(effectiveFilters.toDate) : null;
-          if (start) start.setHours(0, 0, 0, 0);
-          if (end) end.setHours(23, 59, 59, 999);
-          const d = new Date(item.createdAt);
-          if (start && d < start) dateRangeMatch = false;
-          if (end && d > end) dateRangeMatch = false;
-        }
+    const tokens = getSearchTokens(effectiveFilters.searchTerm, effectiveFilters.name);
+    const phoneTokens = getSearchTokens(effectiveFilters.phone);
+    const emailTokens = getSearchTokens(effectiveFilters.email);
+    const clients = await getMappedClients();
+    const matches = clients.filter((item) => {
+      const searchMatch = matchesSearchTokens(tokens, [
+        item.name,
+        item.phone,
+        item.email,
+        item.address,
+        item.city,
+        item.state,
+        item.pinCode,
+        item.occupation,
+        item.notes,
+        item.idProofNumber,
+      ]);
+      const phoneMatch = matchesSearchTokens(phoneTokens, [item.phone, item.altPhone, item.emergencyContactPhone]);
+      const emailMatch = matchesSearchTokens(emailTokens, [item.email]);
+      const dateRangeMatch = isDateWithinRange(item.createdAt, effectiveFilters.fromDate, effectiveFilters.toDate);
 
-        return nameMatch && phoneMatch && emailMatch && dateRangeMatch;
-      });
-      return paginateItems(matches, page, pageSize);
-    }
-
-    const client = requireSupabase();
-    let query = client.from("clients")
-      .select("*", { count: "exact" })
-      .eq("organization_id", context.organizationId)
-      .is("deleted_at", null);
-
-    if (effectiveFilters.name) query = query.ilike("name", `%${effectiveFilters.name}%`);
-    if (effectiveFilters.phone) query = query.ilike("phone", `%${effectiveFilters.phone}%`);
-    if (effectiveFilters.email) query = query.ilike("email", `%${effectiveFilters.email}%`);
-    
-    if (effectiveFilters.fromDate) query = query.gte("created_at", effectiveFilters.fromDate);
-    if (effectiveFilters.toDate) query = query.lte("created_at", `${effectiveFilters.toDate}T23:59:59`);
-
-    const { safePage, safePageSize, from, to } = getPageBounds(page, pageSize);
-    const { data, count, error } = await query.order("created_at", { ascending: false }).range(from, to);
-    if (error) throw error;
-
-    const items = await Promise.all((data || []).map(mapClientRecord));
-    return { items, total: count || 0, page: safePage, pageSize: safePageSize };
+      return searchMatch && phoneMatch && emailMatch && dateRangeMatch;
+    });
+    return paginateItems(matches, page, pageSize);
   },
   getClient: async (clientId) => {
     const context = await internalGetWorkspaceContext();
@@ -1048,62 +1066,33 @@ const supabasePlatformApi = {
     return getMappedCases();
   },
   searchCases: async ({ filters = {}, page = 1, pageSize = DEFAULT_PAGE_SIZE, showAll = false } = {}) => {
-    const context = await internalGetWorkspaceContext();
-    if (isLawyerContext(context)) {
-      const effectiveFilters = getEffectiveFilters(filters, showAll);
-      const normalized = {
-        caseNumber: String(effectiveFilters.caseNumber || "").toLowerCase(),
-        caseType: String(effectiveFilters.caseType || "").toLowerCase(),
-        clientName: String(effectiveFilters.clientName || "").toLowerCase(),
-      };
-      const cases = await getMappedCases();
-      const matches = cases.filter((item) => {
-        const caseMatch = !normalized.caseNumber || String(item.caseNumber || "").toLowerCase().includes(normalized.caseNumber);
-        const typeMatch = !normalized.caseType || String(item.caseType || "").toLowerCase().includes(normalized.caseType);
-        const clientMatch = !normalized.clientName || String(item.client?.name || "").toLowerCase().includes(normalized.clientName);
-        
-        let dateRangeMatch = true;
-        if (effectiveFilters.fromDate || effectiveFilters.toDate) {
-          const start = effectiveFilters.fromDate ? new Date(effectiveFilters.fromDate) : null;
-          const end = effectiveFilters.toDate ? new Date(effectiveFilters.toDate) : null;
-          if (start) start.setHours(0, 0, 0, 0);
-          if (end) end.setHours(23, 59, 59, 999);
-          const d = new Date(item.createdAt);
-          if (start && d < start) dateRangeMatch = false;
-          if (end && d > end) dateRangeMatch = false;
-        }
-
-        return caseMatch && typeMatch && clientMatch && dateRangeMatch;
-      });
-      return paginateItems(matches, page, pageSize);
-    }
-
-    const client = requireSupabase();
     const effectiveFilters = getEffectiveFilters(filters, showAll);
-    let query = client.from("cases")
-      .select("*, clients!inner(*)", { count: "exact" })
-      .eq("organization_id", context.organizationId)
-      .is("deleted_at", null);
+    const tokens = getSearchTokens(effectiveFilters.searchTerm, effectiveFilters.caseNumber, effectiveFilters.clientName);
+    const caseType = normalizeSearchText(effectiveFilters.caseType);
+    const status = normalizeSearchText(effectiveFilters.status);
+    const cases = await getMappedCases();
+    const matches = cases.filter((item) => {
+      const searchMatch = matchesSearchTokens(tokens, [
+        item.caseNumber,
+        item.caseType,
+        item.status,
+        item.courtName,
+        item.judgeName,
+        item.assignedLawyer,
+        item.opponentName,
+        item.opponentLawyer,
+        item.caseDescription,
+        item.client?.name,
+        item.client?.phone,
+        item.client?.email,
+      ]);
+      const typeMatch = !caseType || normalizeSearchText(item.caseType).includes(caseType);
+      const statusMatch = !status || normalizeSearchText(item.status) === status;
+      const dateRangeMatch = isDateWithinRange(item.createdAt, effectiveFilters.fromDate, effectiveFilters.toDate);
 
-    // Hardened Backend Enforcement for Lawyer View
-    if (isLawyerContext(context)) {
-      query = query.eq("assigned_lawyer_id", context.userId);
-    }
-
-    if (effectiveFilters.caseNumber) query = query.ilike("case_number", `%${effectiveFilters.caseNumber}%`);
-    if (effectiveFilters.caseType) query = query.ilike("case_type", `%${effectiveFilters.caseType}%`);
-    if (effectiveFilters.clientName) query = query.ilike("clients.name", `%${effectiveFilters.clientName}%`);
-    
-    if (effectiveFilters.fromDate) query = query.gte("created_at", effectiveFilters.fromDate);
-    if (effectiveFilters.toDate) query = query.lte("created_at", `${effectiveFilters.toDate}T23:59:59`);
-
-    const { safePage, safePageSize, from, to } = getPageBounds(page, pageSize);
-    const { data, count, error } = await query.order("updated_at", { ascending: false }).range(from, to);
-    if (error) throw error;
-
-    const dataset = await getWorkspaceData(); // Still need dataset for related items like charges
-    const items = await Promise.all((data || []).map(item => mapCaseRecord(item, dataset)));
-    return { items, total: count || 0, page: safePage, pageSize: safePageSize };
+      return searchMatch && typeMatch && statusMatch && dateRangeMatch;
+    });
+    return paginateItems(matches, page, pageSize);
   },
   getCase: async (caseId) => {
     const context = await internalGetWorkspaceContext();
@@ -1351,12 +1340,35 @@ const supabasePlatformApi = {
   getPayments: async () => getMappedCases(),
   searchPayments: async ({ filters = {}, page = 1, pageSize = DEFAULT_PAGE_SIZE, showAll = false } = {}) => {
     const effectiveFilters = getEffectiveFilters(filters, showAll);
-    const status = String(effectiveFilters.status || "").toLowerCase();
+    const tokens = getSearchTokens(effectiveFilters.searchTerm, effectiveFilters.caseNumber, effectiveFilters.clientName);
+    const status = normalizeSearchText(effectiveFilters.status);
     const cases = await getMappedCases();
     const matches = cases.filter((item) => {
-      const clientMatch = !effectiveFilters.clientName || String(item.client?.name || "").toLowerCase().includes(String(effectiveFilters.clientName).toLowerCase());
-      const caseMatch = !effectiveFilters.caseNumber || String(item.caseNumber || "").toLowerCase().includes(String(effectiveFilters.caseNumber).toLowerCase());
-      const statusMatch = !status || (item.chargeItems || []).some((charge) => String(charge.status || "").toLowerCase() === status);
+      const chargeValues = (item.chargeItems || []).flatMap((charge) => [
+        charge.label,
+        charge.status,
+        charge.description,
+        charge.dueDate,
+      ]);
+      const historyValues = (item.paymentHistory || []).flatMap((entry) => [
+        entry.chargeLabel,
+        entry.paymentMode,
+        entry.paymentReference,
+        entry.recordedBy,
+        entry.paymentDate,
+        entry.createdAt,
+      ]);
+      const searchMatch = matchesSearchTokens(tokens, [
+        item.caseNumber,
+        item.caseType,
+        item.status,
+        item.client?.name,
+        item.client?.phone,
+        item.client?.email,
+        chargeValues,
+        historyValues,
+      ]);
+      const statusMatch = !status || (item.chargeItems || []).some((charge) => normalizeSearchText(charge.status) === status);
       
       let monthMatch = true;
       if (effectiveFilters.month) {
@@ -1383,61 +1395,52 @@ const supabasePlatformApi = {
         });
       }
 
-      return clientMatch && caseMatch && statusMatch && monthMatch && dateRangeMatch;
+      return searchMatch && statusMatch && monthMatch && dateRangeMatch;
     });
     return paginateItems(matches, page, pageSize);
   },
   searchDocuments: async ({ filters = {}, page = 1, pageSize = DEFAULT_PAGE_SIZE, showAll = false } = {}) => {
     const effectiveFilters = getEffectiveFilters(filters, showAll);
-    const searchTerm = String(effectiveFilters.searchTerm || "").toLowerCase();
-    const category = String(effectiveFilters.category || "").toLowerCase();
+    const tokens = getSearchTokens(effectiveFilters.searchTerm);
+    const category = normalizeSearchText(effectiveFilters.category);
     
     const cases = await getMappedCases();
     const matches = cases.filter((item) => {
       // 1. Category filter (if selected)
-      if (category) {
-        const hasCategory = (item.documents || []).some(d => String(d.category || "").toLowerCase() === category);
-        if (!hasCategory) return false;
-      }
+      const docsInDateRange = (item.documents || []).filter((document) =>
+        isDateWithinRange(document.createdAt || item.createdAt, effectiveFilters.fromDate, effectiveFilters.toDate)
+      );
+      const docsForFilter = docsInDateRange.filter((document) =>
+        !category || normalizeSearchText(document.category) === category
+      );
+      if (docsForFilter.length === 0) return false;
       
       // 2. Search term filter (if provided)
-      if (searchTerm) {
-        const caseMatch = String(item.caseNumber || "").toLowerCase().includes(searchTerm);
-        const clientMatch = String(item.client?.name || "").toLowerCase().includes(searchTerm);
-        const docMatch = (item.documents || []).some(d => 
-          String(d.fileName || "").toLowerCase().includes(searchTerm) || 
-          String(d.description || "").toLowerCase().includes(searchTerm) ||
-          String(d.category || "").toLowerCase().includes(searchTerm)
-        );
-        if (!caseMatch && !clientMatch && !docMatch) return false;
-      }
-      
-      let dateRangeMatch = true;
-      if (effectiveFilters.fromDate || effectiveFilters.toDate) {
-        const start = effectiveFilters.fromDate ? new Date(effectiveFilters.fromDate) : null;
-        const end = effectiveFilters.toDate ? new Date(effectiveFilters.toDate) : null;
-        if (start) start.setHours(0, 0, 0, 0);
-        if (end) end.setHours(23, 59, 59, 999);
-        
-        // Check if ANY document in the case matches the date range
-        dateRangeMatch = (item.documents || []).some(d => {
-          const docDate = new Date(d.createdAt || item.createdAt);
-          if (start && docDate < start) return false;
-          if (end && docDate > end) return false;
-          return true;
-        });
-      }
-
-      return dateRangeMatch;
+      return matchesSearchTokens(tokens, [
+        item.caseNumber,
+        item.caseType,
+        item.client?.name,
+        item.client?.phone,
+        item.client?.email,
+        docsForFilter.flatMap((document) => [
+          document.fileName,
+          document.description,
+          document.category,
+          document.fileType,
+        ]),
+      ]);
     });
 
     // If category is selected, we should also filter the documents list INSIDE the matched cases
     // to only show those that match the category.
     const resultItems = matches.map(item => {
-      if (!category) return item;
       return {
         ...item,
-        documents: (item.documents || []).filter(d => String(d.category || "").toLowerCase() === category)
+        documents: (item.documents || []).filter((document) => {
+          const categoryMatch = !category || normalizeSearchText(document.category) === category;
+          const dateMatch = isDateWithinRange(document.createdAt || item.createdAt, effectiveFilters.fromDate, effectiveFilters.toDate);
+          return categoryMatch && dateMatch;
+        })
       };
     });
 
@@ -1485,65 +1488,47 @@ const supabasePlatformApi = {
   },
   getFollowUps: async () => getMappedCases(),
   searchFollowUps: async ({ filters = {}, page = 1, pageSize = DEFAULT_PAGE_SIZE, showAll = false } = {}) => {
-    const context = await internalGetWorkspaceContext();
-    if (isLawyerContext(context)) {
-      const effectiveFilters = getEffectiveFilters(filters, showAll);
-      const cases = await getMappedCases();
-      const matches = cases.filter((item) => {
-        let dateRangeMatch = true;
-        if (effectiveFilters.fromDate || effectiveFilters.toDate) {
-          const start = effectiveFilters.fromDate ? new Date(effectiveFilters.fromDate) : null;
-          const end = effectiveFilters.toDate ? new Date(effectiveFilters.toDate) : null;
-          if (start) start.setHours(0, 0, 0, 0);
-          if (end) end.setHours(23, 59, 59, 999);
-          
-          dateRangeMatch = (item.followUps || []).some(f => {
-            if (!f.scheduledAt) return false;
-            const d = new Date(f.scheduledAt);
-            if (start && d < start) return false;
-            if (end && d > end) return false;
-            return true;
-          });
-        }
-        
-        const caseMatch = !effectiveFilters.caseNumber || String(item.caseNumber || "").toLowerCase().includes(String(effectiveFilters.caseNumber).toLowerCase());
-        const clientMatch = !effectiveFilters.clientName || String(item.client?.name || "").toLowerCase().includes(String(effectiveFilters.clientName).toLowerCase());
-        return dateRangeMatch && caseMatch && clientMatch;
-      });
-      return paginateItems(matches, page, pageSize);
-    }
-
-    const client = requireSupabase();
     const effectiveFilters = getEffectiveFilters(filters, showAll);
-    let query = client.from("followups")
-      .select("*, cases!inner(*, clients!inner(*))", { count: "exact" })
-      .eq("organization_id", context.organizationId)
-      .is("deleted_at", null);
+    const tokens = getSearchTokens(effectiveFilters.searchTerm, effectiveFilters.caseNumber, effectiveFilters.clientName);
+    const eventType = normalizeSearchText(effectiveFilters.type);
+    const eventStatus = normalizeSearchText(effectiveFilters.status);
+    const cases = await getMappedCases();
+    const matches = cases.filter((item) => {
+      const matchingEvents = (item.followUps || []).filter((event) => {
+        const dateMatch = isDateWithinRange(event.scheduledAt, effectiveFilters.fromDate, effectiveFilters.toDate);
+        const typeMatch = !eventType || normalizeSearchText(event.type) === eventType;
+        const statusMatch = !eventStatus || normalizeSearchText(event.status) === eventStatus;
+        return dateMatch && typeMatch && statusMatch;
+      });
 
-    if (effectiveFilters.date) {
-      query = query.gte("date", `${effectiveFilters.date}T00:00:00`).lte("date", `${effectiveFilters.date}T23:59:59`);
-    }
-    if (effectiveFilters.fromDate) query = query.gte("date", `${effectiveFilters.fromDate}T00:00:00`);
-    if (effectiveFilters.toDate) query = query.lte("date", `${effectiveFilters.toDate}T23:59:59`);
-    
-    if (effectiveFilters.clientName) query = query.ilike("cases.clients.name", `%${effectiveFilters.clientName}%`);
-    if (effectiveFilters.caseNumber) query = query.ilike("cases.case_number", `%${effectiveFilters.caseNumber}%`);
+      if (matchingEvents.length === 0) return false;
 
-    const { safePage, safePageSize, from, to } = getPageBounds(page, pageSize);
-    const { data, count, error } = await query.order("date", { ascending: true }).range(from, to);
-    if (error) throw error;
-
-    const dataset = await getWorkspaceData();
-    // Unique by case ID to avoid duplicates in the UI
-    const uniqueCaseMap = new Map();
-    (data || []).forEach(item => {
-      if (item.cases && !uniqueCaseMap.has(item.cases.id)) {
-        uniqueCaseMap.set(item.cases.id, item.cases);
-      }
-    });
-
-    const items = await Promise.all(Array.from(uniqueCaseMap.values()).map(caseRecord => mapCaseRecord(caseRecord, dataset)));
-    return { items, total: count || 0, page: safePage, pageSize: safePageSize };
+      return matchesSearchTokens(tokens, [
+        item.caseNumber,
+        item.caseType,
+        item.courtName,
+        item.client?.name,
+        item.client?.phone,
+        item.client?.email,
+        matchingEvents.flatMap((event) => [
+          event.type,
+          event.title,
+          event.status,
+          event.notes,
+          event.scheduledAt,
+          event.postponedTo,
+        ]),
+      ]);
+    }).map((item) => ({
+      ...item,
+      followUps: (item.followUps || []).filter((event) => {
+        const dateMatch = isDateWithinRange(event.scheduledAt, effectiveFilters.fromDate, effectiveFilters.toDate);
+        const typeMatch = !eventType || normalizeSearchText(event.type) === eventType;
+        const statusMatch = !eventStatus || normalizeSearchText(event.status) === eventStatus;
+        return dateMatch && typeMatch && statusMatch;
+      }),
+    }));
+    return paginateItems(matches, page, pageSize);
   },
   addFollowUp: async (caseId, payload) => {
     const actionKey = `addFollowUp:${caseId}`;
@@ -2096,7 +2081,3 @@ export {
   proxiedGetWorkspaceContext as getWorkspaceContext,
   resetWorkspaceContextCache 
 };
-
-
-
-

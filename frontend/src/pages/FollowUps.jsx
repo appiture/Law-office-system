@@ -19,7 +19,7 @@ import "./formStyles.css";
 
 const EVENT_TYPES = ["HEARING", "DEADLINE", "JUDGMENT", "NOTE", "BAIL", "CHARGE", "SUBMISSION", "OTHER"];
 const PAGE_SIZE = 25;
-const emptyFilters = { date: "", clientName: "", caseNumber: "", fromDate: "", toDate: "" };
+const emptyFilters = { searchTerm: "", type: "", status: "", fromDate: "", toDate: "" };
 
 const ALERT_GROUPS = [
   { key:"missed",   label:"⚠️ Missed / Needs Attention", color:"var(--color-error)" },
@@ -246,7 +246,7 @@ function FollowUps() {
   const [eventModal, setEventModal] = useState(null); // { caseId, editItem? }
   const [searchParams] = useSearchParams();
   const initialSearchCase = searchParams.get("searchCase") || "";
-  const [filters, setFilters] = useState({ ...emptyFilters, caseNumber: initialSearchCase });
+  const [filters, setFilters] = useState({ ...emptyFilters, searchTerm: initialSearchCase });
   const [hasLoaded, setHasLoaded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [modalLoading, setModalLoading] = useState(false);
@@ -327,11 +327,11 @@ function FollowUps() {
   useEffect(() => {
     if (initialSearchCase && !initialSearchTriggered) {
       setInitialSearchTriggered(true);
-      handleSearch({ ...emptyFilters, caseNumber: initialSearchCase });
+      handleSearch({ ...emptyFilters, searchTerm: initialSearchCase });
     } else if (hasLoaded) {
       handleSearch(filters);
     }
-  }, [filters.caseNumber, filters.fromDate, filters.toDate, initialSearchCase, initialSearchTriggered, handleSearch, hasLoaded]);
+  }, [filters.searchTerm, filters.type, filters.status, filters.fromDate, filters.toDate, initialSearchCase, initialSearchTriggered, handleSearch, hasLoaded]);
 
   const handleShowAll = () => {
     setShowAllMode(true);
@@ -352,9 +352,9 @@ function FollowUps() {
     >
       <ErrorState message={error} />
       <HeaderFilters
-        searchTerm={filters.caseNumber}
-        onSearchChange={(val) => setFilters(p => ({ ...p, caseNumber: val }))}
-        searchPlaceholder="Search case number..."
+        searchTerm={filters.searchTerm}
+        onSearchChange={(val) => setFilters(p => ({ ...p, searchTerm: val }))}
+        searchPlaceholder="Search events by any word..."
         dateRangeConfig={{
           label: "Event Date",
           fromDate: filters.fromDate,
@@ -362,6 +362,24 @@ function FollowUps() {
           onFromDateChange: (val) => setFilters(p => ({ ...p, fromDate: val })),
           onToDateChange: (val) => setFilters(p => ({ ...p, toDate: val }))
         }}
+        filters={[
+          {
+            id: "type",
+            label: "Event Type",
+            options: EVENT_TYPES.map((type) => ({ value: type, label: type }))
+          },
+          {
+            id: "status",
+            label: "Status",
+            options: [
+              { value: "PENDING", label: "Pending" },
+              { value: "COMPLETED", label: "Completed" },
+              { value: "POSTPONED", label: "Postponed" }
+            ]
+          }
+        ]}
+        filterValues={{ type: filters.type, status: filters.status }}
+        onFilterChange={(id, val) => setFilters(p => ({ ...p, [id]: val }))}
         onClearFilters={() => {
           setFilters(emptyFilters);
           setCases([]);

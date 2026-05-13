@@ -12,7 +12,7 @@ import "./Clients.css";
 import "./formStyles.css";
 
 const PAGE_SIZE = 25;
-const emptyFilters = { name: "", phone: "", email: "", fromDate: "", toDate: "" };
+const emptyFilters = { searchTerm: "", phone: "", email: "", fromDate: "", toDate: "" };
 
 function Clients() {
   const [clients, setClients] = useState([]);
@@ -23,7 +23,7 @@ function Clients() {
   const navigate = useNavigate();
   const initialSearchName = searchParams.get("searchName") || "";
   
-  const [filters, setFilters] = useState({ ...emptyFilters, name: initialSearchName });
+  const [filters, setFilters] = useState({ ...emptyFilters, searchTerm: initialSearchName });
   const [hasLoaded, setHasLoaded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -118,11 +118,11 @@ function Clients() {
   useEffect(() => {
     if (initialSearchName && !initialSearchTriggered) {
       setInitialSearchTriggered(true);
-      handleSearch({ ...emptyFilters, name: initialSearchName });
+      handleSearch({ ...emptyFilters, searchTerm: initialSearchName });
     } else if (hasLoaded) {
       handleSearch(filters);
     }
-  }, [filters.name, filters.fromDate, filters.toDate, filters.phone, filters.email, initialSearchName, initialSearchTriggered, handleSearch, hasLoaded]);
+  }, [filters.searchTerm, filters.fromDate, filters.toDate, filters.phone, filters.email, initialSearchName, initialSearchTriggered, handleSearch, hasLoaded]);
 
   useEffect(() => {
     if (initialEditId && !initialEditTriggered && clients.length > 0) {
@@ -137,7 +137,7 @@ function Clients() {
   return (
     <AppShell
       title="Client Details"
-      subtitle="Search first, then load matching client profiles."
+      subtitle="Search clients by name, phone, email, city, notes, or ID proof."
       actions={
         <div style={{ display: "flex", gap: "12px", alignItems: "center", flexWrap: "wrap" }}>
           <button type="button" className="primary-button" onClick={openCreate}>
@@ -148,12 +148,12 @@ function Clients() {
     >
       <ErrorState message={error} />
       <HeaderFilters
-        searchTerm={filters.name}
-        onSearchChange={(val) => setFilters(p => ({ ...p, name: val }))}
-        searchPlaceholder="Search client name..."
+        searchTerm={filters.searchTerm}
+        onSearchChange={(val) => setFilters(p => ({ ...p, searchTerm: val }))}
+        searchPlaceholder="Search clients by any word..."
         filters={[
-          { id: "phone", label: "Phone", options: [] }, // Using as text search for now or just placeholders
-          { id: "email", label: "Email", options: [] }
+          { id: "phone", label: "Phone", type: "text", placeholder: "Phone number" },
+          { id: "email", label: "Email", type: "text", inputType: "email", placeholder: "Email address" }
         ]}
         filterValues={{ phone: filters.phone, email: filters.email }}
         onFilterChange={(id, val) => setFilters(p => ({ ...p, [id]: val }))}

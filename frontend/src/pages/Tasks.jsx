@@ -52,6 +52,21 @@ function isOverdue(dateStr) {
   return new Date(dateStr) < new Date();
 }
 
+function buildSearchTokens(value) {
+  return String(value || "")
+    .toLowerCase()
+    .replace(/[_-]+/g, " ")
+    .split(/\s+/)
+    .map(token => token.trim())
+    .filter(Boolean);
+}
+
+function matchesTokens(tokens, values) {
+  if (!tokens.length) return true;
+  const haystack = values.filter(Boolean).join(" ").toLowerCase();
+  return tokens.every(token => haystack.includes(token));
+}
+
 /* ── Quick Add Bar ──────────────────────────────────────────────────── */
 function QuickAddBar({ onAdd, saving }) {
   const [title, setTitle] = useState("");
@@ -357,17 +372,11 @@ export default function Tasks() {
   const completedCount  = tasks.filter(t => t && t.status === "COMPLETED").length;
   const overdueCount    = tasks.filter(t => t && (t.status === "PENDING" || t.status === "IN_PROGRESS") && isOverdue(t.dueDate)).length;
 
+  const searchTokens = buildSearchTokens(searchQuery);
   const filteredTasks = tasks.filter(task => {
     if (filterStatus !== "ALL" && task.status !== filterStatus) return false;
     if (filterPriority !== "ALL" && task.priority !== filterPriority) return false;
-    if (searchQuery) {
-      const q = searchQuery.toLowerCase();
-      if (
-        !String(task.title || "").toLowerCase().includes(q) &&
-        !String(task.description || "").toLowerCase().includes(q) &&
-        !String(task.assignedTo || "").toLowerCase().includes(q)
-      ) return false;
-    }
+    if (!matchesTokens(searchTokens, [task.title, task.description, task.assignedTo, task.status, task.priority])) return false;
     if (filterFromDate || filterToDate) {
       if (!task.dueDate) return false;
       const d = new Date(task.dueDate);
@@ -426,7 +435,7 @@ export default function Tasks() {
       <HeaderFilters
         searchTerm={searchQuery}
         onSearchChange={setSearchQuery}
-        searchPlaceholder="Search tasks..."
+        searchPlaceholder="Search tasks by any word..."
         filters={[
           {
             id: "status",
@@ -459,8 +468,11 @@ export default function Tasks() {
           setFilterToDate("");
         }}
         onShowAll={() => {
+          setSearchQuery("");
           setFilterStatus("ALL");
           setFilterPriority("ALL");
+          setFilterFromDate("");
+          setFilterToDate("");
         }}
       />
 

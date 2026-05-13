@@ -19,7 +19,7 @@ import "./formStyles.css";
 
 const PAYMENT_MODES = ["Cash", "UPI", "Bank Transfer", "NEFT/RTGS", "Cheque", "Demand Draft", "Other"];
 const PAGE_SIZE = 25;
-const emptyFilters = { clientName: "", caseNumber: "", status: "", month: "", fromDate: "", toDate: "" };
+const emptyFilters = { searchTerm: "", status: "", month: "", fromDate: "", toDate: "" };
 
 const emptyCharge  = { label:"", isLawyerFee:false, totalAmount:"", paidAmount:"", dueDate:"", displayOrder:0, notes:"", description:"" };
 const emptyPayment = {
@@ -381,7 +381,7 @@ function Payments() {
   const [detailEntry,  setDetailEntry]  = useState(null); 
   const [searchParams] = useSearchParams();
   const initialSearchCase = searchParams.get("searchCase") || "";
-  const [filters, setFilters] = useState({ ...emptyFilters, caseNumber: initialSearchCase });
+  const [filters, setFilters] = useState({ ...emptyFilters, searchTerm: initialSearchCase });
   const [hasLoaded, setHasLoaded] = useState(false);
   const [loading, setLoading] = useState(false);
   const [modalLoading, setModalLoading] = useState(false);
@@ -446,12 +446,12 @@ function Payments() {
   useEffect(() => {
     if (initialSearchCase && !initialSearchTriggered) {
       setInitialSearchTriggered(true);
-      handleSearch({ ...emptyFilters, caseNumber: initialSearchCase });
+      handleSearch({ ...emptyFilters, searchTerm: initialSearchCase });
     } else if (hasLoaded) {
       // Auto-refresh when filters change after initial load
       handleSearch(filters);
     }
-  }, [filters.caseNumber, filters.status, filters.fromDate, filters.toDate, initialSearchCase, initialSearchTriggered, handleSearch, hasLoaded]);
+  }, [filters.searchTerm, filters.status, filters.month, filters.fromDate, filters.toDate, initialSearchCase, initialSearchTriggered, handleSearch, hasLoaded]);
 
   const handleShowAll = () => {
     setShowAllMode(true);
@@ -461,7 +461,7 @@ function Payments() {
   return (
     <AppShell
       title="Payments & Fees"
-      subtitle="Search first, then load payment records."
+      subtitle="Search fees and payments by case, client, fee category, mode, or reference."
       actions={
         <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
           <button type="button" className="btn-gold" onClick={() => void openPaymentModal(null)} disabled={modalLoading}>
@@ -475,9 +475,9 @@ function Payments() {
     >
       <ErrorState message={error} />
       <HeaderFilters
-        searchTerm={filters.caseNumber}
-        onSearchChange={(val) => setFilters(p => ({ ...p, caseNumber: val }))}
-        searchPlaceholder="Search case number..."
+        searchTerm={filters.searchTerm}
+        onSearchChange={(val) => setFilters(p => ({ ...p, searchTerm: val }))}
+        searchPlaceholder="Search payments by any word..."
         dateRangeConfig={{
           label: "Payment Due",
           fromDate: filters.fromDate,
@@ -493,10 +493,18 @@ function Payments() {
               { value: "paid", label: "Paid" },
               { value: "partial", label: "Partial" },
               { value: "overdue", label: "Overdue" },
+              { value: "pending", label: "Pending" },
             ]
+          },
+          {
+            id: "month",
+            label: "Month",
+            type: "text",
+            inputType: "month",
+            placeholder: "Select month"
           }
         ]}
-        filterValues={{ status: filters.status }}
+        filterValues={{ status: filters.status, month: filters.month }}
         onFilterChange={(id, val) => setFilters(p => ({ ...p, [id]: val }))}
         onClearFilters={() => {
           setFilters({ ...emptyFilters });

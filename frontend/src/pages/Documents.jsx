@@ -281,7 +281,7 @@ function Documents() {
       <HeaderFilters
         searchTerm={filters.searchTerm}
         onSearchChange={(val) => setFilters(p => ({ ...p, searchTerm: val }))}
-        searchPlaceholder="Search case #, file name..."
+        searchPlaceholder="Search documents by any word..."
         dateRangeConfig={{
           label: "Upload Date",
           fromDate: filters.fromDate,
@@ -293,10 +293,7 @@ function Documents() {
           {
             id: "category",
             label: "Category",
-            options: [
-              { value: "", label: "All Categories" },
-              ...DOC_CATEGORIES.map(c => ({ value: c, label: c }))
-            ]
+            options: DOC_CATEGORIES.map(c => ({ value: c, label: c }))
           }
         ]}
         filterValues={{ category: filters.category }}

@@ -1,4 +1,5 @@
-import { useState, useRef, useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
+import { ChevronDown, ChevronUp, Search, SlidersHorizontal, X } from "lucide-react";
 import "./HeaderFilters.css";
 
 function HeaderFilters({
@@ -16,9 +17,11 @@ function HeaderFilters({
   const [panelOpen, setPanelOpen] = useState(false);
   const containerRef = useRef(null);
 
-  const activeFilterCount = Object.values(filterValues).filter(v => v && v !== "all" && v !== "").length;
+  const activeFilterCount = Object.values(filterValues).filter(
+    (value) => value && value !== "all" && value !== "ALL"
+  ).length;
   const hasActiveFilters = activeFilterCount > 0;
-  const hasDateRange = dateRangeConfig && (dateRangeConfig.fromDate || dateRangeConfig.toDate);
+  const hasDateRange = Boolean(dateRangeConfig && (dateRangeConfig.fromDate || dateRangeConfig.toDate));
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -28,109 +31,120 @@ function HeaderFilters({
     };
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, [searchTerm]);
+  }, []);
 
   const handleFilterSelect = (filterId, value) => {
-    if (onFilterChange) onFilterChange(filterId, value);
+    onFilterChange?.(filterId, value);
   };
 
   const handleClearAll = () => {
-    if (onClearFilters) onClearFilters();
-    if (dateRangeConfig) {
-      if (dateRangeConfig.onFromDateChange) dateRangeConfig.onFromDateChange("");
-      if (dateRangeConfig.onToDateChange) dateRangeConfig.onToDateChange("");
-    }
+    onClearFilters?.();
+    dateRangeConfig?.onFromDateChange?.("");
+    dateRangeConfig?.onToDateChange?.("");
   };
 
   return (
     <div className={`header-filters-container${panelOpen ? " is-open" : ""}`} ref={containerRef}>
       <div className="header-filters-top">
-        {/* Search Field */}
         <div className="premium-search-box">
-          <span className="search-icon">🔍</span>
+          <Search className="search-icon" aria-hidden="true" size={16} />
           <input
             type="text"
             className="search-input"
             value={searchTerm}
-            onChange={(e) => onSearchChange && onSearchChange(e.target.value)}
+            onChange={(event) => onSearchChange?.(event.target.value)}
             placeholder={searchPlaceholder}
           />
           {searchTerm && (
-            <button className="search-clear-btn" onClick={() => onSearchChange("")}>✕</button>
+            <button type="button" className="search-clear-btn" onClick={() => onSearchChange?.("")} aria-label="Clear search">
+              <X size={12} />
+            </button>
           )}
         </div>
 
-        {/* Compact Date Range - New! */}
         {dateRangeConfig && (
           <div className="compact-date-range-bar">
-            <span className="compact-date-label">{dateRangeConfig.label || "Dates"}:</span>
-            <input 
-              type="date" 
-              className="mini-date-input" 
-              value={dateRangeConfig.fromDate || ""} 
-              onChange={(e) => dateRangeConfig.onFromDateChange?.(e.target.value)}
+            <span className="compact-date-label">{dateRangeConfig.label || "Dates"}</span>
+            <input
+              type="date"
+              className="mini-date-input"
+              value={dateRangeConfig.fromDate || ""}
+              onChange={(event) => dateRangeConfig.onFromDateChange?.(event.target.value)}
+              aria-label={`${dateRangeConfig.label || "Date"} from`}
             />
             <span className="mini-date-sep">to</span>
-            <input 
-              type="date" 
-              className="mini-date-input" 
-              value={dateRangeConfig.toDate || ""} 
-              onChange={(e) => dateRangeConfig.onToDateChange?.(e.target.value)}
+            <input
+              type="date"
+              className="mini-date-input"
+              value={dateRangeConfig.toDate || ""}
+              onChange={(event) => dateRangeConfig.onToDateChange?.(event.target.value)}
+              aria-label={`${dateRangeConfig.label || "Date"} to`}
             />
           </div>
         )}
 
-        {/* Filter Toggle Button */}
         {(filters.length > 0 || dateRangeConfig) && (
           <button
             type="button"
             className={`filter-toggle-btn${panelOpen ? " active" : ""}${hasActiveFilters || hasDateRange ? " has-active" : ""}`}
-            onClick={() => setPanelOpen(!panelOpen)}
+            onClick={() => setPanelOpen((open) => !open)}
           >
-            <span className="filter-icon">⚙️</span>
+            <SlidersHorizontal className="filter-icon" aria-hidden="true" size={16} />
             <span className="filter-label">Filters</span>
-            {(activeFilterCount > 0 || hasDateRange) && (
-              <span className="filter-badge">
-                {activeFilterCount + (hasDateRange ? 1 : 0)}
-              </span>
+            {(hasActiveFilters || hasDateRange) && (
+              <span className="filter-badge">{activeFilterCount + (hasDateRange ? 1 : 0)}</span>
             )}
-            <span className="chevron-icon">{panelOpen ? "▴" : "▾"}</span>
+            {panelOpen ? <ChevronUp className="chevron-icon" size={14} /> : <ChevronDown className="chevron-icon" size={14} />}
           </button>
         )}
 
-        {/* Show All Button */}
         {onShowAll && (
           <button
             type="button"
             className="filter-toggle-btn panel-show-all-btn"
-            onClick={() => { onShowAll(); setPanelOpen(false); }}
+            onClick={() => {
+              onShowAll();
+              setPanelOpen(false);
+            }}
           >
             Show All
           </button>
         )}
       </div>
 
-      {/* Expandable Filter Panel (The "Drag Down" part) */}
       <div className={`filter-expand-panel${panelOpen ? " visible" : ""}`}>
         <div className="filter-panel-content">
           <div className="filter-grid">
-            {filters.map((filter) => (
-              <div key={filter.id} className="filter-item">
-                <label className="filter-item-label">{filter.label}</label>
-                <select
-                  className="filter-item-select"
-                  value={filterValues[filter.id] || ""}
-                  onChange={(e) => handleFilterSelect(filter.id, e.target.value)}
-                >
-                  <option value="">All {filter.label}</option>
-                  {filter.options.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            ))}
+            {filters.map((filter) => {
+              const isTextFilter = filter.type === "text" || !Array.isArray(filter.options) || filter.options.length === 0;
+              return (
+                <div key={filter.id} className="filter-item">
+                  <label className="filter-item-label">{filter.label}</label>
+                  {isTextFilter ? (
+                    <input
+                      type={filter.inputType || "text"}
+                      className="filter-item-input"
+                      value={filterValues[filter.id] || ""}
+                      onChange={(event) => handleFilterSelect(filter.id, event.target.value)}
+                      placeholder={filter.placeholder || `Enter ${filter.label.toLowerCase()}`}
+                    />
+                  ) : (
+                    <select
+                      className="filter-item-select"
+                      value={filterValues[filter.id] || ""}
+                      onChange={(event) => handleFilterSelect(filter.id, event.target.value)}
+                    >
+                      <option value="">{filter.allLabel || `All ${filter.label}`}</option>
+                      {filter.options.map((option) => (
+                        <option key={option.value} value={option.value}>
+                          {option.label}
+                        </option>
+                      ))}
+                    </select>
+                  )}
+                </div>
+              );
+            })}
 
             {dateRangeConfig && (
               <>
@@ -140,7 +154,7 @@ function HeaderFilters({
                     type="date"
                     className="filter-item-input"
                     value={dateRangeConfig.fromDate || ""}
-                    onChange={(e) => dateRangeConfig.onFromDateChange && dateRangeConfig.onFromDateChange(e.target.value)}
+                    onChange={(event) => dateRangeConfig.onFromDateChange?.(event.target.value)}
                   />
                 </div>
                 <div className="filter-item">
@@ -149,7 +163,7 @@ function HeaderFilters({
                     type="date"
                     className="filter-item-input"
                     value={dateRangeConfig.toDate || ""}
-                    onChange={(e) => dateRangeConfig.onToDateChange && dateRangeConfig.onToDateChange(e.target.value)}
+                    onChange={(event) => dateRangeConfig.onToDateChange?.(event.target.value)}
                   />
                 </div>
               </>
@@ -174,12 +188,7 @@ function HeaderFilters({
         </div>
       </div>
     </div>
-
   );
 }
 
-
 export default HeaderFilters;
-
-
-

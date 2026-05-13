@@ -593,6 +593,7 @@ export default function TeamManagement() {
   const [toast,        setToast]        = useState(null);
   const [search,       setSearch]       = useState("");
   const [filterRole,   setFilterRole]   = useState("ALL");
+  const [filterStatus, setFilterStatus] = useState("ALL");
   const [filterFromDate, setFilterFromDate] = useState("");
   const [filterToDate, setFilterToDate] = useState("");
   const [editingPerms, setEditingPerms] = useState(null);
@@ -631,11 +632,12 @@ export default function TeamManagement() {
     );
   }
 
+  const searchTokens = search.toLowerCase().replace(/[_-]+/g, " ").split(/\s+/).filter(Boolean);
   const filtered = members.filter((m) => {
-    const matchSearch = !search ||
-      m.email.toLowerCase().includes(search.toLowerCase()) ||
-      (m.full_name || "").toLowerCase().includes(search.toLowerCase());
+    const haystack = [m.email, m.full_name, m.role, m.status].filter(Boolean).join(" ").toLowerCase();
+    const matchSearch = searchTokens.every((token) => haystack.includes(token));
     const matchRole = filterRole === "ALL" || m.role === filterRole;
+    const matchStatus = filterStatus === "ALL" || m.status === filterStatus;
     let matchDate = true;
     if (filterFromDate || filterToDate) {
       if (!m.created_at) matchDate = false;
@@ -645,7 +647,7 @@ export default function TeamManagement() {
         if (filterToDate && d > new Date(filterToDate)) matchDate = false;
       }
     }
-    return matchSearch && matchRole && matchDate;
+    return matchSearch && matchRole && matchStatus && matchDate;
   });
 
   const activeCount  = members.filter((m) => m.status === "ACTIVE").length;
@@ -698,7 +700,7 @@ export default function TeamManagement() {
       <HeaderFilters
         searchTerm={search}
         onSearchChange={setSearch}
-        searchPlaceholder="Search name or email..."
+        searchPlaceholder="Search members by any word..."
         filters={[
           {
             id: "role",
@@ -708,16 +710,42 @@ export default function TeamManagement() {
               { value: "LAWYER", label: "Lawyer" },
               { value: "STAFF", label: "Staff" }
             ]
+          },
+          {
+            id: "status",
+            label: "Status",
+            options: [
+              { value: "ACTIVE", label: "Active" },
+              { value: "INACTIVE", label: "Inactive" },
+              { value: "PENDING", label: "Pending" }
+            ]
           }
         ]}
-        filterValues={{ role: filterRole }}
-        onFilterChange={(id, val) => setFilterRole(val || "ALL")}
+        filterValues={{ role: filterRole, status: filterStatus }}
+        onFilterChange={(id, val) => {
+          if (id === "role") setFilterRole(val || "ALL");
+          if (id === "status") setFilterStatus(val || "ALL");
+        }}
+        dateRangeConfig={{
+          label: "Joined Date",
+          fromDate: filterFromDate,
+          toDate: filterToDate,
+          onFromDateChange: setFilterFromDate,
+          onToDateChange: setFilterToDate
+        }}
         onClearFilters={() => {
           setSearch("");
           setFilterRole("ALL");
+          setFilterStatus("ALL");
+          setFilterFromDate("");
+          setFilterToDate("");
         }}
         onShowAll={() => {
+          setSearch("");
           setFilterRole("ALL");
+          setFilterStatus("ALL");
+          setFilterFromDate("");
+          setFilterToDate("");
         }}
       />
 
