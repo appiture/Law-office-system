@@ -150,6 +150,10 @@ export const syncSupabaseSession = async (providedSession = null, options = {}) 
           "Law Office",
         organizationLogoUrl: workspace?.organizationLogoUrl || previousCache.organizationLogoUrl || "",
         organizationLogoPath: workspace?.organizationLogoPath || previousCache.organizationLogoPath || "",
+        organizationAddress: workspace?.organizationAddress || previousCache.organizationAddress || "",
+        organizationPhone: workspace?.organizationPhone || previousCache.organizationPhone || "",
+        organizationEmail: workspace?.organizationEmail || previousCache.organizationEmail || "",
+        organizationWebsite: workspace?.organizationWebsite || previousCache.organizationWebsite || "",
         mustResetPassword: hasWorkspaceResult
           ? Boolean(workspace.mustResetPassword)
           : Boolean(previousCache.mustResetPassword || false),
@@ -201,6 +205,10 @@ export const getOrganizationName = () =>
   "Law Office";
 
 export const getOrganizationLogoUrl = () => readSessionCache().organizationLogoUrl || "";
+export const getOrganizationAddress = () => readSessionCache().organizationAddress || "";
+export const getOrganizationPhone = () => readSessionCache().organizationPhone || "";
+export const getOrganizationEmail = () => readSessionCache().organizationEmail || "";
+export const getOrganizationWebsite = () => readSessionCache().organizationWebsite || "";
 
 export const canAccessWorkspace = () => Boolean(readSessionCache().canAccessWorkspace);
 

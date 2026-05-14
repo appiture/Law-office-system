@@ -185,6 +185,10 @@ const getWorkspaceContextFromRpc = async (client) => {
     organizationName: data.organization_name || "Law Office",
     organizationLogoUrl,
     organizationLogoPath: data.organization_logo_path || "",
+    organizationAddress: data.organization_address || "",
+    organizationPhone: data.organization_phone || "",
+    organizationEmail: data.organization_email || "",
+    organizationWebsite: data.organization_website || "",
     organizationStatus: data.organization_status || "",
     status: data.status || "",
     canAccessWorkspace: Boolean(data.can_access_workspace),
@@ -1881,6 +1885,10 @@ const supabasePlatformApi = {
         organization_name: payload.name?.trim(),
         organization_logo_url: payload.logoUrl || "",
         organization_logo_path: payload.logoPath || "",
+        organization_address: payload.address || "",
+        organization_phone: payload.phone || "",
+        organization_email: payload.email || "",
+        organization_website: payload.website || "",
       });
 
     if (error) throw error;

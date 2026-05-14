@@ -1,12 +1,13 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, useParams } from "react-router-dom";
 import AppShell from "../components/AppShell";
 import CaseIdentityCard from "../components/CaseIdentityCard";
 import HeaderFilters from "../components/HeaderFilters";
 import ControlledSearchPanel, { EmptyState, ErrorState, LoadingState, PaginationControls } from "../components/ControlledSearchPanel";
 import CaseCombobox from "../components/CaseCombobox";
 import { supabasePlatformApi as platformApi } from "../repositories/supabaseRepository";
+import { supabase } from "../services/supabaseClient";
 import {
   assertFollowUpPayload,
   getApiErrorMessage,
@@ -15,6 +16,8 @@ import {
   splitOtherSelection,
 } from "../utils/validation";
 import { formatDateTime, textOrDash } from "../utils/formatters";
+import ExportModal from "../components/ExportModal";
+import logger from "../services/loggerService";
 import "./formStyles.css";
 
 const EVENT_TYPES = ["HEARING", "DEADLINE", "JUDGMENT", "NOTE", "BAIL", "CHARGE", "SUBMISSION", "OTHER"];
@@ -244,7 +247,9 @@ function FollowUps() {
   const [cases,      setCases]      = useState([]);
   const [modalCases, setModalCases] = useState([]);
   const [eventModal, setEventModal] = useState(null); // { caseId, editItem? }
+  const [showExportModal, setShowExportModal] = useState(false);
   const [searchParams] = useSearchParams();
+  const { followupId } = useParams();
   const initialSearchCase = searchParams.get("searchCase") || "";
   const [filters, setFilters] = useState({ ...emptyFilters, searchTerm: initialSearchCase });
   const [hasLoaded, setHasLoaded] = useState(false);
@@ -272,7 +277,7 @@ function FollowUps() {
       setHasLoaded(true);
       setShowAllMode(showAll);
     } catch (err) {
-      console.error("Failed to load timeline events:", err);
+      logger.error("Failed to load timeline events", err);
       setError(err.message || "Failed to load timeline events.");
       setCases([]);
       setTotal(0);
@@ -290,7 +295,7 @@ function FollowUps() {
       setModalCases(Array.isArray(response.items) ? response.items : []);
       return true;
     } catch (err) {
-      console.error("Failed to load cases for event modal:", err);
+      logger.error("Failed to load cases for event modal", err);
       setError(err.message || "Failed to load cases for the event modal.");
       return false;
     } finally {
@@ -303,6 +308,40 @@ function FollowUps() {
     if (!ready) return;
     setEventModal(payload);
   };
+
+  const openFollowupModal = async (id) => {
+    setModalLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("followups")
+        .select("*")
+        .eq("id", id)
+        .single();
+      if (!error && data) {
+        const editItem = {
+          id: data.id,
+          type: data.type,
+          title: data.title,
+          scheduledAt: data.date,
+          status: data.status,
+          notes: data.notes,
+          postponedTo: data.postponed_to,
+        };
+        await openEventModal({ caseId: data.case_id, editItem });
+      }
+    } catch (err) {
+      logger.error("Failed to load follow-up", err);
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (followupId) {
+      openFollowupModal(followupId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [followupId]);
 
   const markCompleted = async (caseId, item) => {
     await platformApi.updateFollowUp(caseId, item.id, {
@@ -350,7 +389,10 @@ function FollowUps() {
       subtitle="Central timeline for hearings, deadlines, and key case milestones — colour-coded by urgency."
       actions={
         <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
-          <button type="button" className="btn-gold" onClick={() => void openEventModal({})} disabled={modalLoading} style={{ whiteSpace: 'nowrap' }}>
+          <button type="button" className="btn-gold" onClick={() => setShowExportModal(true)}>
+            📥 Export
+          </button>
+          <button type="button" className="primary-button" onClick={() => void openEventModal({})} disabled={modalLoading} style={{ whiteSpace: 'nowrap' }}>
             {modalLoading ? "Loading..." : "+ Add Event"}
           </button>
         </div>
@@ -482,6 +524,16 @@ function FollowUps() {
           cases={modalCases}
           onClose={() => setEventModal(null)}
           onSaved={loadData}
+        />
+      )}
+
+      {showExportModal && (
+        <ExportModal
+          isOpen={showExportModal}
+          onClose={() => setShowExportModal(false)}
+          type="followups"
+          currentFilters={filters}
+          defaultDateRange={{ start: filters.fromDate, end: filters.toDate }}
         />
       )}
     </AppShell>

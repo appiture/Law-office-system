@@ -14,6 +14,7 @@ import {
 } from "../utils/validation";
 import { formatDateTime } from "../utils/formatters";
 import { getUserRole } from "../services/authService";
+import ExportModal from "../components/ExportModal";
 import "./formStyles.css";
 
 const CASE_TYPES = [
@@ -271,6 +272,7 @@ function Cases() {
   const [lawyers, setLawyers] = useState([]);
   const [cases,   setCases]   = useState([]);
   const [showModal,    setShowModal]    = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
   const [editingCase,  setEditingCase]  = useState(null);
   const [filters, setFilters] = useState(() => ({ ...emptyFilters, searchTerm: searchParams.get("search") || "" }));
   const [hasLoaded, setHasLoaded] = useState(Boolean(searchParams.get("search")));
@@ -375,8 +377,11 @@ function Cases() {
       subtitle="Search cases by case number, client, court, lawyer, opponent, or notes."
       actions={
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+          <button type="button" className="btn-gold" onClick={() => setShowExportModal(true)}>
+            📥 Export
+          </button>
           {userRole !== "LAWYER" && (
-            <button type="button" className="btn-gold" onClick={() => void openCreate()} disabled={modalLoading} style={{ whiteSpace: 'nowrap' }}>
+            <button type="button" className="primary-button" onClick={() => void openCreate()} disabled={modalLoading} style={{ whiteSpace: 'nowrap' }}>
               {modalLoading ? "Loading..." : "+ Add Case"}
             </button>
           )}
@@ -476,6 +481,16 @@ function Cases() {
           onClose={closeModal}
           onSaved={loadData}
           canAssignLawyer={isAdmin}
+        />
+      )}
+
+      {showExportModal && (
+        <ExportModal
+          isOpen={showExportModal}
+          onClose={() => setShowExportModal(false)}
+          type="cases"
+          currentFilters={filters}
+          defaultDateRange={{ start: filters.fromDate, end: filters.toDate }}
         />
       )}
     </AppShell>

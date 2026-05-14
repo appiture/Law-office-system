@@ -12,7 +12,10 @@ import { getOrganizationId, getUserId, isDemo, getDemoExpiresAt } from "../servi
 import { TrendAreaChart } from "../components/DashboardCharts";
 import DashboardSearchResults from "../components/DashboardSearchResults";
 import { useTheme } from "../context/ThemeContext";
+import ExportModal from "../components/ExportModal";
 import { isOrgAdmin, sendMonthlyReport } from "../services/adminService";
+import { getEntityUrl } from "../utils/navigationHelper";
+import logger from "../services/loggerService";
 import "./Dashboard.css";
 import "./formStyles.css";
 
@@ -132,7 +135,7 @@ function Dashboard() {
         if (error) throw error;
         setPendingTaskCount(count || 0);
       } catch (err) {
-        console.error("Dashboard failed to refresh task count", err);
+        logger.error("Dashboard failed to refresh task count", err);
         setPendingTaskCount(0);
       }
     };
@@ -150,6 +153,8 @@ function Dashboard() {
   const defaultMonth = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
   const [reportMonth, setReportMonth] = useState(defaultMonth);
   const [reportState, setReportState] = useState({ loading: false, toast: null }); // toast: {type:'success'|'error', msg}
+
+  const [showExportModal, setShowExportModal] = useState(false);
 
   const handleDateClick = (date) => {
     setAgendaDate(date);
@@ -225,7 +230,7 @@ function Dashboard() {
       const events = await platformApi.getCalendarEvents();
       setCalendarEvents(events || []);
     } catch (err) {
-      console.error("Failed to load dashboard:", err);
+      logger.error("Failed to load dashboard", err);
       setError(err.message || "Failed to load dashboard.");
     } finally {
       setLoading(false);
@@ -290,7 +295,6 @@ function Dashboard() {
                    lawyerFeeChargeIds.has(String(entry.chargeItemId));
           });
           
-          // Synthesize history logic omitted for brevity but applies to syntheticHistory as well
           const historyAmountsByChargeId = new Map();
           (legalCase.paymentHistory || []).forEach(h => {
             const chargeKey = String(h.chargeItemId);
@@ -332,10 +336,12 @@ function Dashboard() {
         collection.push({
           id: `case-hearing-${legalCase.id}`,
           type: "Hearing",
+          entityType: "hearing",
+          entityId: legalCase.id,
           title: `Next hearing: ${legalCase.caseNumber}`,
           date: legalCase.nextHearingDate,
           key: toDateKey(legalCase.nextHearingDate),
-          to: `/cases/${legalCase.id}#case-card`,
+          to: getEntityUrl("hearing", legalCase.id),
           client: legalCase.client?.name || "Client",
           caseNumber: legalCase.caseNumber,
         });
@@ -343,15 +349,20 @@ function Dashboard() {
 
       (legalCase.followUps || []).forEach((item) => {
         const type = String(item.type || "").toUpperCase() === "DEADLINE" ? "Deadline" : String(item.type || "").toUpperCase() === "HEARING" ? "Hearing" : "Follow-up";
+        const entityType = type === "Deadline" ? "deadline" : type === "Hearing" ? "hearing" : "followup";
         collection.push({
           id: `followup-${item.id}`,
           type,
+          entityType,
+          entityId: item.id,
           title: item.title || type,
           date: item.scheduledAt || item.postponedTo,
           key: toDateKey(item.scheduledAt || item.postponedTo),
-          to: `/cases/${legalCase.id}#followups-card`,
+          to: getEntityUrl(entityType, item.id),
           client: legalCase.client?.name || "Client",
           caseNumber: legalCase.caseNumber,
+          caseId: legalCase.id,
+          followupId: item.id,
         });
       });
 
@@ -360,10 +371,12 @@ function Dashboard() {
         collection.push({
           id: `fee-deadline-${item.id}`,
           type: "Deadline",
+          entityType: "payment",
+          entityId: item.id,
           title: `${item.label} due: ${legalCase.caseNumber}`,
           date: item.dueDate,
           key: toDateKey(item.dueDate),
-          to: `/cases/${legalCase.id}#payment-card`,
+          to: getEntityUrl("payment", item.id),
           client: legalCase.client?.name || "Client",
           caseNumber: legalCase.caseNumber,
         });
@@ -376,13 +389,16 @@ function Dashboard() {
         ...evt,
         id: evt.id,
         type: evt.event_type === "note" ? "Note" : evt.event_type.charAt(0).toUpperCase() + evt.event_type.slice(1),
+        entityType: evt.event_type === "hearing" ? "hearing" : "followup",
+        entityId: evt.id,
         title: evt.title,
         date: evt.event_date,
         key: toDateKey(evt.event_date),
-        color: isHearing ? "#3b82f6" : evt.color, // Force blue for manual hearings too
+        color: isHearing ? "#3b82f6" : evt.color,
         isManualEvent: true,
         client: "",
         caseNumber: "",
+        to: getEntityUrl(evt.event_type === "hearing" ? "hearing" : "followup", evt.id)
       });
     });
 
@@ -439,7 +455,9 @@ function Dashboard() {
               amount: Number(item.balanceAmount || 0),
               dueDate: item.dueDate,
               status: item.status,
-              to: `/cases/${legalCase.id}#payment-card`,
+              entityType: "payment",
+              entityId: item.id,
+              to: getEntityUrl("payment", item.id),
             }))
         )
         .filter((item) => searchMatches(item.title, item.client, item.caseNumber, item.status, formatDate(item.dueDate)))
@@ -523,36 +541,14 @@ function Dashboard() {
               )}
             </div>
             {isOrgAdmin() && (
-              <div className="dashboard-report-group">
-                <input
-                  type="month"
-                  value={reportMonth}
-                  onChange={(e) => setReportMonth(e.target.value)}
-                  className="dashboard-month-input"
-                  disabled={reportState.loading}
-                  aria-label="Report month"
-                />
-                <div className="dashboard-report-actions">
-                  <button
-                    type="button"
-                    className="btn-report btn-report--email"
-                    onClick={() => handleSendReport(false)}
-                    disabled={reportState.loading}
-                    title="Send monthly Excel report to your email"
-                  >
-                    {reportState.loading ? "..." : "📧 Email"}
-                  </button>
-                  <button
-                    type="button"
-                    className="btn-report btn-report--download"
-                    onClick={() => handleSendReport(true)}
-                    disabled={reportState.loading}
-                    title="Download monthly Excel report directly"
-                  >
-                    {reportState.loading ? "..." : "📥 Download"}
-                  </button>
-                </div>
-              </div>
+              <button
+                type="button"
+                className="btn-gold"
+                onClick={() => setShowExportModal(true)}
+                style={{ display: "flex", alignItems: "center", gap: "8px" }}
+              >
+                📥 Export Report
+              </button>
             )}
           </div>
         </div>
@@ -815,13 +811,11 @@ function Dashboard() {
                         <Link key={item.id} to={item.to} className={`dashboard-cash-item ${String(item.status).toLowerCase() === "overdue" ? "is-overdue" : ""}`} onClick={() => setNotificationOpen(false)}>
                           <span>{item.status || "Pending"}</span>
                           <strong>{item.title}</strong>
-                          <div>
-                            <small>{item.client} · {item.caseNumber}</small>
-                            <b>{currency(item.amount)}</b>
-                          </div>
+                          <small>{item.client} · {item.caseNumber}</small>
+                          <div className="dashboard-cash-amount">{currency(item.amount)}</div>
                         </Link>
                       ))}
-                      {cashChecklist.length === 0 && <div className="empty-box">No cash checklist items match the current search.</div>}
+                      {cashChecklist.length === 0 && <div className="empty-box">No pending payments match the current search.</div>}
                     </div>
                   </section>
                 </div>
@@ -834,165 +828,17 @@ function Dashboard() {
           document.body
         )}
 
-      {eventModalOpen && createPortal(
-        <EventModal
-          selectedDate={selectedDate}
-          selectedEvent={selectedEvent}
-          onClose={() => {
-            setEventModalOpen(false);
-            setSelectedEvent(null);
-            setSelectedDate(null);
-          }}
-          onSave={async (eventData) => {
-            try {
-              await platformApi.saveCalendarEvent(eventData, selectedEvent?.id);
-              await loadDashboard(); // Reload to get updated events
-              setEventModalOpen(false);
-              setSelectedEvent(null);
-              setSelectedDate(null);
-            } catch (err) {
-              alert("Failed to save event: " + err.message);
-            }
-          }}
-          onDelete={async () => {
-            if (!selectedEvent) return;
-            if (!confirm("Delete this event?")) return;
-            try {
-              await platformApi.deleteCalendarEvent(selectedEvent.id);
-              await loadDashboard();
-              setEventModalOpen(false);
-              setSelectedEvent(null);
-              setSelectedDate(null);
-            } catch (err) {
-              alert("Failed to delete event: " + err.message);
-            }
-          }}
-        />,
-        document.body
+      {showExportModal && (
+        <ExportModal
+          isOpen={showExportModal}
+          onClose={() => setShowExportModal(false)}
+          type="dashboard"
+          currentFilters={{ searchTerm: dashboardSearch }}
+          defaultDateRange={{ start: fromDate, end: toDate }}
+        />
       )}
     </AppShell>
   );
 }
 
-function EventModal({ selectedDate, selectedEvent, onClose, onSave, onDelete }) {
-  const [form, setForm] = useState({
-    title: selectedEvent?.title || "",
-    description: selectedEvent?.description || "",
-    eventDate: selectedDate || selectedEvent?.event_date || "",
-    eventType: selectedEvent?.event_type || "note",
-    color: selectedEvent?.color || "#A855F7",
-  });
-  const [isEditing, setIsEditing] = useState(!selectedEvent);
-  const [saving, setSaving] = useState(false);
-
-  const eventTypes = [
-    { value: "note", label: "Note", color: "#A855F7" },
-    { value: "hearing", label: "Hearing", color: "#3b82f6" },
-    { value: "deadline", label: "Deadline", color: "#DC2626" },
-    { value: "meeting", label: "Meeting", color: "#16A34A" },
-  ];
-
-  const handleSave = async () => {
-    if (!form.title.trim()) {
-      alert("Title is required");
-      return;
-    }
-    setSaving(true);
-    try {
-      const eventTypeData = eventTypes.find(t => t.value === form.eventType);
-      await onSave({
-        ...form,
-        color: eventTypeData ? eventTypeData.color : form.color,
-      });
-    } catch (err) {
-      // Error handled in onSave
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  return (
-    <div className="flow-modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
-      <div className="flow-modal flow-modal-sm">
-        <div className="flow-modal-header">
-          <div className="flow-modal-header-info">
-            <h3>{selectedEvent ? (isEditing ? "Edit Event" : "View Event") : "Add Event"}</h3>
-            <p>{selectedDate ? formatDate(new Date(selectedDate)) : ""}</p>
-          </div>
-          <button className="flow-modal-close" onClick={onClose}>x</button>
-        </div>
-        <div className="flow-modal-body">
-          {isEditing ? (
-            <div className="form-section">
-              <div className="form-section-grid">
-                <div className="field-group fcol-full">
-                  <span className="field-label">Title *</span>
-                  <input
-                    value={form.title}
-                    onChange={(e) => setForm(f => ({ ...f, title: e.target.value }))}
-                    placeholder="Event title"
-                  />
-                </div>
-                <div className="field-group fcol-full">
-                  <span className="field-label">Description</span>
-                  <textarea
-                    value={form.description}
-                    onChange={(e) => setForm(f => ({ ...f, description: e.target.value }))}
-                    rows={3}
-                    placeholder="Optional description"
-                  />
-                </div>
-                <div className="field-group">
-                  <span className="field-label">Type</span>
-                  <select
-                    value={form.eventType}
-                    onChange={(e) => setForm(f => ({ ...f, eventType: e.target.value }))}
-                  >
-                    {eventTypes.map(type => (
-                      <option key={type.value} value={type.value}>{type.label}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="event-view-content">
-              <div className="event-view-header">
-                <span className="event-type-tag" style={{ backgroundColor: form.color }}>{form.eventType}</span>
-                <h4>{form.title}</h4>
-              </div>
-              {form.description ? (
-                <div className="event-view-description">
-                  <h5>Description</h5>
-                  <p>{form.description}</p>
-                </div>
-              ) : (
-                <p className="empty-description">No description provided.</p>
-              )}
-            </div>
-          )}
-        </div>
-        <div className="flow-modal-footer">
-          <button className="btn-neutral" onClick={onClose}>Close</button>
-          {selectedEvent && !isEditing && (
-            <button className="btn-neutral" onClick={() => setIsEditing(true)}>Edit</button>
-          )}
-          {selectedEvent && isEditing && (
-            <button className="btn-danger-soft" onClick={onDelete}>Delete</button>
-          )}
-          {isEditing && (
-            <button className="btn-gold" onClick={handleSave} disabled={saving}>
-              {saving ? "Saving..." : "Save"}
-            </button>
-          )}
-        </div>
-      </div>
-    </div>
-  );
-}
-
 export default Dashboard;
-
-
-
-

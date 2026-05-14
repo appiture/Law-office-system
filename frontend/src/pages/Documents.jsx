@@ -10,6 +10,8 @@ import { buildTenantAssetPrefix, getPersistentAssetUrl, removeAsset, uploadAsset
 import { supabaseBuckets } from "../services/supabaseClient";
 import { assertDocumentPayload, getApiErrorMessage, resolveOtherSelection } from "../utils/validation";
 import { formatDateTime } from "../utils/formatters";
+import ExportModal from "../components/ExportModal";
+import logger from "../services/loggerService";
 import "./formStyles.css";
 
 const DOC_CATEGORIES = [
@@ -199,6 +201,7 @@ function Documents() {
 
   const [cases, setCases] = useState([]);
   const [uploadFor, setUploadFor] = useState(null);
+  const [showExportModal, setShowExportModal] = useState(false);
   const [filters, setFilters] = useState({ ...emptyFilters, searchTerm: initialSearchCase });
   const [loading, setLoading] = useState(false);
   const [hasLoaded, setHasLoaded] = useState(false);
@@ -224,7 +227,7 @@ function Documents() {
       setHasLoaded(true);
       setShowAllMode(showAll);
     } catch (err) {
-      console.error("Failed to load documents:", err);
+      logger.error("Failed to load documents", err);
       setError(err.message || "Failed to load documents.");
       setCases([]);
       setTotal(0);
@@ -248,20 +251,38 @@ function Documents() {
     void loadDocuments({ nextPage });
   };
 
+  const focusDocId = searchParams.get("focus");
+
+  useEffect(() => {
+    if (focusDocId && cases.length > 0) {
+      const targetCase = cases.find(c => c.documents?.some(d => String(d.id) === focusDocId));
+      if (targetCase) {
+        // Scroll to the case card or document if needed
+        const el = document.getElementById(`doc-${focusDocId}`);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+  }, [focusDocId, cases]);
+
   useEffect(() => {
     const hasActiveFilters = Object.values(filters).some(Boolean);
     if (initialSearchCase && !initialSearchTriggered) {
       setInitialSearchTriggered(true);
       handleSearch({ ...emptyFilters, searchTerm: initialSearchCase });
-    } else if (hasActiveFilters) {
-      handleSearch(filters);
+    } else if (hasActiveFilters || focusDocId) {
+      // If we have a focusDocId, we should probably load everything or the relevant case
+      // For now, handleSearch(filters) is fine if filters are empty it might not load much
+      // but usually deep links will include searchCase or similar if possible.
+      // If no filters, and focusDocId exists, let's trigger a load if not loaded
+      if (!hasLoaded) handleShowAll();
+      else handleSearch(filters);
     } else if (hasLoaded && !showAllMode) {
       setCases([]);
       setTotal(0);
       setHasLoaded(false);
       setError("");
     }
-  }, [filters.searchTerm, filters.category, filters.fromDate, filters.toDate, initialSearchCase, initialSearchTriggered, handleSearch, hasLoaded, showAllMode]);
+  }, [filters.searchTerm, filters.category, filters.fromDate, filters.toDate, initialSearchCase, initialSearchTriggered, handleSearch, hasLoaded, showAllMode, focusDocId]);
 
   const deleteDocument = async (caseId, doc) => {
     if (!window.confirm(`Delete "${doc.fileName}"?`)) return;
@@ -279,9 +300,14 @@ function Documents() {
       title="Documents"
       subtitle="Standardized document management across all cases."
       actions={
-        <button type="button" className="btn-gold" onClick={() => setUploadFor(cases[0]?.id)} disabled={!hasLoaded || cases.length === 0}>
-          + Upload Document
-        </button>
+        <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+          <button type="button" className="btn-gold" onClick={() => setShowExportModal(true)}>
+            📥 Export
+          </button>
+          <button type="button" className="primary-button" onClick={() => setUploadFor(cases[0]?.id)} disabled={!hasLoaded || cases.length === 0}>
+            + Upload Document
+          </button>
+        </div>
       }
     >
       <HeaderFilters
@@ -362,7 +388,7 @@ function Documents() {
                           const { emoji, cls } = docIcon(doc.fileType, doc.fileName);
                           const fileUrl = getPersistentAssetUrl(doc.fileUrl);
                           return (
-                            <div key={doc.id} className="doc-card">
+                            <div key={doc.id} id={`doc-${doc.id}`} className={`doc-card ${String(doc.id) === focusDocId ? 'doc-card-focused' : ''}`}>
                               <div className={`doc-icon ${cls}`}>{emoji}</div>
                               <div className="doc-info">
                                 <strong title={doc.fileName}>{doc.fileName}</strong>
@@ -421,6 +447,16 @@ function Documents() {
           caseId={uploadFor}
           onClose={() => setUploadFor(null)}
           onSaved={loadDocuments}
+        />
+      )}
+
+      {showExportModal && (
+        <ExportModal
+          isOpen={showExportModal}
+          onClose={() => setShowExportModal(false)}
+          type="documents"
+          currentFilters={filters}
+          defaultDateRange={{ start: filters.fromDate, end: filters.toDate }}
         />
       )}
     </AppShell>

@@ -17,6 +17,7 @@ const routePreloaders = [
   () => import("./pages/Documents"),
   () => import("./pages/FollowUps"),
   () => import("./pages/CaseDetails"),
+  () => import("./pages/ClientDetails"),
   () => import("./pages/Settings"),
   () => import("./pages/SuperAdminDashboard"),
   () => import("./pages/TeamManagement"),
@@ -35,13 +36,14 @@ const Payments = lazy(routePreloaders[4]);
 const Documents = lazy(routePreloaders[5]);
 const FollowUps = lazy(routePreloaders[6]);
 const CaseDetails = lazy(routePreloaders[7]);
-const Settings = lazy(routePreloaders[8]);
-const SuperAdminDashboard = lazy(routePreloaders[9]);
-const TeamManagement = lazy(routePreloaders[10]);
-const ResetPassword = lazy(routePreloaders[11]);
-const SuperAdminLogin = lazy(routePreloaders[12]);
-const SystemAuditLogs = lazy(routePreloaders[13]);
-const Tasks = lazy(routePreloaders[14]);
+const ClientDetails = lazy(routePreloaders[8]);
+const Settings = lazy(routePreloaders[9]);
+const SuperAdminDashboard = lazy(routePreloaders[10]);
+const TeamManagement = lazy(routePreloaders[11]);
+const ResetPassword = lazy(routePreloaders[12]);
+const SuperAdminLogin = lazy(routePreloaders[13]);
+const SystemAuditLogs = lazy(routePreloaders[14]);
+const Tasks = lazy(routePreloaders[15]);
 
 function App() {
   useEffect(() => {
@@ -88,7 +90,12 @@ function App() {
 
   useEffect(() => {
     const preloadRoutes = () => {
-      routePreloaders.forEach((preload) => {
+      const criticalRoutes = [
+        routePreloaders[1], // Dashboard
+        routePreloaders[3], // Cases
+        routePreloaders[6], // FollowUps/Hearings
+      ];
+      criticalRoutes.forEach((preload) => {
         preload().catch(() => {});
       });
     };
@@ -148,7 +155,7 @@ function App() {
               path="/clients/:clientId"
               element={
                 <ProtectedRoute section="clients">
-                  <CaseDetails />
+                  <ClientDetails />
                 </ProtectedRoute>
               }
             />
@@ -170,6 +177,14 @@ function App() {
             />
             <Route
               path="/followups"
+              element={
+                <ProtectedRoute section="followups">
+                  <FollowUps />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="/followups/:followupId"
               element={
                 <ProtectedRoute section="followups">
                   <FollowUps />

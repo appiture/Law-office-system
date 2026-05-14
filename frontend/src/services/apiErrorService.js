@@ -32,7 +32,7 @@ export class AppError extends Error {
  * Centralized logging & Alerting 
  * In production, this would integrate with Sentry, Datadog, or New Relic.
  */
-const reportError = (error) => {
+export const reportError = (error) => {
   const isCritical = 
     error.category === ErrorCategory.SERVER || 
     error.category === ErrorCategory.AUTH ||

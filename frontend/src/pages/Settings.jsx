@@ -6,6 +6,10 @@ import { supabaseBuckets } from "../services/supabaseClient";
 import { 
   getOrganizationName, 
   getOrganizationLogoUrl, 
+  getOrganizationAddress,
+  getOrganizationPhone,
+  getOrganizationEmail,
+  getOrganizationWebsite,
   getUserFullName, 
   getUserAvatarUrl,
   getUserEmail,
@@ -22,6 +26,10 @@ function Settings() {
   const [orgName, setOrgName] = useState(getOrganizationName());
   const [orgLogoUrl, setOrgLogoUrl] = useState(getOrganizationLogoUrl());
   const [orgLogoPath, setOrgLogoPath] = useState("");
+  const [orgAddress, setOrgAddress] = useState(getOrganizationAddress());
+  const [orgPhone, setOrgPhone] = useState(getOrganizationPhone());
+  const [orgEmail, setOrgEmail] = useState(getOrganizationEmail());
+  const [orgWebsite, setOrgWebsite] = useState(getOrganizationWebsite());
   
   // User state
   const [fullName, setFullName] = useState(getUserFullName());
@@ -126,7 +134,11 @@ function Settings() {
       await supabasePlatformApi.saveOrganizationSettings({
         name: orgName,
         logoUrl: orgLogoUrl,
-        logoPath: orgLogoPath
+        logoPath: orgLogoPath,
+        address: orgAddress,
+        phone: orgPhone,
+        email: orgEmail,
+        website: orgWebsite
       });
       await syncSupabaseSession(null, { force: true });
       setSuccess("Organization branding saved successfully!");
@@ -221,6 +233,46 @@ function Settings() {
                   placeholder="Enter organization name" 
                   value={orgName}
                   onChange={(e) => setOrgName(e.target.value)}
+                />
+              </div>
+
+              <div className="field-group fcol-full">
+                <label className="field-label">Office Address</label>
+                <textarea 
+                  placeholder="Enter full office address for reports" 
+                  value={orgAddress}
+                  onChange={(e) => setOrgAddress(e.target.value)}
+                  style={{ minHeight: "80px", resize: "vertical" }}
+                />
+              </div>
+
+              <div className="field-group">
+                <label className="field-label">Contact Phone</label>
+                <input 
+                  type="text" 
+                  placeholder="e.g. +91 98765 43210" 
+                  value={orgPhone}
+                  onChange={(e) => setOrgPhone(e.target.value)}
+                />
+              </div>
+
+              <div className="field-group">
+                <label className="field-label">Official Email</label>
+                <input 
+                  type="email" 
+                  placeholder="e.g. contact@lawoffice.com" 
+                  value={orgEmail}
+                  onChange={(e) => setOrgEmail(e.target.value)}
+                />
+              </div>
+
+              <div className="field-group fcol-full">
+                <label className="field-label">Website URL</label>
+                <input 
+                  type="url" 
+                  placeholder="e.g. https://www.lawoffice.com" 
+                  value={orgWebsite}
+                  onChange={(e) => setOrgWebsite(e.target.value)}
                 />
               </div>
             </div>

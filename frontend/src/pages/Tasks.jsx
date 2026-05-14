@@ -1,9 +1,12 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
+import { useSearchParams } from "react-router-dom";
 import AppShell from "../components/AppShell";
 import { supabasePlatformApi as platformApi } from "../repositories/supabaseRepository";
 import { getOrganizationId, getUserId } from "../services/authService";
 import HeaderFilters from "../components/HeaderFilters";
+import ExportModal from "../components/ExportModal";
+import logger from "../services/loggerService";
 import "./Tasks.css";
 
 const PRIORITY_OPTIONS = ["LOW", "MEDIUM", "HIGH", "URGENT"];
@@ -259,6 +262,9 @@ function TaskModal({ task, onClose, onSave, saving }) {
 
 /* ── Main Tasks Page ────────────────────────────────────────────────── */
 export default function Tasks() {
+  const [searchParams] = useSearchParams();
+  const focusTaskId = searchParams.get("focus");
+  
   const [tasks, setTasks]           = useState([]);
   const [loading, setLoading]       = useState(true);
   const [saving, setSaving]         = useState(false);
@@ -266,6 +272,7 @@ export default function Tasks() {
   const [toast, setToast]           = useState("");
   const [editingTask, setEditingTask] = useState(null);
   const [showModal, setShowModal]   = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
   const [filterStatus, setFilterStatus] = useState("ALL");
   const [filterPriority, setFilterPriority] = useState("ALL");
   const [searchQuery, setSearchQuery] = useState("");
@@ -292,6 +299,7 @@ export default function Tasks() {
       setTasks(data || []);
       dispatchTasksUpdated();
     } catch (err) {
+      logger.error("Failed to load tasks", err);
       setError(err.message || "Failed to load tasks.");
     } finally {
       setLoading(false);
@@ -301,6 +309,16 @@ export default function Tasks() {
   useEffect(() => {
     void loadTasks();
   }, [loadTasks]);
+
+  useEffect(() => {
+    if (focusTaskId && tasks.length > 0) {
+      const task = tasks.find(t => String(t.id) === focusTaskId);
+      if (task) {
+        setEditingTask(task);
+        setShowModal(true);
+      }
+    }
+  }, [focusTaskId, tasks]);
 
   const handleSave = async (form) => {
     setSaving(true);
@@ -318,6 +336,7 @@ export default function Tasks() {
       setEditingTask(null);
       dispatchTasksUpdated();
     } catch (err) {
+      logger.error("Failed to save task", err);
       setError(err.message || "Failed to save task.");
     } finally {
       setSaving(false);
@@ -332,6 +351,7 @@ export default function Tasks() {
       showToast("Task added!");
       dispatchTasksUpdated();
     } catch (err) {
+      logger.error("Failed to add task", err);
       setError(err.message || "Failed to add task.");
     } finally {
       setSaving(false);
@@ -347,6 +367,7 @@ export default function Tasks() {
       showToast("Task deleted.");
       dispatchTasksUpdated();
     } catch (err) {
+      logger.error("Failed to delete task", err);
       setError(err.message || "Failed to delete task.");
     } finally {
       setSaving(false);
@@ -386,7 +407,6 @@ export default function Tasks() {
     return true;
   });
 
-  // Sort: pending + overdue first, then by priority, then by date
   const PRIORITY_ORDER = { URGENT: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
   const sortedTasks = [...filteredTasks].sort((a, b) => {
     if (a.status === "COMPLETED" && b.status !== "COMPLETED") return 1;
@@ -404,12 +424,16 @@ export default function Tasks() {
       title="Tasks"
       subtitle="Manage your team's action items, deadlines, and deliverables."
       actions={
-        <button type="button" className="btn-gold" onClick={() => { setEditingTask(null); setShowModal(true); }}>
-          + New Task
-        </button>
+        <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
+          <button type="button" className="btn-gold" onClick={() => setShowExportModal(true)} style={{ background: "rgba(196, 154, 108, 0.1)", color: "var(--color-gold)", border: "1px solid var(--color-gold)" }}>
+            📥 Export
+          </button>
+          <button type="button" className="btn-gold" onClick={() => { setEditingTask(null); setShowModal(true); }}>
+            + New Task
+          </button>
+        </div>
       }
     >
-      {/* ── KPI Strip ── */}
       <div className="tasks-kpi-strip">
         <div className="tasks-kpi-card tasks-kpi-pending">
           <span className="tasks-kpi-number">{pendingCount}</span>
@@ -429,7 +453,6 @@ export default function Tasks() {
         </div>
       </div>
 
-      {/* ── Quick Add ── */}
       <QuickAddBar onAdd={handleQuickAdd} saving={saving} />
 
       <HeaderFilters
@@ -476,10 +499,8 @@ export default function Tasks() {
         }}
       />
 
-      {/* ── Error Banner ── */}
       {error && <div className="form-error-banner" style={{ marginBottom: 16 }}>{error}</div>}
 
-      {/* ── Task List ── */}
       {loading ? (
         <div className="premium-loader">Loading tasks…</div>
       ) : sortedTasks.length === 0 ? (
@@ -502,14 +523,12 @@ export default function Tasks() {
         </div>
       )}
 
-      {/* ── Results count ── */}
       {!loading && tasks.length > 0 && (
         <p className="tasks-result-count">
           Showing {sortedTasks.length} of {tasks.length} task{tasks.length !== 1 ? "s" : ""}
         </p>
       )}
 
-      {/* ── Modal ── */}
       {showModal && (
         <TaskModal
           task={editingTask}
@@ -519,7 +538,16 @@ export default function Tasks() {
         />
       )}
 
-      {/* ── Toast ── */}
+      {showExportModal && (
+        <ExportModal
+          isOpen={showExportModal}
+          onClose={() => setShowExportModal(false)}
+          type="tasks"
+          currentFilters={{ status: filterStatus, priority: filterPriority, searchTerm: searchQuery }}
+          defaultDateRange={{ start: filterFromDate, end: filterToDate }}
+        />
+      )}
+
       {toast && <div className="success-toast">{toast}</div>}
     </AppShell>
   );

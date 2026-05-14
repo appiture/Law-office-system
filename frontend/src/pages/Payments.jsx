@@ -15,6 +15,8 @@ import {
   resolveOtherSelection,
 } from "../utils/validation";
 import { currency, formatDate, sentenceCaseStatus, textOrDash } from "../utils/formatters";
+import ExportModal from "../components/ExportModal";
+import logger from "../services/loggerService";
 import "./formStyles.css";
 
 const PAYMENT_MODES = ["Cash", "UPI", "Bank Transfer", "NEFT/RTGS", "Cheque", "Demand Draft", "Other"];
@@ -379,6 +381,7 @@ function Payments() {
   const [feeModal,     setFeeModal]     = useState(null); 
   const [payModal,     setPayModal]     = useState(null); 
   const [detailEntry,  setDetailEntry]  = useState(null); 
+  const [showExportModal, setShowExportModal] = useState(false);
   const [searchParams] = useSearchParams();
   const initialSearchCase = searchParams.get("searchCase") || "";
   const [filters, setFilters] = useState({ ...emptyFilters, searchTerm: initialSearchCase });
@@ -407,7 +410,7 @@ function Payments() {
       setHasLoaded(true);
       setShowAllMode(showAll);
     } catch (err) {
-      console.error("Failed to load payments:", err);
+      logger.error("Failed to load payments", err);
       setError(err.message || "Failed to load payments.");
       setCases([]);
       setTotal(0);
@@ -416,6 +419,20 @@ function Payments() {
       setLoading(false);
     }
   }, [filters, page, showAllMode]);
+
+  const focusPaymentId = searchParams.get("searchId");
+
+  useEffect(() => {
+    if (focusPaymentId && cases.length > 0) {
+      for (const c of cases) {
+        const entry = c.paymentHistory?.find(e => String(e.id) === focusPaymentId);
+        if (entry) {
+          setDetailEntry(entry);
+          break;
+        }
+      }
+    }
+  }, [focusPaymentId, cases]);
 
   const ensureModalCases = async () => {
     if (modalCases.length > 0) return;
@@ -470,7 +487,10 @@ function Payments() {
       subtitle="Search fees and payments by case, client, fee category, mode, or reference."
       actions={
         <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
-          <button type="button" className="btn-gold" onClick={() => void openPaymentModal(null)} disabled={modalLoading}>
+          <button type="button" className="btn-gold" onClick={() => setShowExportModal(true)}>
+            📥 Export
+          </button>
+          <button type="button" className="primary-button" onClick={() => void openPaymentModal(null)} disabled={modalLoading}>
             💳 Record Payment
           </button>
           <button type="button" className="btn-neutral" onClick={() => void openFeeModal(null)} disabled={modalLoading}>
@@ -592,6 +612,16 @@ function Payments() {
       {feeModal && <FeeModal initialCaseId={feeModal.initialCaseId} cases={modalCases.length ? modalCases : cases} editItem={feeModal.editItem} onClose={() => setFeeModal(null)} onSaved={loadData} />}
       {payModal && <PaymentModal initialCaseId={payModal.initialCaseId} cases={modalCases.length ? modalCases : cases} onClose={() => setPayModal(null)} onSaved={loadData} />}
       {detailEntry && <PaymentDetailModal entry={detailEntry} onClose={() => setDetailEntry(null)} />}
+
+      {showExportModal && (
+        <ExportModal
+          isOpen={showExportModal}
+          onClose={() => setShowExportModal(false)}
+          type="payments"
+          currentFilters={filters}
+          defaultDateRange={{ start: filters.fromDate, end: filters.toDate }}
+        />
+      )}
     </AppShell>
   );
 }

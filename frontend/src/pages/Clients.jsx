@@ -8,6 +8,8 @@ import HeaderFilters from "../components/HeaderFilters";
 import ControlledSearchPanel, { EmptyState, ErrorState, LoadingState, PaginationControls } from "../components/ControlledSearchPanel";
 import { supabasePlatformApi as platformApi } from "../repositories/supabaseRepository";
 import { getPersistentAssetUrl } from "../services/storageService";
+import ExportModal from "../components/ExportModal";
+import logger from "../services/loggerService";
 import "./Clients.css";
 import "./formStyles.css";
 
@@ -18,6 +20,7 @@ function Clients() {
   const [clients, setClients] = useState([]);
   const [activeClient, setActiveClient] = useState(null);
   const [showWizard, setShowWizard] = useState(false);
+  const [showExportModal, setShowExportModal] = useState(false);
   const [previewImage, setPreviewImage] = useState(null);
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -49,7 +52,7 @@ function Clients() {
       setHasLoaded(true);
       setShowAllMode(showAll);
     } catch (err) {
-      console.error("Failed to load clients:", err);
+      logger.error("Failed to load clients", err);
       setError(err.message || "Failed to load clients.");
       setClients([]);
       setTotal(0);
@@ -91,7 +94,7 @@ function Clients() {
       const nextPage = remainingOnPage <= 0 && page > 1 ? page - 1 : page;
       await loadClients({ nextPage });
     } catch (err) {
-      console.error("Failed to delete client:", err);
+      logger.error("Failed to delete client", err);
       setError(err.message || "Failed to delete client.");
     } finally {
       setDeletingClientId(null);
@@ -146,6 +149,9 @@ function Clients() {
       subtitle="Search clients by name, phone, email, city, notes, or ID proof."
       actions={
         <div style={{ display: "flex", gap: "12px", alignItems: "center", flexWrap: "wrap" }}>
+          <button type="button" className="btn-gold" onClick={() => setShowExportModal(true)}>
+            📥 Export
+          </button>
           <button type="button" className="primary-button" onClick={openCreate}>
             + Add Client
           </button>
@@ -285,6 +291,16 @@ function Clients() {
             <img src={previewImage.src} alt={previewImage.alt} className="image-preview-large" />
           </div>
         </div>
+      )}
+
+      {showExportModal && (
+        <ExportModal
+          isOpen={showExportModal}
+          onClose={() => setShowExportModal(false)}
+          type="clients"
+          currentFilters={filters}
+          defaultDateRange={{ start: filters.fromDate, end: filters.toDate }}
+        />
       )}
     </AppShell>
   );
