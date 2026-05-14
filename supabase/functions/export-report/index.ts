@@ -8,6 +8,7 @@ import {
   getActorContext,
   recordAuditEvent,
 } from "../_shared/auth.ts";
+import { sendEmail, renderLayout } from "../_shared/email.ts";
 
 // ---------------------------------------------------------------------------
 // Types & Helpers
@@ -15,7 +16,6 @@ import {
 
 type ExportFormat = "pdf" | "xlsx" | "csv" | "docx";
 type ExportType = "dashboard" | "clients" | "cases" | "payments" | "followups" | "documents" | "tasks";
-
 interface ExportRequest {
   format: ExportFormat;
   type: ExportType;
@@ -23,6 +23,7 @@ interface ExportRequest {
   filters?: Record<string, any>;
   includeSections?: string[];
   selectedIds?: string[];
+  emailTo?: string;
 }
 
 type Row = (string | number | null | undefined)[];
@@ -525,6 +526,57 @@ Deno.serve(async (req) => {
         throw new Error(`Unsupported format: ${format}`);
     }
 
+    // Task 12: Handle Email Delivery
+    if (body.emailTo) {
+      const b64 = btoa(result instanceof Uint8Array ? 
+        Array.from(result).map(b => String.fromCharCode(b)).join("") : 
+        result
+      );
+
+      const subject = `${orgName} Report: ${type.charAt(0).toUpperCase() + type.slice(1)}`;
+      const delivery = await sendEmail({
+        to: body.emailTo,
+        subject,
+        html: renderLayout({
+          preview: `Your professional report for ${orgName}`,
+          title: subject,
+          organizationName: orgName,
+          body: `
+            <p>Your requested report has been generated successfully.</p>
+            <p><strong>Module:</strong> ${type.charAt(0).toUpperCase() + type.slice(1)}</p>
+            <p><strong>Format:</strong> ${format.toUpperCase()}</p>
+            <p>Please find the report attached to this email.</p>
+          `
+        }),
+        organizationId: orgId,
+        templateName: `export-${type}`,
+        attachments: [
+          {
+            filename: fileName,
+            content: b64,
+          }
+        ]
+      });
+
+      await db.from("export_logs").insert({
+        organization_id: orgId,
+        actor_id: actor.user.id,
+        actor_email: actor.profile!.email,
+        format,
+        export_type: type,
+        scope: body.selectedIds?.length ? "selected" : "filtered",
+        filters: body.filters || {},
+        file_name: fileName,
+        status: "COMPLETED",
+        metadata: { emailedTo: body.emailTo, messageId: delivery?.id }
+      });
+
+      return jsonResponse({
+        success: true,
+        message: `Report has been emailed to ${body.emailTo}`
+      });
+    }
+
     // Log the export (Task 14)
     await db.from("export_logs").insert({
       organization_id: orgId,
@@ -547,11 +599,14 @@ Deno.serve(async (req) => {
       metadata: { type, format, records: totalRecords },
     });
 
+    // STEP 1 — FIX BACKEND RESPONSE (Raw binary response)
     return new Response(result, {
+      status: 200,
       headers: {
         ...corsHeaders,
         "Content-Type": contentType,
         "Content-Disposition": `attachment; filename="${fileName}"`,
+        "Cache-Control": "no-cache",
       },
     });
 

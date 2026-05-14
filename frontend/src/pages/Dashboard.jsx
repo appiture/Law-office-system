@@ -113,6 +113,36 @@ function Dashboard() {
     return true;
   }, [fromDate, toDate]);
 
+  const setDatePreset = (preset) => {
+    const now = new Date();
+    const start = new Date();
+    const end = new Date();
+
+    switch (preset) {
+      case "this_month":
+        start.setDate(1);
+        end.setMonth(end.getMonth() + 1);
+        end.setDate(0);
+        break;
+      case "last_month":
+        start.setMonth(start.getMonth() - 1);
+        start.setDate(1);
+        end.setDate(0);
+        break;
+      case "this_year":
+        start.setMonth(0, 1);
+        end.setMonth(11, 31);
+        break;
+      default:
+        setFromDate("");
+        setToDate("");
+        return;
+    }
+
+    setFromDate(start.toISOString().split("T")[0]);
+    setToDate(end.toISOString().split("T")[0]);
+  };
+
   useEffect(() => {
     const refresh = async () => {
       try {
@@ -209,6 +239,32 @@ function Dashboard() {
     // Auto-dismiss toast after 5 seconds
     setTimeout(() => setReportState((s) => ({ ...s, toast: null })), 5000);
   }, [reportMonth]);
+
+  const handleEmailReport = async () => {
+    setReportState({ loading: true, toast: null });
+    try {
+      const activeSections = ["cases", "clients", "payments", "hearings", "documents", "tasks"];
+      await triggerExport({
+        format: "pdf",
+        type: "dashboard",
+        dateRange: { start: fromDate, end: toDate },
+        filters: { searchTerm: dashboardSearch },
+        includeSections: activeSections,
+        selectedIds: [],
+        emailTo: (await supabase.auth.getUser()).data.user.email
+      });
+      setReportState({
+        loading: false,
+        toast: { type: "success", msg: "Report is being generated and will be emailed to you shortly." },
+      });
+    } catch (err) {
+      setReportState({
+        loading: false,
+        toast: { type: "error", msg: err.message || "Failed to trigger email report." },
+      });
+    }
+    setTimeout(() => setReportState((s) => ({ ...s, toast: null })), 5000);
+  };
 
   const loadDashboard = useCallback(async () => {
     setLoading(true);
@@ -521,8 +577,21 @@ function Dashboard() {
               searchPlaceholder="Search dashboard..."
               onShowAll={() => {
                 setDashboardSearch("");
+                setFromDate("");
+                setToDate("");
               }}
-            />
+            >
+              <div className="quick-filter-presets">
+                <button type="button" onClick={() => setDatePreset("this_month")}>This Month</button>
+                <button type="button" onClick={() => setDatePreset("last_month")}>Last Month</button>
+                <button type="button" onClick={() => setDatePreset("this_year")}>This Year</button>
+              </div>
+              <div className="date-range-inputs">
+                <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+                <span>to</span>
+                <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
+              </div>
+            </HeaderFilters>
           </div>
 
           <div className="dashboard-top-actions">
@@ -541,14 +610,25 @@ function Dashboard() {
               )}
             </div>
             {isOrgAdmin() && (
-              <button
-                type="button"
-                className="btn-gold"
-                onClick={() => setShowExportModal(true)}
-                style={{ display: "flex", alignItems: "center", gap: "8px" }}
-              >
-                📥 Export Report
-              </button>
+              <div className="dashboard-admin-actions" style={{ display: "flex", gap: "8px" }}>
+                <button
+                  type="button"
+                  className="btn-neutral"
+                  onClick={handleEmailReport}
+                  disabled={reportState.loading}
+                  title="Email this report to yourself"
+                >
+                  📧 {reportState.loading ? "Sending..." : "Email Report"}
+                </button>
+                <button
+                  type="button"
+                  className="btn-gold"
+                  onClick={() => setShowExportModal(true)}
+                  style={{ display: "flex", alignItems: "center", gap: "8px" }}
+                >
+                  📥 Download Report
+                </button>
+              </div>
             )}
           </div>
         </div>
@@ -835,6 +915,7 @@ function Dashboard() {
           type="dashboard"
           currentFilters={{ searchTerm: dashboardSearch }}
           defaultDateRange={{ start: fromDate, end: toDate }}
+          availableData={cases.filter(c => isDateInRange(c.createdAt))}
         />
       )}
     </AppShell>

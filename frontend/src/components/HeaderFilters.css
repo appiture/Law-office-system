@@ -26,6 +26,67 @@
   to { opacity: 1; transform: translateX(0); }
 }
 
+/* Custom area for quick filters/date ranges */
+.header-filters-custom {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-left: 12px;
+  animation: fadeIn 0.3s ease forwards;
+}
+
+.quick-filter-presets {
+  display: flex;
+  gap: 6px;
+}
+
+.quick-filter-presets button {
+  padding: 6px 12px;
+  background: var(--color-bg-alt, rgba(0,0,0,0.03));
+  border: 1px solid var(--color-border);
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-text-secondary);
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.quick-filter-presets button:hover {
+  background: var(--color-gold-bg, rgba(201, 163, 78, 0.1));
+  border-color: var(--color-gold);
+  color: var(--color-gold);
+}
+
+.date-range-inputs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+}
+
+.date-range-inputs input {
+  border: none;
+  background: transparent;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-text);
+  outline: none;
+  width: 95px;
+}
+
+.date-range-inputs span {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  opacity: 0.4;
+}
+
+
 /* â”€â”€ Premium Search Box â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 .premium-search-box {
   display: flex;

@@ -13,6 +13,7 @@ function HeaderFilters({
   showClearButton = true,
   dateRangeConfig = null,
   onShowAll = null,
+  children = null,
 }) {
   const [panelOpen, setPanelOpen] = useState(false);
   const containerRef = useRef(null);
@@ -65,6 +66,8 @@ function HeaderFilters({
             </button>
           )}
         </div>
+
+        {children && <div className="header-filters-custom">{children}</div>}
 
         {(filters.length > 0 || dateRangeConfig) && (
           <button
