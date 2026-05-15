@@ -1,114 +1,116 @@
 .dashboard-premium-header {
   margin-bottom: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
 }
 
-.dashboard-action-row {
+.dashboard-header-row {
+  width: 100%;
+}
+
+.dashboard-header-row.search-row {
+  z-index: 10;
+}
+
+.dashboard-header-row.search-row .header-filters-container {
+  width: 100%;
+  max-width: none;
+}
+
+.dashboard-header-row.controls-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  flex-wrap: wrap;
+  padding: 4px 0;
+}
+
+.dashboard-operational-controls {
   display: flex;
   align-items: center;
   gap: 12px;
-  width: 100%;
-  flex-wrap: wrap;
 }
 
-@media (max-width: 768px) {
-  .dashboard-action-row {
+.dashboard-filter-section {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: var(--color-bg-secondary);
+  padding: 6px 12px;
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+  flex: 1;
+  justify-content: center;
+}
+
+.dashboard-report-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.quick-filter-presets {
+  display: flex;
+  gap: 6px;
+}
+
+.quick-filter-presets button {
+  background: transparent;
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.quick-filter-presets button:hover {
+  background: var(--color-primary);
+  color: white;
+  border-color: var(--color-primary);
+}
+
+.date-range-inputs {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text);
+  opacity: 0.8;
+}
+
+.date-range-inputs input {
+  background: var(--color-card);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 12px;
+}
+
+@media (max-width: 1100px) {
+  .dashboard-header-row.controls-row {
     flex-direction: column;
     align-items: stretch;
   }
   
-  .dashboard-search-container {
+  .dashboard-filter-section {
     width: 100%;
+    order: 3;
   }
   
-  .dashboard-top-actions {
+  .dashboard-operational-controls {
     justify-content: space-between;
-    width: 100%;
   }
-}
-
-.dashboard-search-container {
-  flex: 1;
-  display: flex;
-  justify-content: flex-start;
-}
-
-.dashboard-search-container > div {
-  width: 100%;
-}
-
-.dashboard-search-container .header-filters-container,
-.dashboard-search-container .header-filters-top {
-  height: 40px;
-}
-
-.dashboard-search-container .premium-search-box {
-  height: 40px;
-  background: var(--color-card);
-  border: 1px solid var(--color-border);
-  border-radius: 12px;
-  transition: all 0.2s ease;
-  box-shadow: 0 4px 12px var(--color-shadow);
-}
-
-.dashboard-top-actions {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-shrink: 0;
-}
-
-.notification-trigger,
-.dashboard-task-link,
-.dashboard-month-input,
-.btn-report {
-  height: 40px !important;
-  padding: 0 16px !important;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 10px !important;
-  font-size: 13px !important;
-  white-space: nowrap;
-}
-
-.dashboard-report-group {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  background: var(--color-card);
-  padding: 2px;
-  border-radius: 12px;
-  border: 1px solid var(--color-border);
-}
-
-.dashboard-month-input {
-  border: none !important;
-  background: rgba(255, 255, 255, 0.05) !important;
-  width: 140px !important;
-  height: 34px !important;
-  font-size: 13px !important;
-  font-weight: 800 !important;
-  color: var(--color-text) !important;
-  padding: 0 12px !important;
-  border-radius: 8px;
-  color-scheme: dark;
-}
-
-.light .dashboard-month-input {
-  background: rgba(0, 0, 0, 0.03) !important;
-  color-scheme: light;
-}
-
-.btn-report {
-  border: none !important;
-  background: var(--color-bg-tertiary);
-  color: var(--color-text);
-  font-weight: 700;
-}
-
-.btn-report:hover {
-  background: var(--color-primary);
-  color: white;
+  
+  .dashboard-report-actions {
+    justify-content: flex-end;
+  }
 }
 .dashboard-top-actions {
   display: flex;

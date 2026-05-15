@@ -24,16 +24,17 @@ function PageHeader({
         >
           Menu
         </button>
-        <button
-          type="button"
-          className="page-back-button"
-          onClick={handleBack}
-          disabled={!canGoBack}
-          title={canGoBack ? "Go back" : "You are on the home page"}
-        >
-          <ArrowLeft size={16} />
-          <span>Back</span>
-        </button>
+        {canGoBack && (
+          <button
+            type="button"
+            className="page-back-button"
+            onClick={handleBack}
+            title="Go back"
+          >
+            <ArrowLeft size={16} />
+            <span>Back</span>
+          </button>
+        )}
 
         <div className="header-title-block">
           <p className="page-kicker">{superAdmin ? "Platform Admin" : organizationName}</p>

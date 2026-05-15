@@ -9,7 +9,7 @@ import { supabase } from "./supabaseClient";
 /**
  * Trigger an export and download the resulting file.
  */
-export const triggerExport = async ({ format, type, dateRange, filters, includeSections, selectedIds }) => {
+export const triggerExport = async ({ format, type, dateRange, filters, includeSections, selectedIds, emailTo }) => {
   try {
     const session = await supabase.auth.getSession();
     const token = session.data.session?.access_token;
@@ -21,7 +21,7 @@ export const triggerExport = async ({ format, type, dateRange, filters, includeS
         "Content-Type": "application/json",
         "Authorization": `Bearer ${token || import.meta.env.VITE_SUPABASE_ANON_KEY}`,
       },
-      body: JSON.stringify({ format, type, dateRange, filters, includeSections, selectedIds }),
+      body: JSON.stringify({ format, type, dateRange, filters, includeSections, selectedIds, emailTo }),
     });
 
     // STEP 5 — DEBUG SERVER RESPONSE
@@ -44,6 +44,11 @@ export const triggerExport = async ({ format, type, dateRange, filters, includeS
 
     // STEP 3 — VALIDATE RESPONSE TYPE
     const contentType = response.headers.get("content-type");
+    if (contentType?.includes("application/json")) {
+      const data = await response.json();
+      return { success: true, ...data };
+    }
+    
     if (!contentType) {
       throw new Error("Missing content type from server");
     }

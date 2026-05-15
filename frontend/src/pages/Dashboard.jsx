@@ -569,32 +569,16 @@ function Dashboard() {
       subtitle="Focused practice overview with controlled operational detail."
     >
       <div className="dashboard-premium-header">
-        <div className="dashboard-action-row">
-          <div className="dashboard-search-container">
-            <HeaderFilters
-              searchTerm={dashboardSearch}
-              onSearchChange={setDashboardSearch}
-              searchPlaceholder="Search dashboard..."
-              onShowAll={() => {
-                setDashboardSearch("");
-                setFromDate("");
-                setToDate("");
-              }}
-            >
-              <div className="quick-filter-presets">
-                <button type="button" onClick={() => setDatePreset("this_month")}>This Month</button>
-                <button type="button" onClick={() => setDatePreset("last_month")}>Last Month</button>
-                <button type="button" onClick={() => setDatePreset("this_year")}>This Year</button>
-              </div>
-              <div className="date-range-inputs">
-                <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
-                <span>to</span>
-                <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
-              </div>
-            </HeaderFilters>
-          </div>
+        <div className="dashboard-header-row search-row">
+          <HeaderFilters
+            searchTerm={dashboardSearch}
+            onSearchChange={setDashboardSearch}
+            searchPlaceholder="Search your practice... (Cases, Clients, Hearings, etc.)"
+          />
+        </div>
 
-          <div className="dashboard-top-actions">
+        <div className="dashboard-header-row controls-row">
+          <div className="dashboard-operational-controls">
             <button type="button" className="notification-trigger" onClick={() => setNotificationOpen(true)}>
               <span className="notif-bell">🔔</span>
               <span className="notif-text">Notifications ({priorityQueue.length + cashChecklist.length})</span>
@@ -609,8 +593,24 @@ function Dashboard() {
                 </span>
               )}
             </div>
+          </div>
+
+          <div className="dashboard-filter-section">
+            <div className="quick-filter-presets">
+              <button type="button" onClick={() => setDatePreset("this_month")}>This Month</button>
+              <button type="button" onClick={() => setDatePreset("last_month")}>Last Month</button>
+              <button type="button" onClick={() => setDatePreset("this_year")}>This Year</button>
+            </div>
+            <div className="date-range-inputs">
+              <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+              <span>to</span>
+              <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
+            </div>
+          </div>
+
+          <div className="dashboard-report-actions">
             {isOrgAdmin() && (
-              <div className="dashboard-admin-actions" style={{ display: "flex", gap: "8px" }}>
+              <>
                 <button
                   type="button"
                   className="btn-neutral"
@@ -624,11 +624,10 @@ function Dashboard() {
                   type="button"
                   className="btn-gold"
                   onClick={() => setShowExportModal(true)}
-                  style={{ display: "flex", alignItems: "center", gap: "8px" }}
                 >
                   📥 Download Report
                 </button>
-              </div>
+              </>
             )}
           </div>
         </div>

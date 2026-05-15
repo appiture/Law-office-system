@@ -39,57 +39,59 @@ function getPreviewColumns(type) {
       return [
         { header: "Case No.",       accessor: (r) => r.caseNumber    || r.case_number    || "—" },
         { header: "Client",         accessor: (r) => r.client?.name  || r.clientName     || "—" },
-        { header: "Type",           accessor: (r) => r.caseType      || "—" },
+        { header: "Type",           accessor: (r) => r.caseType      || r.case_type      || "—" },
         { header: "Status",         accessor: (r) => r.status        || "—" },
-        { header: "Court",          accessor: (r) => r.courtName     || "—" },
+        { header: "Court",          accessor: (r) => r.courtName     || r.court_name     || "—" },
         { header: "Next Hearing",   accessor: (r) => r.nextHearingDate ? r.nextHearingDate.slice(0, 10) : "—" },
-        { header: "Lawyer",         accessor: (r) => r.assignedLawyer|| "—" },
+        { header: "Lawyer",         accessor: (r) => r.assignedLawyer|| r.lawyer_name    || "—" },
       ];
     case "clients":
       return [
         { header: "Name",           accessor: (r) => r.name          || "—" },
         { header: "Phone",          accessor: (r) => r.phone         || "—" },
         { header: "Email",          accessor: (r) => r.email         || "—" },
+        { header: "Address",        accessor: (r) => r.address       || "—" },
         { header: "City",           accessor: (r) => r.city          || "—" },
         { header: "Occupation",     accessor: (r) => r.occupation    || "—" },
         { header: "Registered",     accessor: (r) => (r.createdAt || r.created_at || "").slice(0, 10) || "—" },
       ];
     case "payments":
       return [
-        { header: "Case No.",       accessor: (r) => r.caseNumber    || r.case_number    || "—" },
+        { header: "Case No.",       accessor: (r) => r.caseNumber    || r.case?.caseNumber || r.case_number || "—" },
         { header: "Client",         accessor: (r) => r.client?.name  || r.clientName     || "—" },
-        { header: "Total Billed",   accessor: (r) => r.totalAmount   != null ? `₹${Number(r.totalAmount).toLocaleString("en-IN")}` : "—" },
-        { header: "Received",       accessor: (r) => r.paidAmount    != null ? `₹${Number(r.paidAmount).toLocaleString("en-IN")}` : "—" },
-        { header: "Balance",        accessor: (r) => r.balanceAmount != null ? `₹${Number(r.balanceAmount).toLocaleString("en-IN")}` : "—" },
-        { header: "Status",         accessor: (r) => r.paymentStatus || r.status || "—" },
+        { header: "Charge",         accessor: (r) => r.chargeName    || r.charge_name    || "—" },
+        { header: "Amount",         accessor: (r) => r.amountPaid    != null || r.amount_paid != null ? `₹${Number(r.amountPaid || r.amount_paid).toLocaleString("en-IN")}` : "—" },
+        { header: "Mode",           accessor: (r) => r.paymentMode   || r.payment_mode   || "—" },
+        { header: "Reference",      accessor: (r) => r.paymentReference || r.payment_reference || "—" },
+        { header: "Date",           accessor: (r) => (r.paymentDate  || r.payment_date   || "").slice(0, 10) || "—" },
       ];
     case "followups":
       return [
         { header: "Case No.",       accessor: (r) => r.caseNumber    || r.case?.caseNumber || "—" },
         { header: "Client",         accessor: (r) => r.clientName    || r.case?.client?.name || "—" },
         { header: "Type",           accessor: (r) => r.type          || r.followupType   || "—" },
-        { header: "Due Date",       accessor: (r) => (r.dueDate      || r.due_date       || "").slice(0, 10) || "—" },
+        { header: "Due Date",       accessor: (r) => (r.dueDate      || r.due_date || r.scheduled_at || "").slice(0, 10) || "—" },
         { header: "Status",         accessor: (r) => r.status        || "—" },
         { header: "Notes",          accessor: (r) => (r.notes        || "").slice(0, 40) || "—" },
       ];
     case "documents":
       return [
-        { header: "Document Name",  accessor: (r) => r.title         || r.name           || "—" },
+        { header: "Document Name",  accessor: (r) => r.title         || r.name || r.file_name || "—" },
         { header: "Case No.",       accessor: (r) => r.caseNumber    || r.case?.caseNumber || "—" },
         { header: "Category",       accessor: (r) => r.category      || "—" },
-        { header: "Uploaded",       accessor: (r) => (r.createdAt    || r.created_at     || "").slice(0, 10) || "—" },
-        { header: "Uploaded By",    accessor: (r) => r.uploadedBy    || "—" },
+        { header: "Description",    accessor: (r) => r.description   || "—" },
+        { header: "Uploaded",       accessor: (r) => (r.createdAt    || r.created_at || r.uploaded_at || "").slice(0, 10) || "—" },
+        { header: "Uploaded By",    accessor: (r) => r.uploadedBy    || r.uploaded_by || "—" },
       ];
     case "tasks":
       return [
         { header: "Task",           accessor: (r) => r.title         || r.task           || "—" },
         { header: "Status",         accessor: (r) => r.status        || "—" },
         { header: "Priority",       accessor: (r) => r.priority      || "—" },
-        { header: "Due Date",       accessor: (r) => (r.dueDate      || r.due_date       || "").slice(0, 10) || "—" },
+        { header: "Due Date",       accessor: (r) => (r.dueDate      || r.due_date || r.created_at || "").slice(0, 10) || "—" },
         { header: "Assigned To",    accessor: (r) => r.assignedTo    || r.assigned_to    || "—" },
       ];
     default:
-      // Generic fallback
       return [
         { header: "Title / Name",   accessor: (r) => r.name || r.title || r.caseNumber || r.case_number || "—" },
         { header: "Status",         accessor: (r) => r.status || "—" },
@@ -115,6 +117,8 @@ export default function ExportModal({
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [showPreview, setShowPreview] = useState(false);
+  const [sendToEmail, setSendToEmail] = useState(false);
+  const [emailValue, setEmailValue] = useState("");
 
   if (!isOpen) return null;
 
@@ -139,11 +143,12 @@ export default function ExportModal({
         filters: currentFilters,
         includeSections: [],
         selectedIds: [],
+        emailTo: sendToEmail ? (emailValue || "me") : null,
       });
       if (res.isBackground) {
         setSuccess(res.message);
       } else {
-        setSuccess("Report generated! Your download will start automatically.");
+        setSuccess(sendToEmail ? `Report sent to email!` : "Report generated! Download starting.");
         setTimeout(() => onClose(), 2500);
       }
     } catch (err) {
@@ -226,25 +231,44 @@ export default function ExportModal({
             </div>
           </div>
 
-          {/* Info strip */}
-          <div style={{
-            marginTop: "16px",
-            padding: "11px 14px",
-            background: "rgba(0,0,0,0.03)",
-            borderRadius: "8px",
-            fontSize: "12px",
-            color: "var(--color-text-secondary)",
-            display: "flex",
-            alignItems: "center",
-            gap: "8px",
-          }}>
-            <span>ℹ️</span>
-            <span>
-              {availableData.length > 0
-                ? <><strong>{availableData.length} records</strong> will be exported (matching your active filters).</>
-                : <>Will export all records matching your active page filters.</>
-              }
-            </span>
+          {/* Email Delivery Options */}
+          <div className="form-section" style={{ marginTop: 8 }}>
+            <div className="form-section-title"><span>📧</span> Delivery</div>
+            <label style={{ 
+              display: "flex", 
+              alignItems: "center", 
+              gap: "10px", 
+              cursor: "pointer",
+              padding: "8px 0"
+            }}>
+              <input 
+                type="checkbox" 
+                checked={sendToEmail}
+                onChange={(e) => setSendToEmail(e.target.checked)}
+                style={{ width: 18, height: 18, accentColor: "var(--color-gold)" }}
+              />
+              <span style={{ fontSize: "13px", fontWeight: 600 }}>Send report to my email</span>
+            </label>
+            
+            {sendToEmail && (
+              <div style={{ marginTop: 4 }}>
+                <input 
+                  type="email"
+                  placeholder="Enter email (leave blank for your own)"
+                  value={emailValue}
+                  onChange={(e) => setEmailValue(e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "10px 12px",
+                    borderRadius: "8px",
+                    border: "1.5px solid var(--color-border)",
+                    fontSize: "13px",
+                    background: "var(--color-bg)",
+                    color: "var(--color-text)"
+                  }}
+                />
+              </div>
+            )}
           </div>
         </div>
 
@@ -273,122 +297,131 @@ export default function ExportModal({
       style={{ zIndex: 10100 }}
       onClick={(e) => e.target === e.currentTarget && setShowPreview(false)}
     >
-      <div className="flow-modal" style={{ maxWidth: "720px", width: "95vw" }}>
-        <div className="flow-modal-header">
+      <div className="flow-modal" style={{ 
+        maxWidth: "800px", 
+        width: "95vw",
+        background: "var(--color-bg-alt)", // Slightly darker background for the portal area
+      }}>
+        <div className="flow-modal-header" style={{ background: "transparent", border: "none" }}>
           <div className="flow-modal-header-info">
-            <h3>📑 Confirm Export</h3>
-            <p>Review data before downloading — top {previewRows.length} of {availableData.length || "all"} records</p>
+            <h3>📑 Document Preview</h3>
+            <p>Reviewing top {previewRows.length} records in {selectedFmt?.label} format</p>
           </div>
           <button type="button" className="flow-modal-close" onClick={() => setShowPreview(false)}>✕</button>
         </div>
 
-        <div className="flow-modal-body">
-          {/* Summary grid */}
+        <div className="flow-modal-body" style={{ padding: "0 24px 24px", alignItems: "center" }}>
+          {/* THE "REAL IMAGE" PREVIEW (Paper effect) */}
           <div style={{
-            display: "grid",
-            gridTemplateColumns: "repeat(4, 1fr)",
-            gap: "12px",
-            padding: "14px 16px",
-            background: "var(--color-bg-alt)",
-            borderRadius: "12px",
-            border: "1px solid var(--color-border)",
-            marginBottom: "20px",
+            width: "100%",
+            maxWidth: "700px",
+            background: "white",
+            minHeight: "400px",
+            boxShadow: "0 20px 50px rgba(0,0,0,0.15), 0 0 0 1px rgba(0,0,0,0.05)",
+            borderRadius: "4px",
+            padding: "40px",
+            display: "flex",
+            flexDirection: "column",
+            gap: "24px",
+            color: "#333", // Force document colors
+            position: "relative",
+            overflow: "hidden"
           }}>
-            {[
-              { label: "Format",  value: `${selectedFmt?.emoji} ${selectedFmt?.label}` },
-              { label: "Module",  value: type.charAt(0).toUpperCase() + type.slice(1) },
-              { label: "Records", value: availableData.length > 0 ? `${availableData.length}` : "All matching" },
-              { label: "Filters", value: Object.values(currentFilters).filter(Boolean).length > 0 ? "Active" : "None" },
-            ].map(({ label, value }) => (
-              <div key={label} style={{ textAlign: "center" }}>
-                <span style={{ fontSize: "11px", color: "var(--color-text-secondary)", display: "block", marginBottom: "4px", fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.06em" }}>{label}</span>
-                <strong style={{ fontSize: "13px" }}>{value}</strong>
+            {/* Header branding simulation */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: "2px solid #1a237e", paddingBottom: "16px" }}>
+              <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
+                <div style={{ 
+                  width: "40px", 
+                  height: "40px", 
+                  background: "#1a237e", 
+                  borderRadius: "50%", 
+                  display: "flex", 
+                  alignItems: "center", 
+                  justifyContent: "center",
+                  color: "white",
+                  fontWeight: 900,
+                  fontSize: "20px"
+                }}>L</div>
+                <div>
+                  <h1 style={{ margin: 0, fontSize: "22px", fontWeight: 900, color: "#1a237e", letterSpacing: "-0.5px" }}>LAW OFFICE</h1>
+                  <p style={{ margin: "4px 0 0", fontSize: "11px", color: "#666", fontWeight: 600 }}>PROFESSIONAL LEGAL MANAGEMENT SYSTEM</p>
+                </div>
               </div>
-            ))}
-          </div>
+              <div style={{ textAlign: "right" }}>
+                <div style={{ fontSize: "14px", fontWeight: 800 }}>{type.toUpperCase()} REPORT</div>
+                <div style={{ fontSize: "10px", color: "#888", marginTop: "2px" }}>{new Date().toLocaleDateString("en-IN", { day: 'numeric', month: 'long', year: 'numeric' })}</div>
+              </div>
+            </div>
 
-          {/* Rich data preview table */}
-          <div>
-            <h4 style={{ fontSize: "13px", fontWeight: 700, marginBottom: "10px", color: "var(--color-text-secondary)" }}>
-              Data Preview
-            </h4>
-            <div style={{ overflowX: "auto", border: "1px solid var(--color-border)", borderRadius: "10px", maxHeight: "280px", overflowY: "auto" }}>
-              <table style={{ width: "100%", fontSize: "12px", borderCollapse: "collapse", tableLayout: "auto" }}>
+            {/* Summary info strip */}
+            <div style={{ display: "flex", gap: "24px", padding: "12px 16px", background: "#f8f9fa", borderRadius: "6px", border: "1px solid #eee" }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: "9px", color: "#888", fontWeight: 800, textTransform: "uppercase" }}>Module</div>
+                <div style={{ fontSize: "12px", fontWeight: 700 }}>{type.charAt(0).toUpperCase() + type.slice(1)}</div>
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: "9px", color: "#888", fontWeight: 800, textTransform: "uppercase" }}>Records</div>
+                <div style={{ fontSize: "12px", fontWeight: 700 }}>{availableData.length || "All"}</div>
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: "9px", color: "#888", fontWeight: 800, textTransform: "uppercase" }}>Format</div>
+                <div style={{ fontSize: "12px", fontWeight: 700 }}>{selectedFmt?.label}</div>
+              </div>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: "9px", color: "#888", fontWeight: 800, textTransform: "uppercase" }}>Status</div>
+                <div style={{ fontSize: "12px", fontWeight: 700, color: "#2e7d32" }}>Ready for Export</div>
+              </div>
+            </div>
+
+            {/* Simulated Data Table */}
+            <div style={{ flex: 1 }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "10.5px" }}>
                 <thead>
-                  <tr style={{ background: "var(--color-bg-alt)", position: "sticky", top: 0, zIndex: 1 }}>
-                    {columns.map((col) => (
-                      <th
-                        key={col.header}
-                        style={{
-                          padding: "9px 12px",
-                          textAlign: "left",
-                          borderBottom: "1px solid var(--color-border)",
-                          fontWeight: 800,
-                          fontSize: "11px",
-                          textTransform: "uppercase",
-                          letterSpacing: "0.06em",
-                          color: "var(--color-text-secondary)",
-                          whiteSpace: "nowrap",
-                        }}
-                      >
-                        {col.header}
-                      </th>
+                  <tr style={{ background: "#f1f3f4" }}>
+                    {columns.slice(0, 5).map((col) => (
+                      <th key={col.header} style={{ padding: "8px 10px", textAlign: "left", borderBottom: "1.5px solid #ddd", fontWeight: 800, color: "#444" }}>{col.header}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
-                  {previewRows.length > 0
-                    ? previewRows.map((row, i) => (
-                        <tr
-                          key={i}
-                          style={{
-                            background: i % 2 === 0 ? "transparent" : "var(--color-bg-alt)",
-                            transition: "background 0.1s",
-                          }}
-                        >
-                          {columns.map((col) => (
-                            <td
-                              key={col.header}
-                              style={{
-                                padding: "8px 12px",
-                                borderBottom: "1px solid var(--color-border)",
-                                color: "var(--color-text)",
-                                maxWidth: "160px",
-                                overflow: "hidden",
-                                textOverflow: "ellipsis",
-                                whiteSpace: "nowrap",
-                              }}
-                              title={col.accessor(row)}
-                            >
-                              {col.accessor(row)}
-                            </td>
-                          ))}
-                        </tr>
-                      ))
-                    : (
-                        <tr>
-                          <td
-                            colSpan={columns.length}
-                            style={{
-                              padding: "24px",
-                              textAlign: "center",
-                              color: "var(--color-text-secondary)",
-                              fontStyle: "italic",
-                            }}
-                          >
-                            No records loaded yet — the server will fetch all matching records on download.
-                          </td>
-                        </tr>
-                      )
-                  }
+                  {previewRows.map((row, i) => (
+                    <tr key={i} style={{ borderBottom: "1px solid #eee" }}>
+                      {columns.slice(0, 5).map((col) => (
+                        <td key={col.header} style={{ padding: "8px 10px", color: "#555" }}>{col.accessor(row)}</td>
+                      ))}
+                    </tr>
+                  ))}
+                  {availableData.length > 8 && (
+                    <tr>
+                      <td colSpan={5} style={{ padding: "12px", textAlign: "center", color: "#999", fontSize: "10px", fontStyle: "italic", background: "#fafafa" }}>
+                        ... and {availableData.length - 8} more records
+                      </td>
+                    </tr>
+                  )}
                 </tbody>
               </table>
             </div>
-            {availableData.length > 8 && (
-              <p style={{ fontSize: "11px", color: "var(--color-text-secondary)", marginTop: "8px", textAlign: "right" }}>
-                Showing first 8 of {availableData.length} records. All records will be exported.
-              </p>
-            )}
+
+            {/* Footer simulation */}
+            <div style={{ borderTop: "1px solid #eee", paddingTop: "12px", marginTop: "auto", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+              <div style={{ fontSize: "9px", color: "#aaa" }}>Law Office Management — Internal Document</div>
+              <div style={{ fontSize: "9px", color: "#aaa" }}>Generated at {new Date().toLocaleTimeString()}</div>
+            </div>
+            
+            {/* Watermark for preview */}
+            <div style={{
+              position: "absolute",
+              top: "50%",
+              left: "50%",
+              transform: "translate(-50%, -50%) rotate(-30deg)",
+              fontSize: "80px",
+              fontWeight: 900,
+              color: "rgba(0,0,0,0.03)",
+              pointerEvents: "none",
+              whiteSpace: "nowrap"
+            }}>
+              PREVIEW ONLY
+            </div>
           </div>
         </div>
 
@@ -398,9 +431,9 @@ export default function ExportModal({
             type="button"
             className="btn-gold"
             onClick={handleFinalExport}
-            style={{ minWidth: "160px" }}
+            style={{ minWidth: "180px" }}
           >
-            📥 Download {selectedFmt?.label}
+            {sendToEmail ? `📧 Send via Email` : `📥 Download ${selectedFmt?.label}`}
           </button>
         </div>
       </div>
