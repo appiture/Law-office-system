@@ -211,19 +211,61 @@ async function generateXLSX(data: any, type: ExportType, orgName: string): Promi
   const sheets: Sheet[] = [];
   
   if (type === "dashboard") {
-    sheets.push({ name: "Summary", headers: ["Metric", "Value"], rows: [["Organization", orgName], ["Clients", data.clients.length], ["Cases", data.cases.length], ["Revenue", data.payments.reduce((s: number, p: any) => s + Number(p.amount_paid || 0), 0)]] });
-    sheets.push({ name: "Cases", headers: ["Case #", "Title", "Type", "Status", "Client"], rows: data.cases.map((c: any) => [c.case_number, c.title, c.case_type, c.status, c.client?.name]) });
-    sheets.push({ name: "Payments", headers: ["Amount", "Date", "Mode", "Client"], rows: data.payments.map((p: any) => [p.amount_paid, p.payment_date, p.payment_mode, p.client?.name]) });
+    const revenue = data.payments.reduce((s: number, p: any) => s + Number(p.amount_paid || 0), 0);
+    sheets.push({ 
+      name: "Summary", 
+      headers: ["Metric", "Value"], 
+      rows: [
+        ["Organization", orgName],
+        ["Export Date", new Date().toLocaleString()],
+        ["Total Clients", data.clients.length],
+        ["Total Cases", data.cases.length],
+        ["Total Payments", data.payments.length],
+        ["Total Revenue", revenue],
+        ["Total Documents", data.documents.length],
+        ["Total Tasks", data.tasks.length]
+      ] 
+    });
+    sheets.push({ 
+      name: "Clients", 
+      headers: ["Name", "Email", "Phone", "Address", "Status", "Created At"], 
+      rows: data.clients.map((c: any) => [c.name, c.email, c.phone, c.address, c.status, c.created_at]) 
+    });
+    sheets.push({ 
+      name: "Cases", 
+      headers: ["Case #", "Title", "Type", "Status", "Court", "Lawyer", "Client"], 
+      rows: data.cases.map((c: any) => [c.case_number, c.title, c.case_type, c.status, c.court_name, c.lawyer_name, c.client?.name]) 
+    });
+    sheets.push({ 
+      name: "Payments", 
+      headers: ["Amount", "Date", "Mode", "Reference", "Charge", "Client"], 
+      rows: data.payments.map((p: any) => [p.amount_paid, p.payment_date, p.payment_mode, p.payment_reference, p.charge_name, p.client?.name]) 
+    });
+    sheets.push({ 
+      name: "Followups", 
+      headers: ["Date", "Type", "Title", "Status", "Case", "Notes"], 
+      rows: data.followups.map((f: any) => [f.scheduled_at, f.type, f.title, f.status, f.case?.case_number, f.notes]) 
+    });
+    sheets.push({ 
+      name: "Documents", 
+      headers: ["File Name", "Category", "Description", "Uploaded At", "Case"], 
+      rows: data.documents.map((d: any) => [d.file_name, d.category, d.description, d.uploaded_at, d.case?.case_number]) 
+    });
+    sheets.push({ 
+      name: "Tasks", 
+      headers: ["Title", "Priority", "Status", "Created At"], 
+      rows: data.tasks.map((t: any) => [t.title, t.priority, t.status, t.created_at]) 
+    });
   } else if (type === "clients") {
-    sheets.push({ name: "Clients", headers: ["Name", "Email", "Phone", "Address", "Status"], rows: data.clients.map((c: any) => [c.name, c.email, c.phone, c.address, c.status]) });
+    sheets.push({ name: "Clients", headers: ["Name", "Email", "Phone", "Address", "Status", "Created At"], rows: data.clients.map((c: any) => [c.name, c.email, c.phone, c.address, c.status, c.created_at]) });
   } else if (type === "cases") {
-    sheets.push({ name: "Cases", headers: ["Case #", "Title", "Type", "Status", "Court", "Lawyer", "Client"], rows: data.cases.map((c: any) => [c.case_number, c.title, c.case_type, c.status, c.court_name, c.lawyer_name, c.client?.name]) });
+    sheets.push({ name: "Cases", headers: ["Case #", "Title", "Type", "Status", "Court", "Lawyer", "Client", "Created At"], rows: data.cases.map((c: any) => [c.case_number, c.title, c.case_type, c.status, c.court_name, c.lawyer_name, c.client?.name, c.created_at]) });
   } else if (type === "payments") {
-    sheets.push({ name: "Payments", headers: ["Amount", "Date", "Mode", "Reference", "Charge", "Client"], rows: data.payments.map((p: any) => [p.amount_paid, p.payment_date, p.payment_mode, p.payment_reference, p.charge_name, p.client?.name]) });
+    sheets.push({ name: "Payments", headers: ["Amount", "Date", "Mode", "Reference", "Charge", "Client", "Case"], rows: data.payments.map((p: any) => [p.amount_paid, p.payment_date, p.payment_mode, p.payment_reference, p.charge_name, p.client?.name, p.case?.case_number]) });
   } else if (type === "followups") {
-    sheets.push({ name: "Events", headers: ["Date", "Type", "Title", "Status", "Case"], rows: data.followups.map((f: any) => [f.scheduled_at, f.type, f.title, f.status, f.case?.case_number]) });
+    sheets.push({ name: "Events", headers: ["Date", "Type", "Title", "Status", "Case", "Notes", "Created By"], rows: data.followups.map((f: any) => [f.scheduled_at, f.type, f.title, f.status, f.case?.case_number, f.notes, f.created_by]) });
   } else if (type === "documents") {
-    sheets.push({ name: "Documents", headers: ["Name", "Category", "Date", "Uploaded By", "Case"], rows: data.documents.map((d: any) => [d.file_name, d.category, d.uploaded_at, d.uploaded_by, d.case?.case_number]) });
+    sheets.push({ name: "Documents", headers: ["Name", "Category", "Date", "Uploaded By", "Case", "Description"], rows: data.documents.map((d: any) => [d.file_name, d.category, d.uploaded_at, d.uploaded_by, d.case?.case_number, d.description]) });
   } else if (type === "tasks") {
     sheets.push({ name: "Tasks", headers: ["Title", "Priority", "Status", "Created By", "Created At"], rows: data.tasks.map((t: any) => [t.title, t.priority, t.status, t.created_by, t.created_at]) });
   }
@@ -259,28 +301,50 @@ async function generateXLSX(data: any, type: ExportType, orgName: string): Promi
 async function generateDOCX(data: any, type: ExportType, orgName: string): Promise<Uint8Array> {
   const zip = new JSZip();
   
-  const headers = type === "clients" ? ["Name", "Email", "Phone", "Address", "Status"] :
-                 type === "cases" ? ["Case #", "Title", "Type", "Status", "Lawyer", "Client"] :
-                 type === "payments" ? ["Amount", "Date", "Mode", "Reference", "Client"] :
-                 ["Title", "Priority", "Status", "Created By", "Created At"];
+  let tablesXml = "";
+  let totalCount = 0;
 
-  const rows = type === "clients" ? data.clients.map((c: any) => [c.name, c.email, c.phone, c.address, c.status]) :
-               type === "cases" ? data.cases.map((c: any) => [c.case_number, c.title, c.case_type, c.status, c.lawyer_name, c.client?.name]) :
-               type === "payments" ? data.payments.map((p: any) => [p.amount_paid, p.payment_date, p.payment_mode, p.payment_reference, p.client?.name]) :
-               data.tasks.map((t: any) => [t.title, t.priority, t.status, t.created_by, t.created_at]);
+  if (type === "dashboard") {
+    const sections = [
+      { name: "Clients", headers: ["Name", "Email", "Phone", "Status"], data: data.clients.map((c: any) => [c.name, c.email, c.phone, c.status]) },
+      { name: "Cases", headers: ["Case #", "Title", "Type", "Status", "Client"], data: data.cases.map((c: any) => [c.case_number, c.title, c.case_type, c.status, c.client?.name]) },
+      { name: "Payments", headers: ["Amount", "Date", "Mode", "Client"], data: data.payments.map((p: any) => [p.amount_paid, p.payment_date, p.payment_mode, p.client?.name]) },
+      { name: "Events", headers: ["Date", "Type", "Title", "Case"], data: data.followups.map((f: any) => [f.scheduled_at, f.type, f.title, f.case?.case_number]) },
+      { name: "Tasks", headers: ["Title", "Priority", "Status", "Date"], data: data.tasks.map((t: any) => [t.title, t.priority, t.status, t.created_at]) }
+    ];
 
-  const tblXml = `
-    <w:tbl>
-      <w:tblPr><w:tblW w:w="5000" w:type="pct"/><w:tblBorders><w:top w:val="single"/><w:left w:val="single"/><w:bottom w:val="single"/><w:right w:val="single"/><w:insideH w:val="single"/><w:insideV w:val="single"/></w:tblBorders></w:tblPr>
-      <w:tr>
-        ${headers.map(h => `<w:tc><w:p><w:r><w:rPr><w:b/></w:rPr><w:t>${esc(h)}</w:t></w:r></w:p></w:tc>`).join("")}
-      </w:tr>
-      ${rows.map(row => `
-        <w:tr>
-          ${row.map((val: any) => `<w:tc><w:p><w:r><w:t>${esc(val)}</w:t></w:r></w:p></w:tc>`).join("")}
-        </w:tr>
-      `).join("")}
-    </w:tbl>`;
+    totalCount = sections.reduce((sum, s) => sum + s.data.length, 0);
+
+    for (const sec of sections) {
+      tablesXml += `
+        <w:p><w:r><w:rPr><w:b/><w:sz w:val="28"/></w:rPr><w:t>${esc(sec.name)}</w:t></w:r></w:p>
+        <w:tbl>
+          <w:tblPr><w:tblW w:w="5000" w:type="pct"/><w:tblBorders><w:top w:val="single"/><w:left w:val="single"/><w:bottom w:val="single"/><w:right w:val="single"/><w:insideH w:val="single"/><w:insideV w:val="single"/></w:tblBorders></w:tblPr>
+          <w:tr>${sec.headers.map(h => `<w:tc><w:p><w:r><w:rPr><w:b/></w:rPr><w:t>${esc(h)}</w:t></w:r></w:p></w:tc>`).join("")}</w:tr>
+          ${sec.data.map((row: any) => `<w:tr>${row.map((val: any) => `<w:tc><w:p><w:r><w:t>${esc(val)}</w:t></w:r></w:p></w:tc>`).join("")}</w:tr>`).join("")}
+        </w:tbl>
+        <w:p/>`;
+    }
+  } else {
+    const headers = type === "clients" ? ["Name", "Email", "Phone", "Address", "Status"] :
+                   type === "cases" ? ["Case #", "Title", "Type", "Status", "Lawyer", "Client"] :
+                   type === "payments" ? ["Amount", "Date", "Mode", "Reference", "Client"] :
+                   ["Title", "Priority", "Status", "Created By", "Created At"];
+
+    const rows = type === "clients" ? data.clients.map((c: any) => [c.name, c.email, c.phone, c.address, c.status]) :
+                 type === "cases" ? data.cases.map((c: any) => [c.case_number, c.title, c.case_type, c.status, c.lawyer_name, c.client?.name]) :
+                 type === "payments" ? data.payments.map((p: any) => [p.amount_paid, p.payment_date, p.payment_mode, p.payment_reference, p.client?.name]) :
+                 data.tasks.map((t: any) => [t.title, t.priority, t.status, t.created_by, t.created_at]);
+
+    totalCount = rows.length;
+
+    tablesXml = `
+      <w:tbl>
+        <w:tblPr><w:tblW w:w="5000" w:type="pct"/><w:tblBorders><w:top w:val="single"/><w:left w:val="single"/><w:bottom w:val="single"/><w:right w:val="single"/><w:insideH w:val="single"/><w:insideV w:val="single"/></w:tblBorders></w:tblPr>
+        <w:tr>${headers.map(h => `<w:tc><w:p><w:r><w:rPr><w:b/></w:rPr><w:t>${esc(h)}</w:t></w:r></w:p></w:tc>`).join("")}</w:tr>
+        ${rows.map((row: any) => `<w:tr>${row.map((val: any) => `<w:tc><w:p><w:r><w:t>${esc(val)}</w:t></w:r></w:p></w:tc>`).join("")}</w:tr>`).join("")}
+      </w:tbl>`;
+  }
 
   const docXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
     <w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
@@ -288,8 +352,8 @@ async function generateDOCX(data: any, type: ExportType, orgName: string): Promi
         <w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:b/><w:sz w:val="48"/></w:rPr><w:t>${esc(orgName)}</w:t></w:r></w:p>
         <w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r><w:rPr><w:sz w:val="32"/></w:rPr><w:t>${esc(type.toUpperCase())} REPORT</w:t></w:r></w:p>
         <w:p><w:r><w:t>Generated on: ${new Date().toLocaleString()}</w:t></w:r></w:p>
-        <w:p><w:r><w:t>Total Records: ${rows.length}</w:t></w:r></w:p>
-        ${tblXml}
+        <w:p><w:r><w:t>Total Records: ${totalCount}</w:t></w:r></w:p>
+        ${tablesXml}
       </w:body>
     </w:document>`;
 
@@ -373,20 +437,56 @@ async function generatePDF(data: any, type: ExportType, orgName: string, dateRan
       ["Pending Tasks", String(data.tasks.filter((t: any) => t.status !== 'COMPLETED').length)],
     ];
     doc.autoTable({ startY: y, head: [summary[0]], body: summary.slice(1), theme: 'striped', headStyles: { fillColor: [11, 31, 58] } });
-    y = doc.lastAutoTable.finalY + 20;
+    y = doc.lastAutoTable.finalY + 15;
     
-    doc.setFontSize(16);
-    doc.text("Detailed Data Tables", 14, y);
-    y += 10;
-    
-    doc.setFontSize(14);
-    doc.text("1. Active Cases", 14, y);
-    doc.autoTable({
-      startY: y + 5,
-      head: [["Case #", "Title", "Type", "Status", "Client"]],
-      body: data.cases.slice(0, 100).map((c: any) => [c.case_number, c.title, c.case_type, c.status, c.client?.name || "N/A"]),
-      theme: 'grid', headStyles: { fillColor: [201, 163, 78] }
-    });
+    // Detailed Sections
+    const sections = [
+      { 
+        title: "1. Clients", 
+        head: [["Name", "Email", "Phone", "Status"]], 
+        body: data.clients.slice(0, 100).map((c: any) => [c.name, c.email, c.phone, c.status]) 
+      },
+      { 
+        title: "2. Active Cases", 
+        head: [["Case #", "Title", "Type", "Status", "Client"]], 
+        body: data.cases.slice(0, 100).map((c: any) => [c.case_number, c.title, c.case_type, c.status, c.client?.name || "N/A"]) 
+      },
+      { 
+        title: "3. Payment History", 
+        head: [["Amount", "Date", "Mode", "Client"]], 
+        body: data.payments.slice(0, 100).map((p: any) => [`Rs. ${p.amount_paid}`, p.payment_date?.slice(0,10), p.payment_mode, p.client?.name || "N/A"]) 
+      },
+      { 
+        title: "4. Upcoming Events", 
+        head: [["Date", "Type", "Title", "Case"]], 
+        body: data.followups.slice(0, 100).map((f: any) => [f.scheduled_at?.slice(0, 16), f.type, f.title, f.case?.case_number || "N/A"]) 
+      },
+      { 
+        title: "5. Recent Documents", 
+        head: [["Name", "Category", "Date", "Case"]], 
+        body: data.documents.slice(0, 100).map((d: any) => [d.file_name, d.category, d.uploaded_at?.slice(0,10), d.case?.case_number || "N/A"]) 
+      },
+      { 
+        title: "6. Task List", 
+        head: [["Title", "Priority", "Status", "Date"]], 
+        body: data.tasks.slice(0, 100).map((t: any) => [t.title, t.priority, t.status, t.created_at?.slice(0,10)]) 
+      }
+    ];
+
+    for (const section of sections) {
+      if (y > 250) { doc.addPage(); y = 20; }
+      doc.setFontSize(14);
+      doc.text(section.title, 14, y);
+      doc.autoTable({
+        startY: y + 5,
+        head: section.head,
+        body: section.body,
+        theme: 'grid',
+        headStyles: { fillColor: [201, 163, 78] },
+        styles: { fontSize: 9 }
+      });
+      y = doc.lastAutoTable.finalY + 15;
+    }
   } else {
     // Specific module summary
     const count = Array.isArray(data[type]) ? data[type].length : 0;

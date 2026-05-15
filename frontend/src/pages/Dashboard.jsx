@@ -89,11 +89,25 @@ function Dashboard() {
   const [selectedDate, setSelectedDate] = useState(null);
   const [eventModalOpen, setEventModalOpen] = useState(false);
   const [selectedEvent, setSelectedEvent] = useState(null);
+  const [filterPanelOpen, setFilterPanelOpen] = useState(false);
+  const filterPanelRef = useRef(null);
   const { theme, toggleTheme } = useTheme();
 
   const [pendingTaskCount, setPendingTaskCount] = useState(0);
   const [fromDate, setFromDate] = useState("");
   const [toDate, setToDate] = useState("");
+
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (filterPanelRef.current && !filterPanelRef.current.contains(event.target)) {
+        setFilterPanelOpen(false);
+      }
+    };
+    if (filterPanelOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+    }
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [filterPanelOpen]);
 
   const isDateInRange = useCallback((dateValue, fallbackDate = null) => {
     if (!fromDate && !toDate) return true;
@@ -578,7 +592,7 @@ function Dashboard() {
         </div>
 
         <div className="dashboard-header-row controls-row">
-          <div className="dashboard-operational-controls">
+          <div className="dashboard-controls-left">
             <button type="button" className="notification-trigger" onClick={() => setNotificationOpen(true)}>
               <span className="notif-bell">🔔</span>
               <span className="notif-text">Notifications ({priorityQueue.length + cashChecklist.length})</span>
@@ -593,24 +607,45 @@ function Dashboard() {
                 </span>
               )}
             </div>
+            
+            <div className="dashboard-filter-dropdown-wrap" ref={filterPanelRef}>
+              <button 
+                type="button" 
+                className={`btn-neutral dashboard-filter-toggle ${filterPanelOpen ? "active" : ""}`}
+                onClick={() => setFilterPanelOpen(!filterPanelOpen)}
+              >
+                📅 Date Filters {fromDate || toDate ? "•" : ""}
+              </button>
+              
+              {filterPanelOpen && (
+                <div className="dashboard-filter-panel">
+                  <div className="filter-panel-group">
+                    <label>Presets</label>
+                    <div className="quick-filter-presets">
+                      <button type="button" onClick={() => setDatePreset("this_month")}>This Month</button>
+                      <button type="button" onClick={() => setDatePreset("last_month")}>Last Month</button>
+                      <button type="button" onClick={() => setDatePreset("this_year")}>This Year</button>
+                    </div>
+                  </div>
+                  <div className="filter-panel-group">
+                    <label>Custom Range</label>
+                    <div className="date-range-inputs">
+                      <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+                      <span>to</span>
+                      <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
+                    </div>
+                  </div>
+                  <button type="button" className="btn-primary panel-apply-btn" onClick={() => setFilterPanelOpen(false)}>
+                    Apply
+                  </button>
+                </div>
+              )}
+            </div>
           </div>
 
-          <div className="dashboard-filter-section">
-            <div className="quick-filter-presets">
-              <button type="button" onClick={() => setDatePreset("this_month")}>This Month</button>
-              <button type="button" onClick={() => setDatePreset("last_month")}>Last Month</button>
-              <button type="button" onClick={() => setDatePreset("this_year")}>This Year</button>
-            </div>
-            <div className="date-range-inputs">
-              <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
-              <span>to</span>
-              <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
-            </div>
-          </div>
-
-          <div className="dashboard-report-actions">
+          <div className="dashboard-controls-right">
             {isOrgAdmin() && (
-              <>
+              <div className="dashboard-report-actions">
                 <button
                   type="button"
                   className="btn-neutral"
@@ -627,7 +662,7 @@ function Dashboard() {
                 >
                   📥 Download Report
                 </button>
-              </>
+              </div>
             )}
           </div>
         </div>
