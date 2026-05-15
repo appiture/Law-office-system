@@ -298,6 +298,7 @@ function Clients() {
           isOpen={showExportModal}
           onClose={() => setShowExportModal(false)}
           type="clients"
+          availableData={clients}
           currentFilters={filters}
           defaultDateRange={{ start: filters.fromDate, end: filters.toDate }}
         />

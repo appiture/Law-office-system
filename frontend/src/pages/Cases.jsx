@@ -489,6 +489,7 @@ function Cases() {
           isOpen={showExportModal}
           onClose={() => setShowExportModal(false)}
           type="cases"
+          availableData={cases}
           currentFilters={filters}
           defaultDateRange={{ start: filters.fromDate, end: filters.toDate }}
         />

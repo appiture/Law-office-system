@@ -32,20 +32,9 @@ export default function ExportModal({
 
   if (!isOpen) return null;
 
-  const validateExport = () => {
-    // BUG 1 & 8: Empty-state validation
-    if (!availableData || availableData.length === 0) {
-      setError("No matching records found for the selected filters.");
-      return false;
-    }
-    return true;
-  };
-
   const handleOpenPreview = () => {
     setError("");
-    if (validateExport()) {
-      setShowPreview(true);
-    }
+    setShowPreview(true);
   };
 
   const handleFinalExport = async () => {
@@ -144,7 +133,10 @@ export default function ExportModal({
             )}
             
             <div style={{ marginTop: "16px", padding: "12px", background: "rgba(0,0,0,0.03)", borderRadius: "8px", fontSize: "12px", color: "var(--color-text-secondary)" }}>
-              ℹ️ Export will include <strong>{availableData.length} records</strong> matching your current UI filters.
+              {availableData.length > 0
+                ? <>ℹ️ Export will include <strong>{availableData.length} records</strong> matching your current UI filters.</>
+                : <>⚠️ No local preview available — the server will export all records matching your filters.</>
+              }
             </div>
           </div>
 
@@ -154,7 +146,7 @@ export default function ExportModal({
               type="button" 
               className="btn-gold" 
               onClick={handleOpenPreview} 
-              disabled={exporting || availableData.length === 0}
+              disabled={exporting}
               style={{ minWidth: "120px" }}
             >
               👁️ Preview & Export

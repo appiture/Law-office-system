@@ -618,6 +618,7 @@ function Payments() {
           isOpen={showExportModal}
           onClose={() => setShowExportModal(false)}
           type="payments"
+          availableData={cases}
           currentFilters={filters}
           defaultDateRange={{ start: filters.fromDate, end: filters.toDate }}
         />

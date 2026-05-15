@@ -543,6 +543,7 @@ export default function Tasks() {
           isOpen={showExportModal}
           onClose={() => setShowExportModal(false)}
           type="tasks"
+          availableData={filteredTasks}
           currentFilters={{ status: filterStatus, priority: filterPriority, searchTerm: searchQuery }}
           defaultDateRange={{ start: filterFromDate, end: filterToDate }}
         />

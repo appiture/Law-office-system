@@ -532,6 +532,7 @@ function FollowUps() {
           isOpen={showExportModal}
           onClose={() => setShowExportModal(false)}
           type="followups"
+          availableData={cases}
           currentFilters={filters}
           defaultDateRange={{ start: filters.fromDate, end: filters.toDate }}
         />
