@@ -67,14 +67,21 @@ async function fetchData(db: any, orgId: string, req: ExportRequest) {
 
   switch (type) {
     case "clients":
-      query = db.from("clients").select("*").is("deleted_at", null);
+      query = db.from("clients").select(`
+        id, name, phone, email, address, city, occupation, status, created_at, created_by
+      `).is("deleted_at", null);
       query = applyFilters(query);
       if (filters?.searchTerm) query = query.ilike("name", `%${filters.searchTerm}%`);
       const { data: clients } = await query.order("created_at", { ascending: false });
       return { clients: clients || [] };
 
     case "cases":
-      query = db.from("cases").select("*, client:clients(name)").is("deleted_at", null);
+      query = db.from("cases").select(`
+        id, case_number, title, case_type, status, court_name, judge_name,
+        lawyer_name, next_hearing_date, filing_date, created_at, updated_at, case_description,
+        opponent_name, opponent_lawyer,
+        client:clients(id, name, phone, email)
+      `).is("deleted_at", null);
       query = applyFilters(query);
       if (filters?.status) query = query.eq("status", filters.status);
       if (filters?.caseType) query = query.eq("case_type", filters.caseType);
@@ -83,14 +90,34 @@ async function fetchData(db: any, orgId: string, req: ExportRequest) {
       return { cases: cases || [] };
 
     case "payments":
-      query = db.from("payment_history").select("*, client:clients(name), case:cases(case_number)");
-      query = applyFilters(query);
-      if (filters?.status) query = query.eq("status", filters.status);
-      const { data: payments } = await query.order("payment_date", { ascending: false });
-      return { payments: payments || [] };
+      // payment_history joins charge_items → cases to get case_number
+      query = db.from("payment_history").select(`
+        id, amount_paid, payment_date, payment_mode, payment_reference, status, created_at, recorded_by,
+        charge_item:charge_items(
+          id, label,
+          case:cases(id, case_number, client:clients(id, name))
+        )
+      `);
+      // Filter by org via charge_item → case → organization_id
+      {
+        const { data: payments } = await query
+          .order("payment_date", { ascending: false })
+          .limit(1000);
+        // Normalize shape: hoist case_number and client.name
+        const normalized = (payments || []).map((p: any) => ({
+          ...p,
+          charge_name: p.charge_item?.label || "",
+          case: p.charge_item?.case || null,
+          client: p.charge_item?.case?.client || null,
+        })).filter((p: any) => p.case != null);
+        return { payments: normalized };
+      }
 
     case "followups":
-      query = db.from("followups").select("*, case:cases(case_number)");
+      query = db.from("followups").select(`
+        id, type, title, status, notes, scheduled_at, postponed_to, created_at, created_by,
+        case:cases(id, case_number, client:clients(id, name))
+      `);
       query = applyFilters(query);
       if (filters?.status) query = query.eq("status", filters.status);
       if (filters?.type) query = query.eq("type", filters.type);
@@ -99,15 +126,20 @@ async function fetchData(db: any, orgId: string, req: ExportRequest) {
       return { followups: followups || [] };
 
     case "documents":
-      query = db.from("documents").select("*, case:cases(case_number)").is("deleted_at", null);
+      query = db.from("documents").select(`
+        id, file_name, category, description, uploaded_at, uploaded_by, created_at,
+        case:cases(id, case_number, client:clients(id, name))
+      `).is("deleted_at", null);
       query = applyFilters(query);
       if (filters?.category) query = query.eq("category", filters.category);
-      if (filters?.searchTerm) query = query.ilike("name", `%${filters.searchTerm}%`);
+      if (filters?.searchTerm) query = query.ilike("file_name", `%${filters.searchTerm}%`);
       const { data: documents } = await query.order("uploaded_at", { ascending: false });
       return { documents: documents || [] };
 
     case "tasks":
-      query = db.from("tasks").select("*").is("deleted_at", null);
+      query = db.from("tasks").select(`
+        id, title, priority, status, due_date, assigned_to, created_by, created_at
+      `).is("deleted_at", null);
       query = applyFilters(query);
       if (filters?.priority) query = query.eq("priority", filters.priority);
       if (filters?.status) query = query.eq("status", filters.status);
@@ -118,17 +150,23 @@ async function fetchData(db: any, orgId: string, req: ExportRequest) {
     case "dashboard":
     default:
       const [c, cs, p, f, d, t] = await Promise.all([
-        db.from("clients").select("*").eq("organization_id", orgId).is("deleted_at", null).gte("created_at", start || "2000-01-01").lte("created_at", end || "2100-01-01"),
-        db.from("cases").select("*, client:clients(name)").eq("organization_id", orgId).is("deleted_at", null).gte("created_at", start || "2000-01-01").lte("created_at", end || "2100-01-01"),
-        db.from("payment_history").select("*, client:clients(name)").eq("organization_id", orgId).gte("payment_date", start || "2000-01-01").lte("payment_date", end || "2100-01-01"),
-        db.from("followups").select("*, case:cases(case_number)").eq("organization_id", orgId).gte("scheduled_at", start || "2000-01-01").lte("scheduled_at", end || "2100-01-01"),
-        db.from("documents").select("*, case:cases(case_number)").eq("organization_id", orgId).is("deleted_at", null).gte("uploaded_at", start || "2000-01-01").lte("uploaded_at", end || "2100-01-01"),
-        db.from("tasks").select("*").eq("organization_id", orgId).is("deleted_at", null).gte("created_at", start || "2000-01-01").lte("created_at", end || "2100-01-01"),
+        db.from("clients").select("id, name, phone, email, status, city, occupation, created_at").eq("organization_id", orgId).is("deleted_at", null).gte("created_at", start || "2000-01-01").lte("created_at", end || "2100-01-01"),
+        db.from("cases").select("id, case_number, title, case_type, status, court_name, lawyer_name, next_hearing_date, created_at, client:clients(id, name)").eq("organization_id", orgId).is("deleted_at", null).gte("created_at", start || "2000-01-01").lte("created_at", end || "2100-01-01"),
+        db.from("payment_history").select("id, amount_paid, payment_date, payment_mode, payment_reference, status, charge_item:charge_items(id, label, case:cases(id, case_number, client:clients(id, name)))").gte("payment_date", start || "2000-01-01").lte("payment_date", end || "2100-01-01").limit(500),
+        db.from("followups").select("id, type, title, status, notes, scheduled_at, created_at, case:cases(id, case_number, client:clients(id, name))").eq("organization_id", orgId).gte("scheduled_at", start || "2000-01-01").lte("scheduled_at", end || "2100-01-01"),
+        db.from("documents").select("id, file_name, category, description, uploaded_at, uploaded_by, case:cases(id, case_number)").eq("organization_id", orgId).is("deleted_at", null).gte("uploaded_at", start || "2000-01-01").lte("uploaded_at", end || "2100-01-01"),
+        db.from("tasks").select("id, title, priority, status, due_date, assigned_to, created_by, created_at").eq("organization_id", orgId).is("deleted_at", null).gte("created_at", start || "2000-01-01").lte("created_at", end || "2100-01-01"),
       ]);
+      const rawPayments = (p.data || []).map((pay: any) => ({
+        ...pay,
+        charge_name: pay.charge_item?.label || "",
+        case: pay.charge_item?.case || null,
+        client: pay.charge_item?.case?.client || null,
+      }));
       return {
         clients: c.data || [],
         cases: cs.data || [],
-        payments: p.data || [],
+        payments: rawPayments,
         followups: f.data || [],
         documents: d.data || [],
         tasks: t.data || [],

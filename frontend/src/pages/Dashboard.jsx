@@ -200,6 +200,7 @@ function Dashboard() {
   const [reportState, setReportState] = useState({ loading: false, toast: null }); // toast: {type:'success'|'error', msg}
 
   const [showExportModal, setShowExportModal] = useState(false);
+  const [emailExportModal, setEmailExportModal] = useState(false);
 
   const handleDateClick = (date) => {
     setAgendaDate(date);
@@ -651,12 +652,12 @@ function Dashboard() {
           <div className="dashboard-controls-right">
             {isOrgAdmin() && (
               <div className="dashboard-report-actions">
-                <button
+              <button
                   type="button"
                   className="btn-neutral"
-                  onClick={handleEmailReport}
+                  onClick={() => setEmailExportModal(true)}
                   disabled={reportState.loading}
-                  title="Email this report to yourself"
+                  title="Choose format and email this report to yourself"
                 >
                   📧 {reportState.loading ? "Sending..." : "Email Report"}
                 </button>
@@ -954,8 +955,6 @@ function Dashboard() {
           type="dashboard"
           currentFilters={{ searchTerm: dashboardSearch }}
           defaultDateRange={{ start: fromDate, end: toDate }}
-          // Pass a summary-level array so preview shows meaningful dashboard data.
-          // The real export fetches all sections fresh from the backend.
           availableData={[
             ...cases
               .filter(c => isDateInRange(c.createdAt))
@@ -973,8 +972,39 @@ function Dashboard() {
               .map(c => ({
                 section: "Clients",
                 name: c.name,
-                title: c.name,
+                status: c.status || "Active",
+                createdAt: c.createdAt,
+              })),
+          ]}
+        />
+      )}
+
+      {emailExportModal && (
+        <ExportModal
+          isOpen={emailExportModal}
+          onClose={() => setEmailExportModal(false)}
+          type="dashboard"
+          initialSendToEmail={true}
+          currentFilters={{ searchTerm: dashboardSearch }}
+          defaultDateRange={{ start: fromDate, end: toDate }}
+          availableData={[
+            ...cases
+              .filter(c => isDateInRange(c.createdAt))
+              .map(c => ({
+                section: "Cases",
+                name: c.caseNumber,
+                title: c.title,
                 status: c.status,
+                caseNumber: c.caseNumber,
+                client: c.client,
+                createdAt: c.createdAt,
+              })),
+            ...clients
+              .filter(c => isDateInRange(c.createdAt))
+              .map(c => ({
+                section: "Clients",
+                name: c.name,
+                status: c.status || "Active",
                 createdAt: c.createdAt,
               })),
           ]}

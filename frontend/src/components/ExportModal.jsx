@@ -112,13 +112,14 @@ export default function ExportModal({
   currentFilters = {},
   defaultDateRange = { start: "", end: "" },
   availableData = [],
+  initialSendToEmail = false,
 }) {
   const [format, setFormat] = useState("pdf");
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [showPreview, setShowPreview] = useState(false);
-  const [sendToEmail, setSendToEmail] = useState(false);
+  const [sendToEmail, setSendToEmail] = useState(initialSendToEmail);
   const [emailValue, setEmailValue] = useState("");
 
   if (!isOpen) return null;
@@ -314,12 +315,16 @@ export default function ExportModal({
       <div className="flow-modal" style={{ 
         maxWidth: "800px", 
         width: "95vw",
-        background: "var(--color-bg-alt)", // Slightly darker background for the portal area
+        background: "var(--color-bg-alt)",
       }}>
         <div className="flow-modal-header" style={{ background: "transparent", border: "none" }}>
           <div className="flow-modal-header-info">
             <h3>📑 Document Preview</h3>
-            <p>Reviewing top {previewRows.length} records in {selectedFmt?.label} format</p>
+            <p>
+              {previewRows.length > 0
+                ? `Reviewing top ${previewRows.length} loaded records — export will include ALL matching records from the server.`
+                : "No records are currently loaded. The export will fetch all matching records from the server based on your filters."}
+            </p>
           </div>
           <button type="button" className="flow-modal-close" onClick={() => setShowPreview(false)}>✕</button>
         </div>
@@ -389,31 +394,39 @@ export default function ExportModal({
 
             {/* Simulated Data Table */}
             <div style={{ flex: 1 }}>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "10.5px" }}>
-                <thead>
-                  <tr style={{ background: "#f1f3f4" }}>
-                    {columns.slice(0, 5).map((col) => (
-                      <th key={col.header} style={{ padding: "8px 10px", textAlign: "left", borderBottom: "1.5px solid #ddd", fontWeight: 800, color: "#444" }}>{col.header}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {previewRows.map((row, i) => (
-                    <tr key={i} style={{ borderBottom: "1px solid #eee" }}>
+              {previewRows.length === 0 ? (
+                <div style={{ padding: "32px", textAlign: "center", color: "#888", border: "1.5px dashed #ddd", borderRadius: 8 }}>
+                  <div style={{ fontSize: 32, marginBottom: 8 }}>📋</div>
+                  <div style={{ fontWeight: 700, marginBottom: 4 }}>No preview data loaded</div>
+                  <div style={{ fontSize: 11 }}>The export will still fetch all records matching your current filters from the server. Use "Show All" on the page first to see a data preview here.</div>
+                </div>
+              ) : (
+                <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "10.5px" }}>
+                  <thead>
+                    <tr style={{ background: "#f1f3f4" }}>
                       {columns.slice(0, 5).map((col) => (
-                        <td key={col.header} style={{ padding: "8px 10px", color: "#555" }}>{col.accessor(row)}</td>
+                        <th key={col.header} style={{ padding: "8px 10px", textAlign: "left", borderBottom: "1.5px solid #ddd", fontWeight: 800, color: "#444" }}>{col.header}</th>
                       ))}
                     </tr>
-                  ))}
-                  {availableData.length > 8 && (
-                    <tr>
-                      <td colSpan={5} style={{ padding: "12px", textAlign: "center", color: "#999", fontSize: "10px", fontStyle: "italic", background: "#fafafa" }}>
-                        ... and {availableData.length - 8} more records
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {previewRows.map((row, i) => (
+                      <tr key={i} style={{ borderBottom: "1px solid #eee" }}>
+                        {columns.slice(0, 5).map((col) => (
+                          <td key={col.header} style={{ padding: "8px 10px", color: "#555" }}>{col.accessor(row)}</td>
+                        ))}
+                      </tr>
+                    ))}
+                    {availableData.length > 8 && (
+                      <tr>
+                        <td colSpan={5} style={{ padding: "12px", textAlign: "center", color: "#999", fontSize: "10px", fontStyle: "italic", background: "#fafafa" }}>
+                          ... and {availableData.length - 8} more loaded records. Export will include all from server.
+                        </td>
+                      </tr>
+                    )}
+                  </tbody>
+                </table>
+              )}
             </div>
 
             {/* Footer simulation */}

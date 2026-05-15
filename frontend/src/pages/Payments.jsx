@@ -637,7 +637,22 @@ function Payments() {
           isOpen={showExportModal}
           onClose={() => setShowExportModal(false)}
           type="payments"
-          availableData={cases}
+          availableData={
+            // Flatten paymentHistory from all loaded case objects for preview
+            cases.flatMap(c =>
+              (c.paymentHistory || []).map(p => ({
+                ...p,
+                caseNumber: c.caseNumber || c.case_number,
+                clientName: c.client?.name || c.clientName,
+                charge_name: p.chargeLabel || p.charge_name,
+                amount_paid: p.amount || p.amount_paid,
+                payment_mode: p.paymentMode || p.payment_mode,
+                payment_reference: p.paymentReference || p.payment_reference,
+                payment_date: p.paymentDate || p.payment_date,
+                case: { caseNumber: c.caseNumber || c.case_number },
+              }))
+            )
+          }
           currentFilters={filters}
           defaultDateRange={{ start: filters.fromDate, end: filters.toDate }}
         />

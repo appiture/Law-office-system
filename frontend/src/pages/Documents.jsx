@@ -455,7 +455,20 @@ function Documents() {
           isOpen={showExportModal}
           onClose={() => setShowExportModal(false)}
           type="documents"
-          availableData={cases}
+          availableData={
+            // Flatten documents from all loaded case objects for preview
+            cases.flatMap(c =>
+              (c.documents || []).map(d => ({
+                ...d,
+                title: d.fileName || d.name,
+                caseNumber: c.caseNumber || c.case_number,
+                clientName: c.client?.name || c.clientName,
+                case: { caseNumber: c.caseNumber || c.case_number },
+                uploaded_at: d.createdAt || d.uploaded_at,
+                uploaded_by: d.uploadedBy || d.uploaded_by,
+              }))
+            )
+          }
           currentFilters={filters}
           defaultDateRange={{ start: filters.fromDate, end: filters.toDate }}
         />

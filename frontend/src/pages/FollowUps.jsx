@@ -551,7 +551,17 @@ function FollowUps() {
           isOpen={showExportModal}
           onClose={() => setShowExportModal(false)}
           type="followups"
-          availableData={cases}
+          availableData={
+            // Flatten followUps from all loaded case objects for preview
+            cases.flatMap(c =>
+              (c.followUps || []).map(f => ({
+                ...f,
+                caseNumber: c.caseNumber || c.case_number,
+                clientName: c.client?.name || c.clientName,
+                case: { caseNumber: c.caseNumber || c.case_number },
+              }))
+            )
+          }
           currentFilters={filters}
           defaultDateRange={{ start: filters.fromDate, end: filters.toDate }}
         />
