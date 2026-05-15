@@ -251,6 +251,7 @@ function FollowUps() {
   const [searchParams] = useSearchParams();
   const { followupId } = useParams();
   const initialSearchCase = searchParams.get("searchCase") || "";
+  const highlightCaseId   = searchParams.get("highlightCase") || "";
   const [filters, setFilters] = useState({ ...emptyFilters, searchTerm: initialSearchCase });
   const [hasLoaded, setHasLoaded] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -342,6 +343,15 @@ function FollowUps() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [followupId]);
+
+  // Scroll to and highlight a specific case card when arriving from a notification
+  useEffect(() => {
+    if (!highlightCaseId || cases.length === 0) return;
+    const el = document.getElementById(`followup-case-${highlightCaseId}`);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [highlightCaseId, cases]);
 
   const markCompleted = async (caseId, item) => {
     await platformApi.updateFollowUp(caseId, item.id, {
@@ -449,7 +459,16 @@ function FollowUps() {
         {!hasLoaded && <EmptyState label="Use the filters above to load follow-ups." />}
         {loading && <LoadingState label="Loading follow-ups..." />}
         {hasLoaded && !loading && cases.map(legalCase => (
-          <div key={legalCase.id}>
+          <div
+            key={legalCase.id}
+            id={`followup-case-${legalCase.id}`}
+            style={highlightCaseId === String(legalCase.id) ? {
+              outline: "2.5px solid var(--color-gold)",
+              borderRadius: "14px",
+              boxShadow: "0 0 0 5px var(--color-gold-bg), 0 8px 32px rgba(196,154,108,0.18)",
+              animation: "highlightPulse 1.8s ease-in-out",
+            } : {}}
+          >
             <CaseIdentityCard
               item={legalCase}
               className="case-card-premium"

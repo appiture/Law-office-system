@@ -397,7 +397,7 @@ function Dashboard() {
           title: `Next hearing: ${legalCase.caseNumber}`,
           date: legalCase.nextHearingDate,
           key: toDateKey(legalCase.nextHearingDate),
-          to: `/followups?searchCase=${encodeURIComponent(legalCase.caseNumber)}`,
+          to: `/followups?highlightCase=${legalCase.id}&searchCase=${encodeURIComponent(legalCase.caseNumber)}`,
           client: legalCase.client?.name || "Client",
           caseNumber: legalCase.caseNumber,
         });
@@ -513,7 +513,7 @@ function Dashboard() {
               status: item.status,
               entityType: "payment",
               entityId: item.id,
-              to: `/payments?searchCase=${encodeURIComponent(legalCase.caseNumber)}`,
+              to: `/payments?highlightCase=${legalCase.id}&searchCase=${encodeURIComponent(legalCase.caseNumber)}`,
             }))
         )
         .filter((item) => searchMatches(item.title, item.client, item.caseNumber, item.status, formatDate(item.dueDate)))

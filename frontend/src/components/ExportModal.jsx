@@ -1,34 +1,51 @@
 import { useState } from "react";
+import { createPortal } from "react-dom";
 import { triggerExport } from "../services/exportService";
-import ExportPreviewModal from "./ExportPreviewModal";
+
+const FORMAT_OPTIONS = [
+  {
+    id: "pdf",
+    emoji: "📕",
+    label: "PDF",
+    description: "Professional report with letterhead, tables & branding. Best for sharing with clients or courts.",
+  },
+  {
+    id: "xlsx",
+    emoji: "📗",
+    label: "Excel",
+    description: "Structured spreadsheet with formatted columns and colour-coded rows. Best for analysis & editing.",
+  },
+  {
+    id: "csv",
+    emoji: "📄",
+    label: "CSV",
+    description: "Universal plain-text format compatible with any tool. Best for data imports & integrations.",
+  },
+  {
+    id: "docx",
+    emoji: "📘",
+    label: "Word",
+    description: "Editable document with professional layout. Best for drafting and printing formal reports.",
+  },
+];
 
 /**
- * ExportModal
- * 
- * Updated with professional preview flow and validation.
+ * ExportModal — format selection only.
+ * Date range is inherited from the active page filters.
  */
-export default function ExportModal({ 
-  isOpen, 
-  onClose, 
-  type = "dashboard", 
-  currentFilters = {}, 
+export default function ExportModal({
+  isOpen,
+  onClose,
+  type = "dashboard",
+  currentFilters = {},
   defaultDateRange = { start: "", end: "" },
-  availableData = [] 
+  availableData = [],
 }) {
   const [format, setFormat] = useState("pdf");
-  const [dateRange, setDateRange] = useState(defaultDateRange);
   const [exporting, setExporting] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
   const [showPreview, setShowPreview] = useState(false);
-  const [includeSections, setIncludeSections] = useState({
-    cases: true,
-    clients: true,
-    payments: true,
-    hearings: true,
-    documents: true,
-    tasks: true,
-  });
 
   if (!isOpen) return null;
 
@@ -43,22 +60,19 @@ export default function ExportModal({
     setError("");
     setSuccess("");
     try {
-      const activeSections = Object.keys(includeSections).filter(k => includeSections[k]);
-      
       const res = await triggerExport({
         format,
         type,
-        dateRange,
+        dateRange: defaultDateRange,
         filters: currentFilters,
-        includeSections: activeSections,
-        selectedIds: [] // Handled by currentFilters for now or can be extended
+        includeSections: [],
+        selectedIds: [],
       });
-
       if (res.isBackground) {
         setSuccess(res.message);
       } else {
-        setSuccess("Report generated successfully! Your download should start automatically.");
-        setTimeout(() => onClose(), 3000);
+        setSuccess("Report generated! Your download will start automatically.");
+        setTimeout(() => onClose(), 2500);
       }
     } catch (err) {
       setError(err.message || "Failed to generate report.");
@@ -67,107 +81,212 @@ export default function ExportModal({
     }
   };
 
-  const toggleSection = (section) => {
-    setIncludeSections(prev => ({ ...prev, [section]: !prev[section] }));
-  };
+  const selectedFmt = FORMAT_OPTIONS.find((f) => f.id === format);
 
   return (
     <>
-      <div className="flow-modal-overlay" onClick={(e) => e.target === e.currentTarget && onClose()}>
-        <div className="flow-modal" style={{ maxWidth: "500px" }}>
+      {/* ── Main Export Modal ─────────────────────────── */}
+      <div
+        className="flow-modal-overlay"
+        style={{ zIndex: 1000 }}
+        onClick={(e) => e.target === e.currentTarget && onClose()}
+      >
+        <div className="flow-modal" style={{ maxWidth: "480px" }}>
           <div className="flow-modal-header">
             <div className="flow-modal-header-info">
-              <h3>📥 Export Configuration</h3>
-              <p>Customize your professional {type} report</p>
+              <h3>📥 Export Report</h3>
+              <p style={{ textTransform: "capitalize" }}>
+                {type} — {availableData.length > 0 ? `${availableData.length} records` : "all matching records"}
+              </p>
             </div>
             <button type="button" className="flow-modal-close" onClick={onClose}>✕</button>
           </div>
 
           <div className="flow-modal-body">
-            {error && <div className="form-error-banner" style={{ marginBottom: "16px" }}>⚠️ {error}</div>}
-            {success && <div className="form-success-banner" style={{ marginBottom: "16px" }}>✅ {success}</div>}
+            {error   && <div className="form-error-banner"   style={{ marginBottom: 16 }}>⚠️ {error}</div>}
+            {success && <div className="form-success-banner" style={{ marginBottom: 16 }}>✅ {success}</div>}
 
+            {/* Format picker */}
             <div className="form-section">
-              <div className="form-section-title"><span>📄</span> Export Format</div>
-              <div className="export-format-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", marginBottom: "16px" }}>
-                {["pdf", "xlsx", "csv", "docx"].map((fmt) => (
-                  <label key={fmt} className={`export-format-card ${format === fmt ? "active" : ""}`} style={{
-                    padding: "12px", border: `1px solid ${format === fmt ? "var(--color-gold)" : "var(--color-border)"}`,
-                    borderRadius: "8px", cursor: "pointer", display: "flex", alignItems: "center", gap: "8px",
-                    background: format === fmt ? "var(--color-gold-bg)" : "transparent"
-                  }}>
-                    <input type="radio" name="format" value={fmt} checked={format === fmt} onChange={(e) => setFormat(e.target.value)} style={{ display: "none" }} />
-                    <span style={{ fontSize: "18px" }}>{fmt === "pdf" ? "📕" : fmt === "xlsx" ? "📗" : fmt === "csv" ? "📄" : "📘"}</span>
-                    <span style={{ fontWeight: "700", textTransform: "uppercase" }}>{fmt}</span>
+              <div className="form-section-title"><span>📄</span> Choose Format</div>
+              <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+                {FORMAT_OPTIONS.map((fmt) => (
+                  <label
+                    key={fmt.id}
+                    onClick={() => setFormat(fmt.id)}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "14px",
+                      padding: "12px 16px",
+                      border: `1.5px solid ${format === fmt.id ? "var(--color-gold)" : "var(--color-border)"}`,
+                      borderRadius: "10px",
+                      cursor: "pointer",
+                      background: format === fmt.id ? "var(--color-gold-bg)" : "transparent",
+                      transition: "all 0.15s ease",
+                      boxShadow: format === fmt.id ? "0 0 0 2px var(--color-gold-light)" : "none",
+                    }}
+                  >
+                    <input
+                      type="radio"
+                      name="export-format"
+                      value={fmt.id}
+                      checked={format === fmt.id}
+                      onChange={() => setFormat(fmt.id)}
+                      style={{ display: "none" }}
+                    />
+                    <span style={{ fontSize: "24px", flexShrink: 0 }}>{fmt.emoji}</span>
+                    <div style={{ flex: 1 }}>
+                      <div style={{ fontWeight: 800, fontSize: "13px", color: "var(--color-text)" }}>
+                        {fmt.label}
+                      </div>
+                      <div style={{ fontSize: "12px", color: "var(--color-text-secondary)", marginTop: "2px", lineHeight: 1.4 }}>
+                        {fmt.description}
+                      </div>
+                    </div>
+                    {format === fmt.id && (
+                      <span style={{ color: "var(--color-gold)", fontSize: "18px", flexShrink: 0 }}>✓</span>
+                    )}
                   </label>
                 ))}
               </div>
             </div>
 
-            <div className="form-section">
-              <div className="form-section-title"><span>📅</span> Date Range</div>
-              <div className="form-section-grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
-                <div className="field-group">
-                  <span className="field-label">From</span>
-                  <input type="date" value={dateRange.start} onChange={(e) => setDateRange(p => ({ ...p, start: e.target.value }))} />
-                </div>
-                <div className="field-group">
-                  <span className="field-label">To</span>
-                  <input type="date" value={dateRange.end} onChange={(e) => setDateRange(p => ({ ...p, end: e.target.value }))} />
-                </div>
-              </div>
-            </div>
-
-            {type === "dashboard" && (
-              <div className="form-section">
-                <div className="form-section-title"><span>🔘</span> Include Sections</div>
-                <div className="sections-checklist" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "8px" }}>
-                  {Object.keys(includeSections).map(section => (
-                    <label key={section} style={{ display: "flex", alignItems: "center", gap: "8px", fontSize: "14px", cursor: "pointer" }}>
-                      <input type="checkbox" checked={includeSections[section]} onChange={() => toggleSection(section)} />
-                      <span style={{ textTransform: "capitalize" }}>{section}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-            )}
-            
-            <div style={{ marginTop: "16px", padding: "12px", background: "rgba(0,0,0,0.03)", borderRadius: "8px", fontSize: "12px", color: "var(--color-text-secondary)" }}>
-              {availableData.length > 0
-                ? <>ℹ️ Export will include <strong>{availableData.length} records</strong> matching your current UI filters.</>
-                : <>⚠️ No local preview available — the server will export all records matching your filters.</>
-              }
+            {/* Info strip */}
+            <div style={{
+              marginTop: "16px",
+              padding: "11px 14px",
+              background: "rgba(0,0,0,0.03)",
+              borderRadius: "8px",
+              fontSize: "12px",
+              color: "var(--color-text-secondary)",
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+            }}>
+              <span>ℹ️</span>
+              <span>
+                {availableData.length > 0
+                  ? <>Will export <strong>{availableData.length} records</strong> matching your active filters.</>
+                  : <>Will export all records matching your active page filters.</>
+                }
+              </span>
             </div>
           </div>
 
           <div className="flow-modal-footer">
-            <button type="button" className="btn-neutral" onClick={onClose} disabled={exporting}>Cancel</button>
-            <button 
-              type="button" 
-              className="btn-gold" 
-              onClick={handleOpenPreview} 
+            <button type="button" className="btn-neutral" onClick={onClose} disabled={exporting}>
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="btn-gold"
+              onClick={handleOpenPreview}
               disabled={exporting}
-              style={{ minWidth: "120px" }}
+              style={{ minWidth: "130px" }}
             >
-              👁️ Preview & Export
+              {exporting ? "Generating…" : `👁️ Preview & Export ${selectedFmt?.label}`}
             </button>
           </div>
         </div>
       </div>
 
-      <ExportPreviewModal 
-        isOpen={showPreview}
-        onClose={() => setShowPreview(false)}
-        onConfirm={handleFinalExport}
-        exportConfig={{ format, type, dateRange }}
-        rowCount={availableData.length}
-        previewData={availableData.slice(0, 5)}
-      />
+      {/* ── Preview confirmation — rendered in portal so it's always on top ── */}
+      {showPreview &&
+        createPortal(
+          <div
+            className="flow-modal-overlay"
+            style={{ zIndex: 1200 }}
+            onClick={(e) => e.target === e.currentTarget && setShowPreview(false)}
+          >
+            <div className="flow-modal" style={{ maxWidth: "520px" }}>
+              <div className="flow-modal-header">
+                <div className="flow-modal-header-info">
+                  <h3>📑 Confirm Export</h3>
+                  <p>Review before downloading</p>
+                </div>
+                <button type="button" className="flow-modal-close" onClick={() => setShowPreview(false)}>✕</button>
+              </div>
 
-      <style>{`
-        .export-format-card:hover { border-color: var(--color-gold) !important; background: var(--color-gold-bg) !important; }
-        .export-format-card.active { box-shadow: 0 0 0 2px var(--color-gold-light); }
-      `}</style>
+              <div className="flow-modal-body">
+                {/* Summary grid */}
+                <div style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: "14px",
+                  padding: "16px",
+                  background: "var(--color-bg-alt)",
+                  borderRadius: "12px",
+                  border: "1px solid var(--color-border)",
+                  marginBottom: "20px",
+                }}>
+                  {[
+                    { label: "Format",  value: `${selectedFmt?.emoji} ${selectedFmt?.label}` },
+                    { label: "Module",  value: type.charAt(0).toUpperCase() + type.slice(1) },
+                    { label: "Records", value: availableData.length > 0 ? `${availableData.length} rows` : "All matching" },
+                    { label: "Filters", value: Object.values(currentFilters).filter(Boolean).length > 0 ? "Active" : "None" },
+                  ].map(({ label, value }) => (
+                    <div key={label}>
+                      <span style={{ fontSize: "11px", color: "var(--color-text-secondary)", display: "block", marginBottom: "2px" }}>{label}</span>
+                      <strong style={{ fontSize: "13px" }}>{value}</strong>
+                    </div>
+                  ))}
+                </div>
+
+                {/* Data preview table */}
+                <div>
+                  <h4 style={{ fontSize: "13px", fontWeight: 700, marginBottom: "8px", color: "var(--color-text-secondary)" }}>
+                    Preview (top {Math.min(availableData.length, 5)} records)
+                  </h4>
+                  <div style={{ maxHeight: "180px", overflowY: "auto", border: "1px solid var(--color-border)", borderRadius: "8px" }}>
+                    <table style={{ width: "100%", fontSize: "12px", borderCollapse: "collapse" }}>
+                      <thead style={{ background: "var(--color-bg-alt)", position: "sticky", top: 0 }}>
+                        <tr>
+                          {["Title / Name", "Status", "Date"].map((h) => (
+                            <th key={h} style={{ padding: "8px", textAlign: "left", borderBottom: "1px solid var(--color-border)", fontWeight: 700 }}>{h}</th>
+                          ))}
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {availableData.slice(0, 5).length > 0
+                          ? availableData.slice(0, 5).map((row, i) => (
+                              <tr key={i}>
+                                <td style={{ padding: "8px", borderBottom: "1px solid var(--color-border)" }}>
+                                  {row.caseNumber || row.name || row.title || row.case_number || "—"}
+                                </td>
+                                <td style={{ padding: "8px", borderBottom: "1px solid var(--color-border)" }}>
+                                  {row.status || "Active"}
+                                </td>
+                                <td style={{ padding: "8px", borderBottom: "1px solid var(--color-border)" }}>
+                                  {(row.createdAt || row.created_at || "")?.slice(0, 10) || "—"}
+                                </td>
+                              </tr>
+                            ))
+                          : (
+                              <tr>
+                                <td colSpan="3" style={{ padding: "20px", textAlign: "center", color: "var(--color-text-secondary)" }}>
+                                  Server will fetch all matching records on download.
+                                </td>
+                              </tr>
+                            )
+                        }
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+
+              <div className="flow-modal-footer">
+                <button type="button" className="btn-neutral" onClick={() => setShowPreview(false)}>← Back</button>
+                <button type="button" className="btn-gold" onClick={handleFinalExport} style={{ minWidth: "150px" }}>
+                  📥 Download {selectedFmt?.label}
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )
+      }
     </>
   );
 }

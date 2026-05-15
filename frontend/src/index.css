@@ -35,7 +35,17 @@
   --color-shadow: rgba(0, 0, 0, 0.08);
   --color-shadow-strong: rgba(0, 0, 0, 0.15);
 
+  --color-gold: #C9A34E;
+  --color-gold-bg: rgba(201, 163, 78, 0.1);
+  --color-gold-light: rgba(201, 163, 78, 0.2);
+
   --transition-speed: 0.3s;
+}
+
+@keyframes highlightPulse {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.01); }
+  100% { transform: scale(1); }
 }
 
 .dark {

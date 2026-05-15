@@ -384,6 +384,8 @@ function Payments() {
   const [showExportModal, setShowExportModal] = useState(false);
   const [searchParams] = useSearchParams();
   const initialSearchCase = searchParams.get("searchCase") || "";
+  const highlightCaseId   = searchParams.get("highlightCase") || "";
+  const focusPaymentId    = searchParams.get("searchId") || "";
   const [filters, setFilters] = useState({ ...emptyFilters, searchTerm: initialSearchCase });
   const [hasLoaded, setHasLoaded] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -420,7 +422,6 @@ function Payments() {
     }
   }, [filters, page, showAllMode]);
 
-  const focusPaymentId = searchParams.get("searchId");
 
   useEffect(() => {
     if (focusPaymentId && cases.length > 0) {
@@ -433,6 +434,15 @@ function Payments() {
       }
     }
   }, [focusPaymentId, cases]);
+
+  // Scroll to and highlight a specific case card when arriving from a notification
+  useEffect(() => {
+    if (!highlightCaseId || cases.length === 0) return;
+    const el = document.getElementById(`payment-case-${highlightCaseId}`);
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+  }, [highlightCaseId, cases]);
 
   const ensureModalCases = async () => {
     if (modalCases.length > 0) return;
@@ -553,7 +563,16 @@ function Payments() {
         {!hasLoaded && <EmptyState label="Use the filters above to load payment records." />}
         {loading && <LoadingState label="Loading payments..." />}
         {hasLoaded && !loading && cases.map(legalCase => (
-          <div key={legalCase.id}>
+          <div
+            key={legalCase.id}
+            id={`payment-case-${legalCase.id}`}
+            style={highlightCaseId === String(legalCase.id) ? {
+              outline: "2.5px solid var(--color-gold)",
+              borderRadius: "14px",
+              boxShadow: "0 0 0 5px var(--color-gold-bg), 0 8px 32px rgba(196,154,108,0.18)",
+              animation: "highlightPulse 1.8s ease-in-out",
+            } : {}}
+          >
             <CaseIdentityCard item={legalCase} className="case-card-premium" detailsTarget={`/cases/${legalCase.id}#payment-card`}>
             <div className="payment-stats-grid">
               <div className="payment-stat-box psb-billed"><span className="payment-stat-label">Total Billed</span><span className="payment-stat-value">{currency(legalCase.totalAmount)}</span></div>
