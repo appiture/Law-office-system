@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { useSearchParams } from "react-router-dom";
 import AppShell from "../components/AppShell";
 import CaseIdentityCard from "../components/CaseIdentityCard";
+import CaseCombobox from "../components/CaseCombobox";
 import HeaderFilters from "../components/HeaderFilters";
 import ControlledSearchPanel, { EmptyState, ErrorState, LoadingState, PaginationControls } from "../components/ControlledSearchPanel";
 import { supabasePlatformApi as platformApi } from "../repositories/supabaseRepository";
@@ -43,7 +44,8 @@ function FG({ label, required, hint, className, children }) {
 }
 
 // ── Upload Modal ──────────────────────────────────────────────
-function UploadModal({ caseId, onClose, onSaved }) {
+function UploadModal({ initialCaseId, cases, onClose, onSaved }) {
+  const [caseId, setCaseId] = useState(initialCaseId || "");
   const [form, setForm] = useState({
     title: "", category: "Legal File", categoryOther: "", description: "", file: null
   });
@@ -109,6 +111,19 @@ function UploadModal({ caseId, onClose, onSaved }) {
 
         <div className="flow-modal-body">
           {error && <div className="form-error-banner">⚠️ {error}</div>}
+
+          <div className="form-section">
+            <div className="form-section-title"><span>📂</span> Case Selection</div>
+            <FG label="Case / Matter" required className="fcol-full">
+               <CaseCombobox
+                 value={caseId}
+                 onChange={setCaseId}
+                 cases={cases}
+                 placeholder="Search and select case..."
+                 disabled={!!initialCaseId}
+               />
+            </FG>
+          </div>
 
           <div className="form-section">
             <div className="form-section-title"><span>📋</span> Document Info</div>
@@ -201,6 +216,8 @@ function Documents() {
 
   const [cases, setCases] = useState([]);
   const [uploadFor, setUploadFor] = useState(null);
+  const [modalCases, setModalCases] = useState([]);
+  const [modalLoading, setModalLoading] = useState(false);
   const [showExportModal, setShowExportModal] = useState(false);
   const [filters, setFilters] = useState({ ...emptyFilters, searchTerm: initialSearchCase });
   const [loading, setLoading] = useState(false);
@@ -210,6 +227,22 @@ function Documents() {
   const [total, setTotal] = useState(0);
   const [showAllMode, setShowAllMode] = useState(false);
   const [initialSearchTriggered, setInitialSearchTriggered] = useState(false);
+
+  const ensureModalCases = async () => {
+    if (modalCases.length > 0) return;
+    setModalLoading(true);
+    try {
+      const response = await platformApi.searchDocuments({ showAll: true, page: 1, pageSize: 500 });
+      setModalCases(Array.isArray(response.items) ? response.items : []);
+    } finally {
+      setModalLoading(false);
+    }
+  };
+
+  const openUploadModal = async (initialCaseId = null) => {
+    await ensureModalCases();
+    setUploadFor({ initialCaseId });
+  };
 
   const loadDocuments = useCallback(async ({ nextPage = page, showAll = showAllMode, nextFilters = filters } = {}) => {
     setLoading(true);
@@ -304,8 +337,8 @@ function Documents() {
           <button type="button" className="btn-gold" onClick={() => setShowExportModal(true)}>
             📥 Export
           </button>
-          <button type="button" className="primary-button" onClick={() => setUploadFor(cases[0]?.id)} disabled={!hasLoaded || cases.length === 0}>
-            + Upload Document
+          <button type="button" className="primary-button" onClick={() => openUploadModal(null)} disabled={modalLoading}>
+            {modalLoading ? "Loading..." : "+ Upload Document"}
           </button>
         </div>
       }
@@ -377,7 +410,7 @@ function Documents() {
                         <p className="section-copy">Files attached to this case</p>
                       </div>
                       <button className="btn-gold" style={{ fontSize:12, padding:"7px 12px" }}
-                        onClick={() => setUploadFor(legalCase.id)}>
+                        onClick={() => openUploadModal(legalCase.id)}>
                         + Upload
                       </button>
                     </div>
@@ -444,7 +477,8 @@ function Documents() {
 
       {uploadFor && (
         <UploadModal
-          caseId={uploadFor}
+          initialCaseId={uploadFor.initialCaseId}
+          cases={modalCases}
           onClose={() => setUploadFor(null)}
           onSaved={loadDocuments}
         />

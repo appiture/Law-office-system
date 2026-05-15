@@ -231,7 +231,26 @@ function ClientDetails() {
   return (
     <AppShell
       title="Client Profile"
-      subtitle={client?.name}
+      subtitle={
+         <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", fontSize: "13px", marginTop: "4px" }}>
+            <span style={{ fontWeight: "800", color: "var(--color-primary)" }}>{client?.name}</span>
+            {client?.occupation && (
+              <>
+                <span style={{ color: "var(--text-secondary)", opacity: 0.5 }}>|</span>
+                <span style={{ fontWeight: "500", color: "var(--text-secondary)" }}>{client.occupation}</span>
+              </>
+            )}
+            
+            {(client?.email || client?.phone) && (
+              <>
+                <span style={{ color: "var(--text-secondary)", opacity: 0.5 }}>•</span>
+                <span style={{ color: "var(--text-secondary)" }}>
+                  {[client.email, client.phone].filter(Boolean).join(" - ")}
+                </span>
+              </>
+            )}
+         </div>
+      }
       actions={
         <div style={{ display: 'flex', gap: '10px' }}>
           <div className="download-dropdown-wrap">

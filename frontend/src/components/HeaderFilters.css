@@ -376,6 +376,17 @@
   color: #fff;
 }
 
+.dark .panel-show-all-btn {
+  background: rgba(201, 163, 78, 0.1);
+  color: var(--color-secondary, #C9A34E);
+  border-color: var(--color-secondary, #C9A34E);
+}
+
+.dark .panel-show-all-btn:hover {
+  background: var(--color-secondary, #C9A34E);
+  color: #0F172A;
+}
+
 .panel-clear-btn {
   padding: 9px 16px;
   background: var(--color-card);
@@ -414,8 +425,6 @@
   filter: brightness(1.1);
   transform: translateY(-1px);
 }
-
-/* â”€â”€ Responsive â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
 @media (max-width: 980px) {
   .header-filters-container {
     align-items: stretch;

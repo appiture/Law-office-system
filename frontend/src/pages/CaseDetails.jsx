@@ -156,7 +156,37 @@ function CaseDetails() {
   return (
     <AppShell
       title="Case Portfolio"
-      subtitle={`Case #${legalCase.caseNumber}`}
+      subtitle={
+         <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", fontSize: "13px", marginTop: "4px" }}>
+            <span style={{ fontWeight: "800", color: "var(--color-primary)" }}>#{legalCase.caseNumber || legalCase.case_number}</span>
+            {legalCase.title && (
+              <>
+                <span style={{ color: "var(--text-secondary)", opacity: 0.5 }}>|</span>
+                <span style={{ fontWeight: "500", color: "var(--text-secondary)" }}>{legalCase.title}</span>
+              </>
+            )}
+            {client && (
+              <>
+                <span style={{ color: "var(--text-secondary)", opacity: 0.5 }}>•</span>
+                <span style={{ fontWeight: "700", color: "var(--color-text)" }}>{client.name}</span>
+                
+                {client.email && (
+                  <>
+                    <span style={{ color: "var(--text-secondary)", opacity: 0.5 }}>•</span>
+                    <span style={{ color: "var(--text-secondary)" }}>{client.email}</span>
+                  </>
+                )}
+
+                {client.phone && (
+                  <>
+                    <span style={{ color: "var(--text-secondary)", opacity: 0.5 }}>•</span>
+                    <span style={{ color: "var(--text-secondary)" }}>{client.phone}</span>
+                  </>
+                )}
+              </>
+            )}
+         </div>
+      }
       actions={
         <div style={{ display: 'flex', gap: '10px' }}>
           <button onClick={() => navigate('/cases')} className="btn-neutral">Back</button>
