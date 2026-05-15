@@ -560,7 +560,7 @@ function Payments() {
         </div>
       )}
 
-      <section className="card-grid">
+      <section style={{ display: "flex", flexDirection: "column", gap: "24px" }}>
         {!hasLoaded && <EmptyState label="Use the filters above to load payment records." />}
         {loading && <LoadingState label="Loading payments..." />}
         {hasLoaded && !loading && cases.map(legalCase => (
