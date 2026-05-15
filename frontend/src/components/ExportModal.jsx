@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { createPortal } from "react-dom";
 import { triggerExport } from "../services/exportService";
+import { supabase } from "../services/supabaseClient";
 
 const FORMAT_OPTIONS = [
   {
@@ -136,6 +137,19 @@ export default function ExportModal({
     setError("");
     setSuccess("");
     try {
+      // Resolve recipient email — never pass literal "me" to the backend
+      let recipientEmail = null;
+      if (sendToEmail) {
+        if (emailValue && emailValue.includes("@")) {
+          recipientEmail = emailValue.trim();
+        } else {
+          // Fetch the logged-in user's own email
+          const { data: { user } } = await supabase.auth.getUser();
+          if (!user?.email) throw new Error("Could not determine your email. Please enter an email address.");
+          recipientEmail = user.email;
+        }
+      }
+
       const res = await triggerExport({
         format,
         type,
@@ -143,12 +157,12 @@ export default function ExportModal({
         filters: currentFilters,
         includeSections: [],
         selectedIds: [],
-        emailTo: sendToEmail ? (emailValue || "me") : null,
+        emailTo: recipientEmail,
       });
       if (res.isBackground) {
         setSuccess(res.message);
       } else {
-        setSuccess(sendToEmail ? `Report sent to email!` : "Report generated! Download starting.");
+        setSuccess(recipientEmail ? `Report sent to ${recipientEmail}!` : "Report generated! Download starting.");
         setTimeout(() => onClose(), 2500);
       }
     } catch (err) {

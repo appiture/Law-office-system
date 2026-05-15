@@ -39,6 +39,7 @@ export const triggerExport = async ({ format, type, dateRange, filters, includeS
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
+      // 422 = empty data guard (no records match filters)
       throw new Error(errorData.error || `Export failed with status ${response.status}`);
     }
 

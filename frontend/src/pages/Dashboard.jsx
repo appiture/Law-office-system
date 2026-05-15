@@ -14,6 +14,7 @@ import DashboardSearchResults from "../components/DashboardSearchResults";
 import { useTheme } from "../context/ThemeContext";
 import ExportModal from "../components/ExportModal";
 import { isOrgAdmin, sendMonthlyReport } from "../services/adminService";
+import { triggerExport } from "../services/exportService";
 import { getEntityUrl } from "../utils/navigationHelper";
 import logger from "../services/loggerService";
 import "./Dashboard.css";
@@ -257,19 +258,23 @@ function Dashboard() {
   const handleEmailReport = async () => {
     setReportState({ loading: true, toast: null });
     try {
-      const activeSections = ["cases", "clients", "payments", "hearings", "documents", "tasks"];
+      // Resolve actual user email — never send to "me" or undefined
+      const { data: { user } } = await supabase.auth.getUser();
+      const userEmail = user?.email;
+      if (!userEmail) throw new Error("Could not determine your email address. Please try again.");
+
       await triggerExport({
         format: "pdf",
         type: "dashboard",
         dateRange: { start: fromDate, end: toDate },
         filters: { searchTerm: dashboardSearch },
-        includeSections: activeSections,
+        includeSections: ["cases", "clients", "payments", "followups", "documents", "tasks"],
         selectedIds: [],
-        emailTo: (await supabase.auth.getUser()).data.user.email
+        emailTo: userEmail,
       });
       setReportState({
         loading: false,
-        toast: { type: "success", msg: "Report is being generated and will be emailed to you shortly." },
+        toast: { type: "success", msg: `Dashboard report will be emailed to ${userEmail} shortly.` },
       });
     } catch (err) {
       setReportState({
@@ -949,7 +954,30 @@ function Dashboard() {
           type="dashboard"
           currentFilters={{ searchTerm: dashboardSearch }}
           defaultDateRange={{ start: fromDate, end: toDate }}
-          availableData={cases.filter(c => isDateInRange(c.createdAt))}
+          // Pass a summary-level array so preview shows meaningful dashboard data.
+          // The real export fetches all sections fresh from the backend.
+          availableData={[
+            ...cases
+              .filter(c => isDateInRange(c.createdAt))
+              .map(c => ({
+                section: "Cases",
+                name: c.caseNumber,
+                title: c.title,
+                status: c.status,
+                caseNumber: c.caseNumber,
+                client: c.client,
+                createdAt: c.createdAt,
+              })),
+            ...clients
+              .filter(c => isDateInRange(c.createdAt))
+              .map(c => ({
+                section: "Clients",
+                name: c.name,
+                title: c.name,
+                status: c.status,
+                createdAt: c.createdAt,
+              })),
+          ]}
         />
       )}
     </AppShell>
