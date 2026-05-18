@@ -85,7 +85,7 @@
 }
 
 .dark .detail-section-nav a {
-  color: white;
+  color: var(--color-text);
 }
 
 /* Custom styling for Bento content */

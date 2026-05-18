@@ -1,0 +1,14 @@
+/* Theme Overrides to ensure visibility of elements hidden in dark mode */
+.dark .border-glow-card > .edge-light,
+.dark .magic-bento-card--border-glow::after,
+.dark .pc-behind,
+.dark .pc-shine,
+.dark .pc-glare,
+.dark .border-glow-card .edge-light,
+.dark .info-divider,
+.dark .pc-grain,
+.dark .pc-behind,
+.dark .pc-shine,
+.dark .pc-glare {
+  display: block !important;
+}

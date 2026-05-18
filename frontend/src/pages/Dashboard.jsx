@@ -120,10 +120,165 @@ function Dashboard() {
   const demoRemainingDays = Math.max(0, Math.ceil(demoRemainingMs / (1000 * 60 * 60 * 24)));
   const isDemoMode = isDemo();
 
+  const dashboardActions = (
+    <div className="dashboard-header-actions-wrapper" style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+      <div className="task-btn-wrap" style={{ position: "relative" }}>
+        <Link to={ROUTES.TASKS} className="btn-gold dashboard-task-link">
+          📋 Tasks
+        </Link>
+        {pendingTaskCount > 0 && (
+          <span className="badge-pending" title={`${pendingTaskCount} pending tasks`}>
+            {pendingTaskCount > 99 ? "99+" : pendingTaskCount}
+          </span>
+        )}
+      </div>
+      
+      <div className="dashboard-filter-dropdown-wrap" ref={filterPanelRef}>
+        <select
+           className="dashboard-quick-filter-select"
+           value={fromDate || toDate ? "custom" : ""}
+           onChange={handleQuickFilter}
+        >
+           <option value="">Select Range</option>
+           <option value="this_month">This Month</option>
+           <option value="last_month">Last Month</option>
+           <option value="this_year">This Year</option>
+           <option value="custom">Custom Range</option>
+        </select>
+        
+        {filterPanelOpen && (
+          <div className="dashboard-filter-panel">
+            <div className="filter-panel-group">
+              <label>Custom Range</label>
+              <div className="date-range-inputs">
+                <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
+                <span>to</span>
+                <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
+              </div>
+            </div>
+            <button type="button" className="btn-primary panel-apply-btn" onClick={() => setFilterPanelOpen(false)}>
+              Apply
+            </button>
+          </div>
+        )}
+      </div>
+
+      {isOrgAdmin() && (
+        <div className="dashboard-report-actions">
+          <button
+            type="button"
+            className="btn-neutral"
+            onClick={() => openExport({
+              type: "dashboard",
+              initialSendToEmail: true,
+              currentFilters: { searchTerm: dashboardSearch },
+              dateRange: { start: fromDate, end: toDate },
+              availableData: [
+                ...cases.filter(c => isDateInRange(c.createdAt)).map(c => ({
+                  section: "Cases",
+                  name: c.caseNumber,
+                  title: c.title,
+                  status: c.status,
+                  caseNumber: c.caseNumber,
+                  client: c.client,
+                  createdAt: c.createdAt,
+                })),
+                ...clients.filter(c => isDateInRange(c.createdAt)).map(c => ({
+                  section: "Clients",
+                  name: c.name,
+                  status: c.status || "Active",
+                  createdAt: c.createdAt,
+                })),
+                ...tasks.filter(t => isDateInRange(t.createdAt || t.dueDate)).map(t => ({
+                  section: "Tasks",
+                  name: t.title || t.task,
+                  status: t.status,
+                  priority: t.priority,
+                  dueDate: t.dueDate || t.due_date,
+                  createdAt: t.createdAt,
+                })),
+                ...hearings.filter(f => isDateInRange(f.date)).map(f => ({
+                  section: "Hearings",
+                  name: f.title || f.caseNumber,
+                  date: f.date,
+                  status: f.status,
+                  caseNumber: f.caseNumber,
+                })),
+                ...members.map(m => ({
+                  section: "Team",
+                  name: m.full_name || m.name || m.email,
+                  role: m.role,
+                  status: m.status,
+                  email: m.email,
+                  createdAt: m.created_at,
+                })),
+              ]
+            })}
+            title="Choose format and email this report to yourself"
+          >
+            📧 Email
+          </button>
+          <button
+            type="button"
+            className="btn-gold"
+            onClick={() => openExport({
+              type: "dashboard",
+              currentFilters: { searchTerm: dashboardSearch },
+              dateRange: { start: fromDate, end: toDate },
+              availableData: [
+                ...cases.filter(c => isDateInRange(c.createdAt)).map(c => ({
+                  section: "Cases",
+                  name: c.caseNumber,
+                  title: c.title,
+                  status: c.status,
+                  caseNumber: c.caseNumber,
+                  client: c.client,
+                  createdAt: c.createdAt,
+                })),
+                ...clients.filter(c => isDateInRange(c.createdAt)).map(c => ({
+                  section: "Clients",
+                  name: c.name,
+                  status: c.status || "Active",
+                  createdAt: c.createdAt,
+                })),
+                ...tasks.filter(t => isDateInRange(t.createdAt || t.dueDate)).map(t => ({
+                  section: "Tasks",
+                  name: t.title || t.task,
+                  status: t.status,
+                  priority: t.priority,
+                  dueDate: t.dueDate || t.due_date,
+                  createdAt: t.createdAt,
+                })),
+                ...hearings.filter(f => isDateInRange(f.date)).map(f => ({
+                  section: "Hearings",
+                  name: f.title || f.caseNumber,
+                  date: f.date,
+                  status: f.status,
+                  caseNumber: f.caseNumber,
+                })),
+                ...members.map(m => ({
+                  section: "Team",
+                  name: m.full_name || m.name || m.email,
+                  role: m.role,
+                  status: m.status,
+                  email: m.email,
+                  createdAt: m.created_at,
+                })),
+              ]
+            })}
+          >
+            📥 Report
+          </button>
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <AppShell
       title="Dashboard"
       subtitle="Focused practice overview with controlled operational detail."
+      actions={dashboardActions}
     >
       <div className="dashboard-premium-header">
         <div className="dashboard-header-row search-row">
@@ -132,162 +287,6 @@ function Dashboard() {
             onSearchChange={setDashboardSearch}
             searchPlaceholder="Search your practice... (Cases, Clients, Hearings, etc.)"
           />
-        </div>
-
-        <div className="dashboard-header-row controls-row">
-          <div className="dashboard-controls-left">
-            <div className="task-btn-wrap">
-              <Link to={ROUTES.TASKS} className="btn-gold dashboard-task-link">
-                📋 Tasks
-              </Link>
-              {pendingTaskCount > 0 && (
-                <span className="badge-pending" title={`${pendingTaskCount} pending tasks`}>
-                  {pendingTaskCount > 99 ? "99+" : pendingTaskCount}
-                </span>
-              )}
-            </div>
-            
-            <div className="dashboard-filter-dropdown-wrap" ref={filterPanelRef}>
-              <select
-                 className="dashboard-quick-filter-select"
-                 value={fromDate || toDate ? "custom" : ""}
-                 onChange={handleQuickFilter}
-              >
-                 <option value="">Select Range</option>
-                 <option value="this_month">This Month</option>
-                 <option value="last_month">Last Month</option>
-                 <option value="this_year">This Year</option>
-                 <option value="custom">Custom Range</option>
-              </select>
-              
-              {filterPanelOpen && (
-                <div className="dashboard-filter-panel">
-                  <div className="filter-panel-group">
-                    <label>Custom Range</label>
-                    <div className="date-range-inputs">
-                      <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} />
-                      <span>to</span>
-                      <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
-                    </div>
-                  </div>
-                  <button type="button" className="btn-primary panel-apply-btn" onClick={() => setFilterPanelOpen(false)}>
-                    Apply
-                  </button>
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="dashboard-controls-right">
-            {isOrgAdmin() && (
-              <div className="dashboard-report-actions">
-              <button
-                  type="button"
-                  className="btn-neutral"
-                  onClick={() => openExport({
-                    type: "dashboard",
-                    initialSendToEmail: true,
-                    currentFilters: { searchTerm: dashboardSearch },
-                    dateRange: { start: fromDate, end: toDate },
-                    availableData: [
-                      ...cases.filter(c => isDateInRange(c.createdAt)).map(c => ({
-                        section: "Cases",
-                        name: c.caseNumber,
-                        title: c.title,
-                        status: c.status,
-                        caseNumber: c.caseNumber,
-                        client: c.client,
-                        createdAt: c.createdAt,
-                      })),
-                      ...clients.filter(c => isDateInRange(c.createdAt)).map(c => ({
-                        section: "Clients",
-                        name: c.name,
-                        status: c.status || "Active",
-                        createdAt: c.createdAt,
-                      })),
-                      ...tasks.filter(t => isDateInRange(t.createdAt || t.dueDate)).map(t => ({
-                        section: "Tasks",
-                        name: t.title || t.task,
-                        status: t.status,
-                        priority: t.priority,
-                        dueDate: t.dueDate || t.due_date,
-                        createdAt: t.createdAt,
-                      })),
-                      ...hearings.filter(f => isDateInRange(f.date)).map(f => ({
-                        section: "Hearings",
-                        name: f.title || f.caseNumber,
-                        date: f.date,
-                        status: f.status,
-                        caseNumber: f.caseNumber,
-                      })),
-                      ...members.map(m => ({
-                        section: "Team",
-                        name: m.full_name || m.name || m.email,
-                        role: m.role,
-                        status: m.status,
-                        email: m.email,
-                        createdAt: m.created_at,
-                      })),
-                    ]
-                  })}
-                  title="Choose format and email this report to yourself"
-                >
-                  📧 Email Report
-                </button>
-                <button
-                  type="button"
-                  className="btn-gold"
-                  onClick={() => openExport({
-                    type: "dashboard",
-                    currentFilters: { searchTerm: dashboardSearch },
-                    dateRange: { start: fromDate, end: toDate },
-                    availableData: [
-                      ...cases.filter(c => isDateInRange(c.createdAt)).map(c => ({
-                        section: "Cases",
-                        name: c.caseNumber,
-                        title: c.title,
-                        status: c.status,
-                        caseNumber: c.caseNumber,
-                        client: c.client,
-                        createdAt: c.createdAt,
-                      })),
-                      ...clients.filter(c => isDateInRange(c.createdAt)).map(c => ({
-                        section: "Clients",
-                        name: c.name,
-                        status: c.status || "Active",
-                        createdAt: c.createdAt,
-                      })),
-                      ...tasks.filter(t => isDateInRange(t.createdAt || t.dueDate)).map(t => ({
-                        section: "Tasks",
-                        name: t.title || t.task,
-                        status: t.status,
-                        priority: t.priority,
-                        dueDate: t.dueDate || t.due_date,
-                        createdAt: t.createdAt,
-                      })),
-                      ...hearings.filter(f => isDateInRange(f.date)).map(f => ({
-                        section: "Hearings",
-                        name: f.title || f.caseNumber,
-                        date: f.date,
-                        status: f.status,
-                        caseNumber: f.caseNumber,
-                      })),
-                      ...members.map(m => ({
-                        section: "Team",
-                        name: m.full_name || m.name || m.email,
-                        role: m.role,
-                        status: m.status,
-                        email: m.email,
-                        createdAt: m.created_at,
-                      })),
-                    ]
-                  })}
-                >
-                  📥 Download Report
-                </button>
-              </div>
-            )}
-          </div>
         </div>
       </div>
       {error && <div className="form-error-banner" style={{ marginBottom: 16 }}>{error}</div>}

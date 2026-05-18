@@ -23,8 +23,8 @@ function Toast({ msg, type }) {
   return (
     <div style={{
       position: "fixed", top: 24, right: 24, zIndex: 9999,
-      background: type === "error" ? "#F87171" : "#34D399",
-      color: "#0f172a", padding: "12px 20px", borderRadius: 12,
+      background: type === "error" ? "var(--color-error)" : "var(--color-success)",
+      color: "var(--color-bg)", padding: "12px 20px", borderRadius: 12,
       fontWeight: 700, fontSize: 14, boxShadow: "0 8px 32px rgba(0,0,0,.3)",
       animation: "fadeUp .2s ease",
     }}>{msg}</div>
@@ -61,23 +61,23 @@ function Badge({ label, color, bg, border }) {
 
 function StatusBadge({ status }) {
   const map = {
-    ACTIVE:           { bg: "rgba(52,211,153,.15)",  color: "#34D399", label: "Active" },
-    PENDING_APPROVAL: { bg: "rgba(251,191,36,.15)",  color: "#FBBF24", label: "Pending" },
-    REJECTED:         { bg: "rgba(248,113,113,.15)", color: "#F87171", label: "Rejected" },
-    INACTIVE:         { bg: "rgba(148,163,184,.12)", color: "#94A3B8", label: "Inactive" },
+    ACTIVE:           { bg: "rgba(52,211,153,.15)",  color: "var(--color-success)", label: "Active" },
+    PENDING_APPROVAL: { bg: "rgba(251,191,36,.15)",  color: "var(--color-warning)", label: "Pending" },
+    REJECTED:         { bg: "rgba(248,113,113,.15)", color: "var(--color-error)", label: "Rejected" },
+    INACTIVE:         { bg: "rgba(148,163,184,.12)", color: "var(--color-text-secondary)", label: "Inactive" },
   };
-  const s = map[status] || { bg: "rgba(148,163,184,.1)", color: "#94A3B8", label: status };
+  const s = map[status] || { bg: "var(--color-surface)", color: "var(--color-text-secondary)", label: status };
   return <Badge label={s.label} color={s.color} bg={s.bg} />;
 }
 
 function RoleBadge({ role }) {
   const map = {
-    ADMIN:  { bg: "rgba(201,163,78,.15)",  color: "#C9A34E" },
-    LAWYER: { bg: "rgba(99,102,241,.15)",  color: "#818CF8" },
-    STAFF:  { bg: "rgba(100,116,139,.15)", color: "#94A3B8" },
-    USER:   { bg: "rgba(20,184,166,.15)",  color: "#2DD4BF" },
+    ADMIN:  { bg: "rgba(201,163,78,.15)",  color: "var(--color-gold)" },
+    LAWYER: { bg: "rgba(99,102,241,.15)",  color: "var(--color-accent, #818CF8)" },
+    STAFF:  { bg: "rgba(100,116,139,.15)", color: "var(--color-text-secondary)" },
+    USER:   { bg: "rgba(20,184,166,.15)",  color: "var(--color-primary)" },
   };
-  const s = map[role] || { bg: "rgba(148,163,184,.1)", color: "#94A3B8" };
+  const s = map[role] || { bg: "var(--color-surface)", color: "var(--color-text-secondary)" };
   return <Badge label={role} color={s.color} bg={s.bg} />;
 }
 
@@ -103,38 +103,38 @@ function PermissionsModal({ title, initialPerms, onSave, onClose }) {
       display: "grid", placeItems: "center", zIndex: 10000, padding: 20
     }}>
       <div style={{
-        background: "#1e293b", border: "1px solid rgba(255,255,255,0.1)",
+        background: "var(--color-surface)", border: "1px solid var(--color-border)",
         borderRadius: 24, padding: 32, width: "100%", maxWidth: 480,
         display: "flex", flexDirection: "column", gap: 24,
         boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)",
-        color: "#f8fafc"
+        color: "var(--color-text)"
       }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <h3 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: "#fff", letterSpacing: "-0.02em" }}>{title}</h3>
+          <h3 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: "var(--color-text)", letterSpacing: "-0.02em" }}>{title}</h3>
           <button onClick={onClose} style={{
-            background: "rgba(255,255,255,0.05)", border: "none", width: 32, height: 32,
+            background: "var(--color-surface)", border: "1px solid var(--color-border)", width: 32, height: 32,
             borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center",
-            cursor: "pointer", color: "#fff", transition: "all 0.2s"
-          }} onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.15)"}
-             onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.05)"}>×</button>
+            cursor: "pointer", color: "var(--color-text)", transition: "all 0.2s"
+          }} onMouseEnter={e => e.currentTarget.style.background = "var(--color-border)"}
+             onMouseLeave={e => e.currentTarget.style.background = "var(--color-surface)"}>×</button>
         </div>
         
-        <p style={{ margin: 0, fontSize: 14, color: "rgba(255,255,255,0.6)", lineHeight: 1.5 }}>
+        <p style={{ margin: 0, fontSize: 14, color: "var(--color-text-secondary)", lineHeight: 1.5 }}>
           Enable or disable specific sections for this {title.toLowerCase().includes("org") ? "organization" : "user"}. 
           Unchecked sections will be hidden from their navigation.
         </p>
 
         <div style={{
           display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12,
-          background: "rgba(0,0,0,0.2)", padding: 20, borderRadius: 16,
-          border: "1px solid rgba(255,255,255,0.05)"
+          background: "var(--color-bg)", padding: 20, borderRadius: 16,
+          border: "1px solid var(--color-border)"
         }}>
           {SECTIONS.map(s => (
             <label key={s} style={{
               display: "flex", alignItems: "center", gap: 12, fontSize: 14,
-              cursor: "pointer", fontWeight: 600, color: perms[s] ? "#fff" : "rgba(255,255,255,0.45)",
+              cursor: "pointer", fontWeight: 600, color: perms[s] ? "var(--color-text)" : "var(--color-text-secondary)",
               padding: "8px 10px", borderRadius: 10, transition: "all 0.2s",
-              background: perms[s] ? "rgba(255,255,255,0.03)" : "transparent"
+              background: perms[s] ? "var(--color-surface)" : "transparent"
             }}>
               <input 
                 type="checkbox" 
@@ -142,7 +142,7 @@ function PermissionsModal({ title, initialPerms, onSave, onClose }) {
                 onChange={() => toggle(s)}
                 style={{
                   width: 18, height: 18, cursor: "pointer",
-                  accentColor: "var(--color-primary, #C9A34E)"
+                  accentColor: "var(--color-gold)"
                 }}
               />
               {s.charAt(0).toUpperCase() + s.slice(1)}
@@ -153,11 +153,11 @@ function PermissionsModal({ title, initialPerms, onSave, onClose }) {
         <div style={{ display: "flex", gap: 12, marginTop: 4 }}>
           <button className="btn-gold" style={{ flex: 2, padding: "14px", fontSize: 14, fontWeight: 700 }} onClick={() => onSave(perms)}>Save Changes</button>
           <button onClick={onClose} style={{
-            flex: 1, background: "transparent", border: "1px solid rgba(255,255,255,0.1)",
-            borderRadius: 12, color: "rgba(255,255,255,0.7)", cursor: "pointer",
+            flex: 1, background: "transparent", border: "1px solid var(--color-border)",
+            borderRadius: 12, color: "var(--color-text-secondary)", cursor: "pointer",
             fontWeight: 600, fontSize: 14, transition: "all 0.2s"
-          }} onMouseEnter={e => e.currentTarget.style.borderColor = "rgba(255,255,255,0.2)"}
-             onMouseLeave={e => e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)"}>Cancel</button>
+          }} onMouseEnter={e => e.currentTarget.style.borderColor = "var(--color-text)"}
+             onMouseLeave={e => e.currentTarget.style.borderColor = "var(--color-border)"}>Cancel</button>
         </div>
       </div>
     </div>
@@ -232,17 +232,17 @@ function SubscriptionModal({ org, onSave, onClose }) {
       display: "grid", placeItems: "center", zIndex: 10000, padding: 20
     }}>
       <div style={{
-        background: "#1e293b", border: "1px solid rgba(255,255,255,0.1)",
+        background: "var(--color-surface)", border: "1px solid var(--color-border)",
         borderRadius: 24, padding: 32, width: "100%", maxWidth: 400,
         display: "flex", flexDirection: "column", gap: 20,
         boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)",
-        color: "#f8fafc"
+        color: "var(--color-text)"
       }}>
         <h3 style={{ margin: 0, fontSize: 18, fontWeight: 800 }}>Manage Subscription: {org.name}</h3>
         
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
           <label style={{ display: "flex", alignItems: "center", gap: 10, fontSize: 14, fontWeight: 600, cursor: "pointer" }}>
-            <input type="checkbox" checked={isDemo} onChange={e => setIsDemo(e.target.checked)} style={{ width: 18, height: 18 }} />
+            <input type="checkbox" checked={isDemo} onChange={e => setIsDemo(e.target.checked)} style={{ width: 18, height: 18, accentColor: "var(--color-gold)" }} />
             Demo Account
           </label>
 
@@ -253,7 +253,7 @@ function SubscriptionModal({ org, onSave, onClose }) {
                 type="date" 
                 value={expiry} 
                 onChange={e => setExpiry(e.target.value)}
-                style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(0,0,0,0.2)", color: "#fff" }}
+                style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid var(--color-border)", background: "var(--color-bg)", color: "var(--color-text)" }}
               />
             </label>
           )}
@@ -263,7 +263,7 @@ function SubscriptionModal({ org, onSave, onClose }) {
             <select 
               value={status} 
               onChange={e => setStatus(e.target.value)}
-              style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid rgba(255,255,255,0.1)", background: "rgba(0,0,0,0.2)", color: "#fff" }}
+              style={{ padding: "8px 12px", borderRadius: 8, border: "1px solid var(--color-border)", background: "var(--color-bg)", color: "var(--color-text)" }}
             >
               <option value="ACTIVE">Active</option>
               <option value="EXPIRED">Expired</option>
@@ -279,7 +279,7 @@ function SubscriptionModal({ org, onSave, onClose }) {
             demo_expires_at: isDemo && expiry ? new Date(expiry).toISOString() : null,
             subscription_status: status
           })}>Update</button>
-          <button onClick={onClose} style={{ flex: 1, background: "transparent", border: "1px solid rgba(255,255,255,0.1)", borderRadius: 12, color: "#fff", cursor: "pointer" }}>Cancel</button>
+          <button onClick={onClose} style={{ flex: 1, background: "transparent", border: "1px solid var(--color-border)", borderRadius: 12, color: "var(--color-text)", cursor: "pointer" }}>Cancel</button>
         </div>
       </div>
     </div>
@@ -367,7 +367,7 @@ function TabOrganizations({ orgs, onRefresh, showToast }) {
         {["ALL","PENDING_APPROVAL","ACTIVE","REJECTED"].map(f => (
           <button key={f} onClick={() => setFilter(f)} style={{
             background: filter === f ? "var(--color-primary)" : "var(--color-surface)",
-            color: filter === f ? "#fff" : "var(--color-text)",
+            color: filter === f ? "var(--color-bg)" : "var(--color-text)",
             border: "1px solid var(--color-border)", borderRadius: 10,
             padding: "7px 16px", fontWeight: 600, fontSize: 13, cursor: "pointer",
           }}>
@@ -388,7 +388,7 @@ function TabOrganizations({ orgs, onRefresh, showToast }) {
             alignItems: "center",
           }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <div style={{ width: 36, height: 36, borderRadius: 9, background: "var(--color-primary)", color: "#fff", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 13, flexShrink: 0 }}>
+              <div style={{ width: 36, height: 36, borderRadius: 9, background: "var(--color-primary)", color: "var(--color-bg)", display: "flex", alignItems: "center", justifyContent: "center", fontWeight: 800, fontSize: 13, flexShrink: 0 }}>
                 {(org.name || "?")[0].toUpperCase()}
               </div>
               <div>
@@ -924,7 +924,7 @@ export default function SuperAdminDashboard() {
         {TABS.map(t => (
           <button key={t.key} onClick={() => setTab(t.key)} style={{
             background: tab === t.key ? "var(--color-primary)" : "transparent",
-            color: tab === t.key ? "#fff" : "var(--color-text)",
+            color: tab === t.key ? "var(--color-bg)" : "var(--color-text)",
             border: "none", borderRadius: 10, padding: "9px 18px",
             fontWeight: 600, fontSize: 13, cursor: "pointer",
             opacity: tab === t.key ? 1 : .6, transition: "all .18s",

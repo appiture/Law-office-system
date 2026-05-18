@@ -21,7 +21,7 @@
   display: flex;
   flex-direction: column;
   gap: 14px;
-  color: white;
+  color: var(--color-bg);
   background: var(--color-primary);
   border-right: 1px solid var(--color-border);
   box-shadow: 10px 0 30px rgba(0, 0, 0, 0.05);
@@ -30,6 +30,7 @@
 
 .dark .app-sidebar {
   background: var(--color-card);
+  color: var(--color-text);
 }
 
 .app-sidebar-branding {
@@ -55,7 +56,11 @@
   margin: 0;
   font-weight: 800;
   letter-spacing: -0.01em;
-  color: white;
+  color: var(--color-bg);
+}
+
+.dark .brand-copy h1 {
+  color: var(--color-text);
 }
 
 .brand-mark {
@@ -67,7 +72,7 @@
   font-size: 0.75rem;
   font-weight: 800;
   letter-spacing: 0.05em;
-  color: white;
+  color: var(--color-bg);
   background: rgba(255, 255, 255, 0.1);
   border: 1px solid rgba(255, 255, 255, 0.1);
   flex-shrink: 0;
@@ -125,7 +130,7 @@
 
 .dark .brand-mark {
   background: var(--color-secondary);
-  color: #0F172A;
+  color: var(--color-bg);
   border-color: transparent;
 }
 
@@ -135,7 +140,7 @@
   border-radius: 12px;
   object-fit: contain;
   flex-shrink: 0;
-  background: white;
+  background: var(--color-bg-secondary);
   padding: 4px;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
 }
@@ -148,7 +153,7 @@
   text-transform: uppercase;
   font-size: 10px;
   font-weight: 700;
-  color: white;
+  color: var(--color-bg);
   opacity: 0.7;
   white-space: nowrap;
   overflow: hidden;
@@ -212,9 +217,14 @@
 .page-subtitle,
 .profile-role {
   margin: 0;
-  color: white;
+  color: var(--color-bg);
   opacity: 0.7;
   font-size: 0.9rem;
+}
+
+.dark .page-subtitle,
+.dark .profile-role {
+  color: var(--color-text-secondary);
 }
 
 .app-nav {
@@ -229,7 +239,7 @@
   gap: 12px;
   padding: 8px 10px;
   border-radius: 14px;
-  color: white;
+  color: inherit;
   background: transparent;
   transition: all 0.2s ease;
   opacity: 0.85;
@@ -241,7 +251,7 @@
 }
 
 .nav-link.active {
-  background: white;
+  background: var(--color-bg);
   color: var(--color-primary);
   opacity: 1;
   font-weight: 700;
@@ -250,7 +260,7 @@
 
 .dark .nav-link.active {
   background: var(--color-secondary);
-  color: #0F172A;
+  color: var(--color-bg);
 }
 
 .nav-link-mark {
@@ -297,8 +307,8 @@
   min-width: 18px;
   height: 18px;
   border-radius: 9px;
-  background: #ef4444;
-  color: #fff;
+  background: var(--color-error);
+  color: var(--color-bg);
   font-size: 9px;
   font-weight: 800;
   padding: 0 4px;
@@ -308,8 +318,8 @@
 }
 
 .nav-link.active .nav-badge {
-  background: #ef4444;
-  color: #fff;
+  background: var(--color-error);
+  color: var(--color-bg);
 }
 
 @keyframes badge-pulse-shell {
@@ -329,7 +339,7 @@
 
 .nav-sub-link {
   font-size: 12px;
-  color: white;
+  color: inherit;
   opacity: 0.5;
   text-decoration: none;
   padding: 5px 12px;

@@ -126,7 +126,7 @@
   flex: 1;
   background: var(--color-gold);
   border: 1px solid var(--color-gold);
-  color: #000;
+  color: #000; /* Intentionally dark for contrast on gold */
   padding: 10px 16px;
   border-radius: 12px;
   font-weight: 800;
@@ -142,8 +142,9 @@
 }
 
 .btn-gold-action:hover {
-  background: #fff;
-  border-color: #fff;
+  background: var(--color-bg);
+  border-color: var(--color-bg);
+  color: var(--color-text);
   transform: translateY(-2px);
   box-shadow: 0 8px 20px rgba(201, 163, 78, 0.4);
 }
@@ -658,7 +659,7 @@
   top: 12px;
   right: 12px;
   background: rgba(0, 0, 0, 0.7);
-  color: #ffffff;
+  color: white;
   border: none;
   border-radius: 8px;
   padding: 8px 12px;
@@ -695,7 +696,7 @@
   max-height: 62vh;
   border-radius: 10px;
   object-fit: cover;
-  background: #000;
+  background: black;
 }
 
 .camera-error {

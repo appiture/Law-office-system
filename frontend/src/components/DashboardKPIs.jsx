@@ -11,7 +11,7 @@ function DashboardKPIs({ summary, clients, activeCaseCount, finance }) {
   ];
 
   return (
-    <section className="card-grid mb-4">
+    <section className="dashboard-kpi-grid mb-4">
       {kpis.map((item) => (
         <BorderGlow key={item.label} glowIntensity={0.3} borderRadius={16}>
           <div className="metric-card">

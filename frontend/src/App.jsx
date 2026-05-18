@@ -7,6 +7,7 @@ import ProtectedRoute from "./components/ProtectedRoute";
 import ErrorBoundary from "./components/ErrorBoundary";
 import ExportModal from "./components/ExportModal";
 import "./styles/designSystem.css";
+import "./styles/themeOverrides.css";
 import "./App.css";
 import { setUser, clearUser } from "./store/sessionStore";
 import { ROUTES } from "./constants/routes";

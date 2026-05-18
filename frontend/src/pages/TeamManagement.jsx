@@ -64,42 +64,42 @@ function UserPermissionsModal({ user, onClose, showToast }) {
   return (
     <div style={{
       position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
-      background: "rgba(0,0,0,0.85)", backdropFilter: "blur(12px)",
+      background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)",
       display: "grid", placeItems: "center", zIndex: 10000, padding: 20
     }}>
       <div style={{
-        background: "#1e293b", border: "1px solid rgba(255,255,255,0.1)",
+        background: "var(--color-card)", border: "1px solid var(--color-border)",
         borderRadius: 24, padding: 32, width: "100%", maxWidth: 480,
         display: "flex", flexDirection: "column", gap: 24,
-        boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.5)",
-        color: "#f8fafc"
+        boxShadow: "0 25px 50px -12px var(--color-shadow)",
+        color: "var(--color-text)"
       }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <h3 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: "#fff", letterSpacing: "-0.02em" }}>Manage Permissions</h3>
+          <h3 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: "var(--color-text)", letterSpacing: "-0.02em" }}>Manage Permissions</h3>
           <button onClick={onClose} style={{
-            background: "rgba(255,255,255,0.05)", border: "none", width: 32, height: 32,
+            background: "var(--color-bg-secondary)", border: "1px solid var(--color-border)", width: 32, height: 32,
             borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center",
-            cursor: "pointer", color: "#fff", transition: "all 0.2s"
-          }} onMouseEnter={e => e.currentTarget.style.background = "rgba(255,255,255,0.15)"}
-             onMouseLeave={e => e.currentTarget.style.background = "rgba(255,255,255,0.05)"}>×</button>
+            cursor: "pointer", color: "var(--color-text-secondary)", transition: "all 0.2s"
+          }} onMouseEnter={e => e.currentTarget.style.background = "var(--color-border)"}
+             onMouseLeave={e => e.currentTarget.style.background = "var(--color-bg-secondary)"}>×</button>
         </div>
         
-        <p style={{ margin: 0, fontSize: 14, color: "rgba(255,255,255,0.6)", lineHeight: 1.5 }}>
+        <p style={{ margin: 0, fontSize: 14, color: "var(--color-text-secondary)", lineHeight: 1.5 }}>
           Enable or disable access to specific sections for <strong>{user.full_name || user.email}</strong>.
           Disabled sections will be hidden from their view.
         </p>
 
         <div style={{
           display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12,
-          background: "rgba(0,0,0,0.2)", padding: 20, borderRadius: 16,
-          border: "1px solid rgba(255,255,255,0.05)"
+          background: "var(--color-bg)", padding: 20, borderRadius: 16,
+          border: "1px solid var(--color-border)"
         }}>
           {SECTIONS.map(s => (
             <label key={s} style={{
               display: "flex", alignItems: "center", gap: 12, fontSize: 14,
-              cursor: "pointer", fontWeight: 600, color: perms[s] ? "#fff" : "rgba(255,255,255,0.45)",
+              cursor: "pointer", fontWeight: 600, color: perms[s] ? "var(--color-text)" : "var(--color-text-tertiary)",
               padding: "8px 10px", borderRadius: 10, transition: "all 0.2s",
-              background: perms[s] ? "rgba(255,255,255,0.03)" : "transparent"
+              background: perms[s] ? "var(--color-bg-secondary)" : "transparent"
             }}>
               <input 
                 type="checkbox" 
@@ -107,7 +107,7 @@ function UserPermissionsModal({ user, onClose, showToast }) {
                 onChange={() => setPerms(prev => ({ ...prev, [s]: !prev[s] }))}
                 style={{
                   width: 18, height: 18, cursor: "pointer",
-                  accentColor: "var(--color-primary, #C9A34E)"
+                  accentColor: "var(--color-primary)"
                 }}
               />
               {s.charAt(0).toUpperCase() + s.slice(1)}
@@ -118,11 +118,11 @@ function UserPermissionsModal({ user, onClose, showToast }) {
         <div style={{ display: "flex", gap: 12, marginTop: 4 }}>
           <button className="btn-gold" style={{ flex: 2, padding: "14px", fontSize: 14, fontWeight: 700 }} onClick={() => save(perms)}>Save Changes</button>
           <button onClick={onClose} style={{
-            flex: 1, background: "transparent", border: "1px solid rgba(255,255,255,0.1)",
-            borderRadius: 12, color: "rgba(255,255,255,0.7)", cursor: "pointer",
+            flex: 1, background: "transparent", border: "1px solid var(--color-border)",
+            borderRadius: 12, color: "var(--color-text-secondary)", cursor: "pointer",
             fontWeight: 600, fontSize: 14, transition: "all 0.2s"
-          }} onMouseEnter={e => e.currentTarget.style.borderColor = "rgba(255,255,255,0.2)"}
-             onMouseLeave={e => e.currentTarget.style.borderColor = "rgba(255,255,255,0.1)"}>Cancel</button>
+          }} onMouseEnter={e => e.currentTarget.style.borderColor = "var(--color-text-tertiary)"}
+             onMouseLeave={e => e.currentTarget.style.borderColor = "var(--color-border)"}>Cancel</button>
         </div>
       </div>
     </div>
@@ -165,7 +165,7 @@ function MemberAvatar({ name, avatarUrl }) {
   return (
     <div style={{
       width: 38, height: 38, borderRadius: 10,
-      background: "var(--color-primary)", color: "#fff",
+      background: "var(--color-primary)", color: "var(--color-bg)",
       display: "flex", alignItems: "center", justifyContent: "center",
       fontWeight: 800, fontSize: 14, flexShrink: 0,
     }}>
@@ -242,9 +242,9 @@ function TempPasswordPanel({ result, onDismiss }) {
         borderRadius: 10, padding: "12px 14px",
         fontSize: 12, color: "rgba(255,255,255,0.55)", lineHeight: 1.7,
       }}>
-        <strong style={{ color: "#C9A34E" }}>📋 What to tell the member:</strong>
+        <strong style={{ color: "var(--color-gold)" }}>📋 What to tell the member:</strong>
         <ol style={{ margin: "8px 0 0", paddingLeft: 18 }}>
-          <li>Open the invite email sent to <strong style={{ color: "#fff" }}>{invitedEmail}</strong></li>
+          <li>Open the invite email sent to <strong style={{ color: "var(--color-text)" }}>{invitedEmail}</strong></li>
           <li>Use the setup button or the temporary password in that email</li>
           <li>The account will be prompted to set a new password</li>
         </ol>
@@ -361,14 +361,14 @@ function InviteForm({ onInvited }) {
           {(role === "STAFF" || role === "LAWYER") && (
             <div style={{
               marginTop: 18,
-              background: "rgba(255,255,255,0.035)",
-              border: "1px solid rgba(255,255,255,0.08)",
+              background: "var(--color-bg)",
+              border: "1px solid var(--color-border)",
               borderRadius: 12,
               padding: "14px 16px",
             }}>
               <div style={{ marginBottom: 12 }}>
-                <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: "#fff" }}>Staff page access</p>
-                <p style={{ margin: "3px 0 0", fontSize: 11, color: "rgba(255,255,255,0.48)" }}>
+                <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: "var(--color-text)" }}>Staff page access</p>
+                <p style={{ margin: "3px 0 0", fontSize: 11, color: "var(--color-text-secondary)" }}>
                   Controls page visibility and full-detail sections only. Entry and edit actions stay unchanged inside allowed pages.
                 </p>
               </div>
@@ -381,11 +381,11 @@ function InviteForm({ onInvited }) {
                     gap: 8,
                     padding: "9px 10px",
                     borderRadius: 10,
-                    background: staffPermissions[section.key] ? "rgba(201,163,78,0.12)" : "rgba(255,255,255,0.03)",
-                    border: staffPermissions[section.key] ? "1px solid rgba(201,163,78,0.32)" : "1px solid rgba(255,255,255,0.07)",
+                    background: staffPermissions[section.key] ? "var(--color-gold-light)" : "var(--color-bg-secondary)",
+                    border: staffPermissions[section.key] ? "1px solid var(--color-gold)" : "1px solid var(--color-border)",
                     fontSize: 12,
                     fontWeight: 700,
-                    color: staffPermissions[section.key] ? "#C9A34E" : "rgba(255,255,255,0.58)",
+                    color: staffPermissions[section.key] ? "var(--color-gold)" : "var(--color-text-secondary)",
                     cursor: "pointer",
                   }}>
                     <input
