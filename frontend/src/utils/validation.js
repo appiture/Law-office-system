@@ -14,6 +14,8 @@ export const isValidEmail = (value) => {
   return !normalized || EMAIL_REGEX.test(normalized);
 };
 
+export const normalizeEmail = (value) => String(value || "").trim().toLowerCase();
+
 export const requiredText = (value) => String(value || "").trim();
 
 export { normalizeHearingStatus, normalizePaymentStatus };
