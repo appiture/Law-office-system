@@ -112,8 +112,13 @@ export function useDashboardData() {
       setMembers(payload.members || []);
       setHearings(payload.hearings);
 
-      const events = await platformApi.getCalendarEvents();
-      setCalendarEvents(events || []);
+      try {
+        const events = await platformApi.getCalendarEvents();
+        setCalendarEvents(events || []);
+      } catch (calendarErr) {
+        logger.warn("Failed to load dashboard calendar events", calendarErr);
+        setCalendarEvents([]);
+      }
     } catch (err) {
       logger.error("Failed to load dashboard", err);
       setError(err.message || "Failed to load dashboard.");
@@ -214,13 +219,6 @@ export function useDashboardData() {
   );
 
   const events = useMemo(() => {
-    const log = [];
-    const name = "eventLog";
-    const originalFunction = window[name];
-    window[name] = function(...args) {
-      log.push({ name, args, stack: new Error().stack });
-      return originalFunction ? originalFunction.apply(this, args) : undefined;
-    };
     const collection = [];
     cases.forEach((legalCase) => {
       if (legalCase.nextHearingDate) {

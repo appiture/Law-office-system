@@ -1110,6 +1110,30 @@ const supabasePlatformApi = {
   },
   // Duplicates removed (already defined above)
   // Duplicate removed
+  getCalendarEvents: async () => {
+    const context = await internalGetWorkspaceContext();
+    if (!context?.organizationId) return [];
+
+    try {
+      const { data, error } = await requireSupabase()
+        .from("calendar_events")
+        .select("id, organization_id, created_by, title, description, event_date, event_type, color, created_at, updated_at")
+        .eq("organization_id", context.organizationId)
+        .order("event_date", { ascending: true })
+        .range(0, MAX_SERVER_PAGE - 1);
+
+      if (error && (error.code === "42P01" || error.code === "PGRST200")) {
+        return [];
+      }
+      if (error) throw error;
+      return Array.isArray(data) ? data : [];
+    } catch (err) {
+      if (err?.code === "42P01" || String(err?.message || "").includes("does not exist")) {
+        return [];
+      }
+      throw err;
+    }
+  },
   deleteCalendarEvent: async (eventId) => {
     const context = await internalGetWorkspaceContext();
     if (!context?.organizationId) throw new Error("No organization workspace is available.");

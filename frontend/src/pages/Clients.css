@@ -57,6 +57,17 @@
 
 /* Removed redundant grids — now using global .card-grid */
 
+.premium-card-quick-actions {
+  opacity: 0;
+  transform: translateY(-5px);
+  transition: opacity 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.premium-client-card-wrapper:hover .premium-card-quick-actions {
+  opacity: 1;
+  transform: translateY(0);
+}
+
 .premium-client-card-inner {
   display: flex;
   flex-direction: column;

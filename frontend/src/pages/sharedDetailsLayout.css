@@ -479,22 +479,6 @@
   font-weight: 700;
   margin-top: 2px;
 }
-
-.active-case-highlight {
-  border: 1px solid var(--color-gold) !important;
-  background: var(--color-gold-bg) !important;
-  box-shadow: 0 0 15px rgba(201, 163, 78, 0.1);
-}
-
-.active-case-highlight strong {
-  color: var(--color-gold);
-}
-
-.active-case-highlight .btn-text {
-  color: var(--color-gold);
-  font-weight: 700;
-}
-
 /* Payment History Table (Bottom Row) */
 .payment-history-table-wrap {
   overflow-x: auto;

@@ -204,75 +204,49 @@ function Clients() {
         {hasLoaded && !loading && clients.map((client) => {
           const photoUrl = getPersistentAssetUrl(client.photoUrl, "https://placehold.co/120x120/png?text=Client");
           return (
-            <div key={client.id} className="premium-client-card-wrapper">
-              <div className="standard-card client-card-item">
-                <div className="premium-client-card-inner">
-                  <ProfileCard
-                    name={client.name}
-                    title={client.occupation || "Client"}
-                    avatarUrl={photoUrl}
-                    email={client.email}
-                    phone={client.phone}
-                    behindGlowEnabled={true}
-                    behindGlowColor="var(--color-secondary)"
-                    showUserInfo={false}
-                    enableTilt={false}
-                  />
-
-                  <div className="client-contact-display">
-                    {client.phone && (
-                      <a 
-                        href={`https://wa.me/${client.phone.replace(/\D/g, '')}`} 
-                        target="_blank" 
-                        rel="noreferrer"
-                        className="contact-display-link"
-                      >
-                        <span className="contact-icon">💬</span>
-                        <span className="contact-text">{client.phone}</span>
-                      </a>
-                    )}
-                    {client.email && (
-                      <a 
-                        href={`mailto:${client.email}`}
-                        className="contact-display-link"
-                      >
-                        <span className="contact-icon">📧</span>
-                        <span className="contact-text">{client.email}</span>
-                      </a>
-                    )}
-                  </div>
-                  
-                  <div className="premium-card-actions">
-                    <div className="action-row">
-                      <button 
-                        type="button" 
-                        className="btn-gold-action" 
-                        onClick={() => navigate(`/clients/${client.id}`)}
-                      >
-                        👤 View Profile
-                      </button>
-                      <button 
-                        type="button" 
-                        className="btn-glass-action" 
-                        onClick={() => navigate(`/clients/${client.id}?edit=true&step=0`)}
-                        title="Edit Client"
-                      >
-                        ✏️ Edit
-                      </button>
-                      <button
-                        type="button"
-                        className="action-btn-danger-glass"
-                        style={{ width: '48px', padding: '12px' }}
-                        onClick={() => void deleteClientPermanently(client)}
-                        disabled={deletingClientId === client.id}
-                        title="Delete Client"
-                      >
-                        🗑️
-                      </button>
-                    </div>
-                  </div>
-                </div>
+            <div key={client.id} className="premium-client-card-wrapper" style={{ position: 'relative' }}>
+              <div className="premium-card-quick-actions" style={{
+                position: 'absolute',
+                top: '15px',
+                right: '15px',
+                zIndex: 10,
+                display: 'flex',
+                gap: '8px'
+              }}>
+                <button 
+                  type="button" 
+                  className="btn-glass-action" 
+                  style={{ padding: '6px 10px', fontSize: '12px', minHeight: '30px', width: '32px' }}
+                  onClick={() => navigate(`/clients/${client.id}?edit=true&step=0`)}
+                  title="Edit Client"
+                >
+                  ✏️
+                </button>
+                <button
+                  type="button"
+                  className="action-btn-danger-glass"
+                  style={{ padding: '6px 10px', fontSize: '12px', minHeight: '30px', width: '32px' }}
+                  onClick={() => void deleteClientPermanently(client)}
+                  disabled={deletingClientId === client.id}
+                  title="Delete Client"
+                >
+                  🗑️
+                </button>
               </div>
+
+              <ProfileCard
+                name={client.name}
+                title={client.occupation || "Client"}
+                avatarUrl={photoUrl}
+                email={client.email}
+                phone={client.phone}
+                contactText="View Profile"
+                behindGlowEnabled={true}
+                behindGlowColor="var(--color-primary)"
+                showUserInfo={true}
+                enableTilt={true}
+                onContactClick={() => navigate(`/clients/${client.id}`)}
+              />
             </div>
           );
         })}

@@ -10,14 +10,17 @@ import ProfileCard from "../components/ui/ProfileCard/ProfileCard";
 import MultiStepClientWizard from "../components/MultiStepClientWizard";
 import { createPortal } from "react-dom";
 import { usePermissions } from "../context/PermissionsContext";
+import MagicBento, { ParticleCard } from "../components/ui/MagicBento/MagicBento";
 import "./sharedDetailsLayout.css";
 
 function DetailSection({ id, title, label, actions, children, className = "", style = {} }) {
   return (
-    <div 
+    <ParticleCard 
       id={id}
-      className={`standard-card ${className}`}
+      className={`magic-bento-card magic-bento-card--border-glow ${className}`}
       style={style}
+      enableTilt={true}
+      clickEffect={true}
     >
       <div className="case-card-header">
         <div className="case-tag">{label || title}</div>
@@ -31,7 +34,7 @@ function DetailSection({ id, title, label, actions, children, className = "", st
           {children}
         </div>
       </div>
-    </div>
+    </ParticleCard>
   );
 }
 
@@ -272,7 +275,7 @@ function ClientDetails() {
       <DetailNav items={detailNavItems} />
 
       <div className="case-details-container">
-        <div className="case-details-grid">
+        <MagicBento className="case-details-grid" enableTilt={true}>
           <DetailSection 
             id="client-profile" 
             title="Identity Summary" 
@@ -344,7 +347,7 @@ function ClientDetails() {
               </table>
             </div>
           </DetailSection>
-        </div>
+        </MagicBento>
       </div>
 
       {showWizard && createPortal(
