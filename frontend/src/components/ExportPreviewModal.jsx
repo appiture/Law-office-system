@@ -2,6 +2,17 @@ import { createPortal } from "react-dom";
 import { formatDate } from "../utils/formatters";
 import BorderGlow from "./ui/BorderGlow/BorderGlow";
 
+// Group dashboard rows by section for preview
+function groupBySection(rows) {
+  const groups = {};
+  for (const row of rows) {
+    const sec = row.section || "Other";
+    if (!groups[sec]) groups[sec] = [];
+    groups[sec].push(row);
+  }
+  return groups;
+}
+
 export default function ExportPreviewModal({ 
   show, 
   onClose, 
@@ -33,9 +44,11 @@ export default function ExportPreviewModal({
           <div className="flow-modal-header-info">
             <h3>📑 Document Preview</h3>
             <p>
-              {previewRows.length > 0
-                ? `Reviewing top ${previewRows.length} records — export will include ALL ${exportRowsCount} records.`
-                : "No records are currently loaded. The export will fetch all matching records from the server."}
+              {type === "dashboard"
+                ? `Full practice report — all modules will be fetched from server and exported.`
+                : previewRows.length > 0
+                  ? `Reviewing top ${previewRows.length} records — export will include ALL ${exportRowsCount} records.`
+                  : "No records are currently loaded. The export will fetch all matching records from the server."}
             </p>
           </div>
           <button type="button" className="flow-modal-close" onClick={onClose}>✕</button>
@@ -102,7 +115,45 @@ export default function ExportPreviewModal({
             </div>
 
             <div style={{ flex: 1 }}>
-              {previewRows.length === 0 ? (
+              {type === "dashboard" ? (
+                // Dashboard: show section breakdown
+                <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "#444", marginBottom: 4 }}>
+                    📊 Report includes all practice modules:
+                  </div>
+                  {(() => {
+                    const groups = groupBySection(rows);
+                    const sectionIcons = {
+                      Cases: "⚖️", Clients: "👥", Payments: "💰",
+                      Hearings: "📅", Tasks: "✅", Team: "👤", Documents: "📄"
+                    };
+                    const sections = Object.keys(groups).length > 0
+                      ? Object.entries(groups)
+                      : [["Cases", []], ["Clients", []], ["Payments", []], ["Hearings", []],
+                         ["Documents", []], ["Tasks", []], ["Team", []]];
+                    return sections.map(([sec, items]) => (
+                      <div key={sec} style={{
+                        display: "flex", alignItems: "center", justifyContent: "space-between",
+                        padding: "7px 12px", background: "#f8f9fa", borderRadius: 6,
+                        border: "1px solid #e8ecf0"
+                      }}>
+                        <span style={{ fontWeight: 700, fontSize: 12 }}>
+                          {sectionIcons[sec] || "📋"} {sec}
+                        </span>
+                        <span style={{
+                          fontSize: 11, fontWeight: 700, color: "#1a237e",
+                          background: "rgba(26,35,126,0.08)", padding: "2px 8px", borderRadius: 99
+                        }}>
+                          {items.length > 0 ? `${items.length} record${items.length !== 1 ? "s" : ""}` : "fetched from server"}
+                        </span>
+                      </div>
+                    ));
+                  })()}
+                  <div style={{ marginTop: 8, padding: "8px 12px", background: "#e8f5e9", borderRadius: 6, border: "1px solid #c8e6c9", fontSize: 11, color: "#2e7d32", fontWeight: 600 }}>
+                    ✅ Export will pull full data for all sections directly from server
+                  </div>
+                </div>
+              ) : previewRows.length === 0 ? (
                 <div style={{ padding: "32px", textAlign: "center", color: "#888", border: "1.5px dashed #ddd", borderRadius: 8 }}>
                   <div style={{ fontSize: 32, marginBottom: 8 }}>📋</div>
                   <div style={{ fontWeight: 700, marginBottom: 4 }}>No preview data loaded</div>

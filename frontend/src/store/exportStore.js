@@ -50,8 +50,29 @@ export const resetExportState = () => {
 };
 
 export const openExport = (config) => {
+  // Normalize aliased keys so every page works regardless of which key it passes
+  const normalized = { ...config };
+
+  // availableData → allData (pages pass availableData, store uses allData)
+  if (normalized.availableData !== undefined && normalized.allData === undefined) {
+    normalized.allData = normalized.availableData;
+  }
+  delete normalized.availableData;
+
+  // dateRange → defaultDateRange
+  if (normalized.dateRange !== undefined && normalized.defaultDateRange === undefined) {
+    normalized.defaultDateRange = normalized.dateRange;
+  }
+  delete normalized.dateRange;
+
+  // initialSendToEmail → sendToEmail
+  if (normalized.initialSendToEmail !== undefined && normalized.sendToEmail === undefined) {
+    normalized.sendToEmail = normalized.initialSendToEmail;
+  }
+  delete normalized.initialSendToEmail;
+
   setExportState({
-    ...config,
+    ...normalized,
     isOpen: true,
   });
 };

@@ -54,7 +54,12 @@ Deno.serve(async (req) => {
     // Platform admins can run platform reports without organization restriction.
     const isPlatformReport = type === "platform" && actor.isPlatformAdmin;
     
-    if (!isPlatformReport) {
+    // Dashboard reports require org admin. Module reports (cases, clients, etc.) allow any authenticated user.
+    const requiresAdminRole = isPlatformReport || type === "dashboard";
+    if (requiresAdminRole && !isPlatformReport) {
+      assertOrganizationAdmin(actor);
+    } else if (!isPlatformReport && !actor.profile?.organization_id) {
+      // Still need an org context for module exports
       assertOrganizationAdmin(actor);
     }
     
@@ -110,7 +115,7 @@ Deno.serve(async (req) => {
     }
     const { count } = await countQuery;
 
-    if (body.useQueue || (count && count > 500) || type === "dashboard") {
+    if (body.useQueue || (count && count > 500)) {
       await db.from("export_logs").insert({
         organization_id: orgId,
         actor_id: actor.user.id,

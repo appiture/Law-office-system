@@ -263,25 +263,76 @@ export function formatData(type: string, data: any): Sheet[] {
     default:
       return [
         {
+          name: "Summary",
+          headers: ["Metric", "Value"],
+          rows: [
+            ["Total Clients", data.clients?.length ?? 0],
+            ["Total Cases", data.cases?.length ?? 0],
+            ["Total Payments", data.payments?.length ?? 0],
+            ["Total Hearings", data.hearings?.length ?? 0],
+            ["Total Documents", data.documents?.length ?? 0],
+            ["Total Tasks", data.tasks?.length ?? 0],
+            ["Team Members", data.members?.length ?? 0],
+            ["Pending Invites", data.invites?.length ?? 0],
+            ["Total Revenue (₹)", (data.payments || []).reduce((sum: number, p: any) => sum + Number(p.amount_paid || 0), 0)],
+          ]
+        },
+        {
           name: "Clients",
-          headers: ["Name", "Email", "Phone", "Address", "City"],
-          rows: (data.clients || []).map((c: any) => [c.name, c.email, c.phone, c.address, detailValue(c, "city")])
+          headers: ["ID", "Name", "Phone", "Email", "Address", "City", "Occupation", "Registered"],
+          rows: (data.clients || []).map((c: any) => [
+            c.id, c.name, c.phone, c.email, c.address,
+            detailValue(c, "city"), detailValue(c, "occupation"), c.created_at
+          ])
         },
         {
           name: "Cases",
-          headers: ["Case No", "Title", "Type", "Status", "Next Hearing"],
-          rows: (data.cases || []).map((c: any) => [c.case_number, detailValue(c, "title", "caseTitle"), c.case_type, c.status, detailValue(c, "nextHearingDate", "next_hearing_date")])
+          headers: ["Case No", "Client", "Type", "Status", "Court", "Lawyer", "Next Hearing", "Created At"],
+          rows: (data.cases || []).map((c: any) => [
+            c.case_number, c.client?.name,
+            c.case_type, c.status, c.court_name, c.lawyer_name,
+            detailValue(c, "nextHearingDate", "next_hearing_date"), c.created_at
+          ])
         },
         {
           name: "Payments",
-          headers: ["Amount", "Date", "Mode", "Status", "Case"],
-          rows: (data.payments || []).map((p: any) => [p.amount_paid, p.payment_date || p.timestamp, p.payment_mode, "", p.case?.case_number])
+          headers: ["Amount (₹)", "Date", "Mode", "Reference", "Charge", "Case No", "Client"],
+          rows: (data.payments || []).map((p: any) => [
+            p.amount_paid, p.payment_date || p.timestamp,
+            p.payment_mode, p.payment_reference,
+            p.charge_name, p.case?.case_number, p.client?.name
+          ])
         },
         {
           name: "Hearings",
-          headers: ["Date", "Type", "Title", "Status", "Case"],
-          rows: (data.hearings || []).map((h: any) => [h.scheduled_at, h.type, h.title, h.status, h.case?.case_number])
-        }
+          headers: ["Date", "Type", "Title", "Status", "Notes", "Case No", "Client"],
+          rows: (data.hearings || []).map((h: any) => [
+            h.date || h.scheduled_at, h.type, h.title,
+            h.status, (h.notes || "").slice(0, 60),
+            h.case?.case_number, h.case?.client?.name
+          ])
+        },
+        {
+          name: "Documents",
+          headers: ["File Name", "Category", "Description", "Uploaded", "Case No"],
+          rows: (data.documents || []).map((d: any) => [
+            d.file_name, d.category, d.description, d.created_at, d.case?.case_number
+          ])
+        },
+        {
+          name: "Tasks",
+          headers: ["Title", "Priority", "Status", "Due Date", "Created At"],
+          rows: (data.tasks || []).map((t: any) => [
+            t.title, t.priority, t.status, t.due_date, t.created_at
+          ])
+        },
+        {
+          name: "Team",
+          headers: ["Name", "Email", "Role", "Status", "Joined"],
+          rows: (data.members || []).map((m: any) => [
+            m.full_name, m.email, m.role, m.status, m.created_at
+          ])
+        },
       ];
   }
 }
@@ -291,10 +342,13 @@ export function formatData(type: string, data: any): Sheet[] {
 // ---------------------------------------------------------------------------
 
 export function generateCSV(sheets: Sheet[]): string {
-  // Only use first sheet for CSV
-  const s = sheets[0];
-  const rows = [s.headers, ...s.rows];
-  return rows.map(r => r.map(v => `"${String(v ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
+  // Export ALL sheets separated by section headers for complete data
+  return sheets.map(s => {
+    const sectionHeader = `"=== ${s.name.toUpperCase()} ==="`;
+    const headerRow = s.headers.map(v => `"${String(v ?? "").replace(/"/g, '""')}"`).join(",");
+    const dataRows = s.rows.map(r => r.map(v => `"${String(v ?? "").replace(/"/g, '""')}"`).join(","));
+    return [sectionHeader, headerRow, ...dataRows].join("\n");
+  }).join("\n\n");
 }
 
 export async function generateXLSX(sheets: Sheet[]): Promise<Uint8Array> {
@@ -323,47 +377,148 @@ export async function generateXLSX(sheets: Sheet[]): Promise<Uint8Array> {
 
 export function generatePDF(sheets: Sheet[], title: string): Uint8Array {
   const doc = new jsPDF() as any;
+  const dateStr = new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "long", year: "numeric" });
+
   sheets.forEach((s, i) => {
     if (i > 0) doc.addPage();
-    doc.setFontSize(18);
-    doc.text(title, 14, 22);
-    doc.setFontSize(12);
-    doc.text(`Sheet: ${s.name}`, 14, 30);
+
+    // Header bar
+    doc.setFillColor(26, 35, 126);
+    doc.rect(0, 0, 210, 22, "F");
+    doc.setFontSize(14);
+    doc.setTextColor(255, 255, 255);
+    doc.setFont("helvetica", "bold");
+    doc.text(title, 14, 14);
+    doc.setFontSize(9);
+    doc.setFont("helvetica", "normal");
+    doc.text(dateStr, 196, 14, { align: "right" });
+
+    // Section title
+    doc.setTextColor(26, 35, 126);
+    doc.setFontSize(11);
+    doc.setFont("helvetica", "bold");
+    doc.text(`Section: ${s.name}`, 14, 32);
+
+    doc.setTextColor(0, 0, 0);
     doc.autoTable({
       head: [s.headers],
-      body: s.rows,
-      startY: 35,
+      body: s.rows.map(r => r.map(v => String(v ?? ""))),
+      startY: 37,
       theme: "grid",
-      styles: { fontSize: 8 },
-      headStyles: { fillColor: [26, 35, 126] }
+      styles: { fontSize: 7.5, cellPadding: 3 },
+      headStyles: { fillColor: [26, 35, 126], textColor: 255, fontStyle: "bold" },
+      alternateRowStyles: { fillColor: [245, 247, 255] },
+      margin: { left: 14, right: 14 },
     });
+
+    // Footer
+    const pageCount = doc.internal.getNumberOfPages();
+    doc.setFontSize(7);
+    doc.setTextColor(150, 150, 150);
+    doc.text(`Page ${i + 1} of ${sheets.length} sections`, 14, 290);
+    doc.text("Law Office Management System — Confidential", 196, 290, { align: "right" });
   });
-  return doc.output("arraybuffer");
+
+  // Must return Uint8Array (not ArrayBuffer) for consistent Response building
+  const arrBuf = doc.output("arraybuffer") as ArrayBuffer;
+  return new Uint8Array(arrBuf);
 }
 
 export async function generateDOCX(sheets: Sheet[], title: string): Promise<Uint8Array> {
   const zip = new JSZip();
-  // Bare-bones DOCX implementation
-  zip.file("[Content_Types].xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/></Types>`);
-  zip.file("_rels/.rels", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/></Relationships>`);
-  
-  let docXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>`;
-  docXml += `<w:p><w:pPr><w:pStyle w:val="Heading1"/></w:pPr><w:r><w:t>${esc(title)}</t></w:r></w:p>`;
+  const dateStr = new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "long", year: "numeric" });
 
-  sheets.forEach(s => {
-    docXml += `<w:p><w:pPr><w:pStyle w:val="Heading2"/></w:pPr><w:r><w:t>Section: ${esc(s.name)}</w:t></w:r></w:p>`;
-    docXml += `<w:tbl><w:tblPr><w:tblW w:w="5000" w:type="pct"/><w:tblBorders><w:top w:val="single"/><w:left w:val="single"/><w:bottom w:val="single"/><w:right w:val="single"/></w:tblBorders></w:tblPr>`;
-    // Header row
-    docXml += `<w:tr>` + s.headers.map(h => `<w:tc><w:p><w:r><w:rPr><w:b/></w:rPr><w:t>${esc(h)}</t></w:r></w:p></w:tc>`).join("") + `</w:tr>`;
-    // Data rows
-    s.rows.forEach(r => {
-      docXml += `<w:tr>` + r.map(v => `<w:tc><w:p><w:r><w:t>${esc(v)}</t></w:r></w:p></w:tc>`).join("") + `</w:tr>`;
+  // Required DOCX package files
+  zip.file("[Content_Types].xml", [
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>`,
+    `<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">`,
+    `<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>`,
+    `<Default Extension="xml" ContentType="application/xml"/>`,
+    `<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>`,
+    `<Override PartName="/word/styles.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"/>`,
+    `</Types>`
+  ].join(""));
+
+  zip.file("_rels/.rels", [
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>`,
+    `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">`,
+    `<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>`,
+    `</Relationships>`
+  ].join(""));
+
+  // REQUIRED: word/_rels/document.xml.rels (without this DOCX is broken/unreadable)
+  zip.file("word/_rels/document.xml.rels", [
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>`,
+    `<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">`,
+    `<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>`,
+    `</Relationships>`
+  ].join(""));
+
+  // Minimal styles.xml for proper heading rendering
+  zip.file("word/styles.xml", [
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>`,
+    `<w:styles xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">`,
+    `<w:style w:type="paragraph" w:styleId="Heading1"><w:name w:val="heading 1"/>`,
+    `<w:rPr><w:b/><w:sz w:val="32"/><w:color w:val="1A237E"/></w:rPr></w:style>`,
+    `<w:style w:type="paragraph" w:styleId="Heading2"><w:name w:val="heading 2"/>`,
+    `<w:rPr><w:b/><w:sz w:val="24"/><w:color w:val="37474F"/></w:rPr></w:style>`,
+    `</w:styles>`
+  ].join(""));
+
+  // Build document body
+  let docXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>`;
+  docXml += `<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>`;
+
+  // Title block
+  docXml += `<w:p><w:pPr><w:jc w:val="center"/></w:pPr>`;
+  docXml += `<w:r><w:rPr><w:b/><w:sz w:val="36"/><w:color w:val="1A237E"/></w:rPr><w:t>${esc(title)}</w:t></w:r></w:p>`;
+  docXml += `<w:p><w:pPr><w:jc w:val="center"/></w:pPr>`;
+  docXml += `<w:r><w:rPr><w:sz w:val="18"/><w:color w:val="888888"/></w:rPr><w:t>Generated: ${esc(dateStr)} | Law Office Management System</w:t></w:r></w:p>`;
+  docXml += `<w:p/>`;
+
+  sheets.forEach((s, idx) => {
+    // Section heading
+    docXml += `<w:p><w:r><w:rPr><w:b/><w:sz w:val="26"/><w:color w:val="1A237E"/></w:rPr>`;
+    docXml += `<w:t>${idx + 1}. ${esc(s.name)} (${s.rows.length} record${s.rows.length !== 1 ? "s" : ""})</w:t></w:r></w:p>`;
+
+    // Table with borders
+    docXml += `<w:tbl><w:tblPr>`;
+    docXml += `<w:tblW w:w="9360" w:type="dxa"/>`;
+    docXml += `<w:tblBorders>`;
+    docXml += `<w:top w:val="single" w:sz="4"/><w:left w:val="single" w:sz="4"/>`;
+    docXml += `<w:bottom w:val="single" w:sz="4"/><w:right w:val="single" w:sz="4"/>`;
+    docXml += `<w:insideH w:val="single" w:sz="2"/><w:insideV w:val="single" w:sz="2"/>`;
+    docXml += `</w:tblBorders></w:tblPr>`;
+
+    // Header row (bold + shaded)
+    docXml += `<w:tr>`;
+    docXml += s.headers.map(h =>
+      `<w:tc><w:tcPr><w:shd w:val="clear" w:color="auto" w:fill="1A237E"/></w:tcPr>` +
+      `<w:p><w:r><w:rPr><w:b/><w:color w:val="FFFFFF"/><w:sz w:val="16"/></w:rPr>` +
+      `<w:t>${esc(h)}</w:t></w:r></w:p></w:tc>`
+    ).join("");
+    docXml += `</w:tr>`;
+
+    // Data rows (alternate shading)
+    s.rows.forEach((r, ri) => {
+      const fill = ri % 2 === 0 ? "F5F7FF" : "FFFFFF";
+      docXml += `<w:tr>`;
+      docXml += r.map(v =>
+        `<w:tc><w:tcPr><w:shd w:val="clear" w:color="auto" w:fill="${fill}"/></w:tcPr>` +
+        `<w:p><w:r><w:rPr><w:sz w:val="16"/></w:rPr>` +
+        `<w:t>${esc(v)}</w:t></w:r></w:p></w:tc>`
+      ).join("");
+      docXml += `</w:tr>`;
     });
+
     docXml += `</w:tbl><w:p/>`;
   });
 
+  // Footer paragraph
+  docXml += `<w:p><w:r><w:rPr><w:sz w:val="14"/><w:color w:val="AAAAAA"/></w:rPr>`;
+  docXml += `<w:t>Law Office Management — Internal Confidential Document</w:t></w:r></w:p>`;
   docXml += `</w:body></w:document>`;
+
   zip.file("word/document.xml", docXml);
-  
   return await zip.generateAsync({ type: "uint8array" });
 }

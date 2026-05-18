@@ -112,7 +112,7 @@ export default function ExportModal({ onClose }) {
 
   const columns = getPreviewColumns(type);
   
-  // Priority selection for preview and final export
+  // Priority: selectedRows > filteredRows > allData
   let exportRows = [];
   if (selectedRows?.length > 0) {
     exportRows = selectedRows;
@@ -121,6 +121,12 @@ export default function ExportModal({ onClose }) {
   } else {
     exportRows = allData;
   }
+
+  // For dashboard: compute record count across all sections
+  const isDashboard = type === "dashboard";
+  const totalRecords = isDashboard
+    ? exportRows.length
+    : exportRows.length;
 
   const handleOpenPreview = () => {
     const hasSelectedRows = selectedRows?.length > 0;
@@ -154,12 +160,17 @@ export default function ExportModal({ onClose }) {
         }
       }
 
+      // Derive meaningful section names from the data for the backend
+      const uniqueSections = type === "dashboard"
+        ? [...new Set((exportRows).map(r => r.section).filter(Boolean))]
+        : [];
+
       const res = await triggerExport({
         format,
         type,
         dateRange: defaultDateRange,
         filters: currentFilters,
-        includeSections: [],
+        includeSections: uniqueSections,
         selectedIds: selectedRows?.length > 0 ? selectedRows.map(r => r.id) : [],
         emailTo: recipientEmail,
       });
@@ -191,7 +202,9 @@ export default function ExportModal({ onClose }) {
             <div className="flow-modal-header-info">
               <h3>📥 Export Report</h3>
               <p style={{ textTransform: "capitalize" }}>
-                {type} — {exportRows.length} records selected
+                {type === "dashboard"
+                  ? `Full Practice Report — all modules (fetched from server)`
+                  : `${type} — ${exportRows.length} record${exportRows.length !== 1 ? "s" : ""} selected`}
               </p>
             </div>
             <button type="button" className="flow-modal-close" onClick={onCloseModal}>✕</button>
