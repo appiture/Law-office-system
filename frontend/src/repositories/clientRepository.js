@@ -1,30 +1,25 @@
-import { __internal, supabasePlatformApi } from "./supabaseRepository";
+import { __internal } from "./supabaseRepository";
 import {
   assertClientPayload,
   normalizeDigits,
   normalizeEmail,
 } from "../utils/validation";
 
-const {
-  requireSupabase,
-  internalGetWorkspaceContext,
-  getMappedClients,
-  paginateItems,
-  getEffectiveFilters,
-  getSearchTokens,
-  matchesSearchTokens,
-  isDateWithinRange,
-  isLawyerContext,
-  single,
-  list,
-  resetWorkspaceDataCache,
-  mapClientRecord,
-} = __internal;
+const getHelpers = () => __internal;
 
 const DEFAULT_PAGE_SIZE = 50;
 
 export const clientRepository = {
   searchClients: async ({ filters = {}, page = 1, pageSize = DEFAULT_PAGE_SIZE, showAll = false } = {}) => {
+    const {
+      getEffectiveFilters,
+      getSearchTokens,
+      getMappedClients,
+      matchesSearchTokens,
+      isDateWithinRange,
+      paginateItems,
+    } = getHelpers();
+
     const effectiveFilters = getEffectiveFilters(filters, showAll);
     const tokens = getSearchTokens(effectiveFilters.searchTerm, effectiveFilters.name);
     const phoneTokens = getSearchTokens(effectiveFilters.phone);
@@ -52,6 +47,15 @@ export const clientRepository = {
     return paginateItems(matches, page, pageSize);
   },
   getClient: async (clientId) => {
+    const {
+      internalGetWorkspaceContext,
+      isLawyerContext,
+      getMappedClients,
+      requireSupabase,
+      single,
+      mapClientRecord,
+    } = getHelpers();
+
     const context = await internalGetWorkspaceContext();
     if (isLawyerContext(context)) {
       const clients = await getMappedClients();
@@ -74,6 +78,13 @@ export const clientRepository = {
   saveClient: async (payload, clientId) => {
     const actionKey = `saveClient:${clientId || "new"}`;
     return ((_k, _f) => _f())(actionKey, async () => {
+      const {
+        internalGetWorkspaceContext,
+        requireSupabase,
+        single,
+        resetWorkspaceDataCache,
+      } = getHelpers();
+
       const context = await internalGetWorkspaceContext();
       if (!context?.organizationId) throw new Error("No organization workspace is available.");
 
@@ -128,12 +139,20 @@ export const clientRepository = {
       }
 
       resetWorkspaceDataCache();
-      return supabasePlatformApi.getClient(savedClientId);
+      return clientRepository.getClient(savedClientId);
     });
   },
   deleteClient: async (clientId) => {
     const actionKey = `deleteClient:${clientId}`;
     return ((_k, _f) => _f())(actionKey, async () => {
+      const {
+        internalGetWorkspaceContext,
+        requireSupabase,
+        single,
+        list,
+        resetWorkspaceDataCache,
+      } = getHelpers();
+
       const context = await internalGetWorkspaceContext();
       if (!context?.organizationId) throw new Error("No organization workspace is available.");
 
@@ -201,6 +220,13 @@ export const clientRepository = {
   saveWizardStep: async (payload, clientId) => {
     const actionKey = `saveWizard:${clientId || "new"}`;
     return ((_k, _f) => _f())(actionKey, async () => {
+      const {
+        internalGetWorkspaceContext,
+        requireSupabase,
+        single,
+        resetWorkspaceDataCache,
+      } = getHelpers();
+
       const context = await internalGetWorkspaceContext();
       if (!context?.organizationId) throw new Error("No organization workspace is available.");
       

@@ -1,4 +1,4 @@
-import { __internal, supabasePlatformApi } from "./supabaseRepository";
+import { __internal } from "./supabaseRepository";
 import { assertCasePayload, assertChargePayload, assertDocumentPayload, assertPaymentPayload, assertHearingPayload } from "../utils/validation";
 import { toIsoDate } from "../utils/caseDomain";
 
@@ -107,14 +107,14 @@ export const caseRepository = {
       }
 
       __internal.resetWorkspaceDataCache();
-      return supabasePlatformApi.getCase(savedCaseId);
+      return caseRepository.getCase(savedCaseId);
     });
   },
   addDocument: async (caseId, payload) => {
     const actionKey = `addDocument:${caseId}`;
     return ((_k, _f) => _f())(actionKey, async () => {
       const context = await __internal.internalGetWorkspaceContext();
-      await supabasePlatformApi.getCase(caseId);
+      await caseRepository.getCase(caseId);
       __internal.validateCaseScopedPath(payload.filePath, context.organizationId, caseId);
       assertDocumentPayload(payload);
       const { error } = await __internal.requireSupabase().from("documents").insert({
@@ -133,7 +133,7 @@ export const caseRepository = {
       if (error) throw error;
       await __internal.logObservabilityEvent(context, "documents", "DOCUMENT_UPLOAD", { caseId, category: payload.category });
       __internal.resetWorkspaceDataCache();
-      return supabasePlatformApi.getCase(caseId);
+      return caseRepository.getCase(caseId);
     });
   },
   deleteDocument: async (caseId, documentId) => {
@@ -145,13 +145,13 @@ export const caseRepository = {
       .eq("organization_id", context.organizationId);
     if (error) throw error;
     __internal.resetWorkspaceDataCache();
-    return supabasePlatformApi.getCase(caseId);
+    return caseRepository.getCase(caseId);
   },
   addChargeItem: async (caseId, payload) => {
     const actionKey = `addCharge:${caseId}`;
     return ((_k, _f) => _f())(actionKey, async () => {
       const context = await __internal.internalGetWorkspaceContext();
-      await supabasePlatformApi.getCase(caseId);
+      await caseRepository.getCase(caseId);
       assertChargePayload(payload);
       const payment = await __internal.ensurePaymentShell(context.organizationId, caseId);
 
@@ -191,14 +191,14 @@ export const caseRepository = {
       await __internal.logObservabilityEvent(context, "payments", "CREATE_CHARGE", { caseId, chargeId: insertedCharge.id });
       await __internal.syncPaymentTotals(payment.id, context.organizationId);
       __internal.resetWorkspaceDataCache();
-      return supabasePlatformApi.getCase(caseId);
+      return caseRepository.getCase(caseId);
     });
   },
   updateChargeItem: async (caseId, chargeItemId, payload) => {
     const actionKey = `updateCharge:${chargeItemId}`;
     return ((_k, _f) => _f())(actionKey, async () => {
       const context = await __internal.internalGetWorkspaceContext();
-      await supabasePlatformApi.getCase(caseId);
+      await caseRepository.getCase(caseId);
       assertChargePayload(payload);
       const existing = await __internal.single(
         __internal.requireSupabase()
@@ -228,14 +228,14 @@ export const caseRepository = {
       await __internal.logObservabilityEvent(context, "payments", "UPDATE_CHARGE", { caseId, chargeId: chargeItemId });
       await __internal.syncPaymentTotals(existing.payment_id, context.organizationId);
       __internal.resetWorkspaceDataCache();
-      return supabasePlatformApi.getCase(caseId);
+      return caseRepository.getCase(caseId);
     });
   },
   addPayment: async (caseId, payload) => {
     const actionKey = `addPayment:${payload.chargeItemId}`;
     return ((_k, _f) => _f())(actionKey, async () => {
       const context = await __internal.internalGetWorkspaceContext();
-      const legalCase = await supabasePlatformApi.getCase(caseId);
+      const legalCase = await caseRepository.getCase(caseId);
       const selectedChargeItem = __internal.assertChargeBelongsToCase(payload.chargeItemId, legalCase);
       assertPaymentPayload(payload, selectedChargeItem.balanceAmount);
 
@@ -277,7 +277,7 @@ export const caseRepository = {
       if (updateResult.error) throw updateResult.error;
       await __internal.logObservabilityEvent(context, "payments", "RECORD_PAYMENT", { caseId, amount: payload.amount });
       __internal.resetWorkspaceDataCache();
-      return supabasePlatformApi.getCase(caseId);
+      return caseRepository.getCase(caseId);
     });
   },
   getPayments: async () => __internal.getMappedCases(),
@@ -430,7 +430,7 @@ export const caseRepository = {
     const actionKey = `addHearing:${caseId}`;
     return ((_k, _f) => _f())(actionKey, async () => {
       const context = await __internal.internalGetWorkspaceContext();
-      await supabasePlatformApi.getCase(caseId);
+      await caseRepository.getCase(caseId);
       assertHearingPayload(payload);
 
       const record = {
@@ -449,14 +449,14 @@ export const caseRepository = {
 
       await __internal.logObservabilityEvent(context, "hearings", "CREATE_HEARING", { caseId });
       __internal.resetWorkspaceDataCache();
-      return supabasePlatformApi.getCase(caseId);
+      return caseRepository.getCase(caseId);
     });
   },
   updateHearing: async (caseId, hearingId, payload) => {
     const actionKey = `updateHearing:${hearingId}`;
     return ((_k, _f) => _f())(actionKey, async () => {
       const context = await __internal.internalGetWorkspaceContext();
-      await supabasePlatformApi.getCase(caseId);
+      await caseRepository.getCase(caseId);
       assertHearingPayload(payload);
 
       const updates = {
@@ -478,7 +478,7 @@ export const caseRepository = {
 
       await __internal.logObservabilityEvent(context, "hearings", "UPDATE_HEARING", { caseId, hearingId });
       __internal.resetWorkspaceDataCache();
-      return supabasePlatformApi.getCase(caseId);
+      return caseRepository.getCase(caseId);
     });
   },
   deleteHearing: async (caseId, hearingId) => {
@@ -490,6 +490,6 @@ export const caseRepository = {
       .eq("organization_id", context.organizationId);
     if (error) throw error;
     __internal.resetWorkspaceDataCache();
-    return supabasePlatformApi.getCase(caseId);
+    return caseRepository.getCase(caseId);
   },
 };
