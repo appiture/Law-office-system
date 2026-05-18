@@ -138,8 +138,27 @@ Deno.serve(async (req) => {
     // Use frontend data when supplied (preferred) — skips DB fetch entirely.
     // Falls back to fetchData only for dashboard or when no frontend data is sent.
     let data: any;
-    if (body.allData !== undefined && body.allData !== null && type !== "dashboard") {
-      if (Array.isArray(body.allData)) {
+    if (body.allData !== undefined && body.allData !== null) {
+      if (type === "dashboard" && Array.isArray(body.allData)) {
+        // Dashboard sends a flat array with {section: "Cases"|"Clients"|...} tags
+        // Group them into the keyed shape formatData("dashboard") expects
+        const grouped: Record<string, any[]> = {};
+        for (const item of body.allData) {
+          const key = (item.section || "other").toLowerCase();
+          if (!grouped[key]) grouped[key] = [];
+          grouped[key].push(item);
+        }
+        data = {
+          clients:  grouped["clients"]  || [],
+          cases:    grouped["cases"]    || [],
+          payments: grouped["payments"] || [],
+          hearings: grouped["hearings"] || [],
+          documents:grouped["documents"]|| [],
+          tasks:    grouped["tasks"]    || [],
+          members:  grouped["team"]     || [],
+          invites:  grouped["invites"]  || [],
+        };
+      } else if (Array.isArray(body.allData)) {
         // Flat arrays: clients, cases, hearings, documents, tasks, team
         data = { [type]: body.allData };
       } else {
@@ -149,6 +168,7 @@ Deno.serve(async (req) => {
     } else {
       data = await fetchData(db, orgId, body);
     }
+
     data.orgBranding = orgBranding;
 
     const sheets = formatData(type, data);

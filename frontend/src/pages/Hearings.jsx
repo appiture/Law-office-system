@@ -412,8 +412,14 @@ function Hearings() {
               availableData: cases.flatMap(c =>
                 (c.hearings || []).map(f => ({
                   ...f,
-                  caseNumber: c.caseNumber || c.case_number,
-                  clientName: c.client?.name || c.clientName,
+                  caseNumber:   c.caseNumber   || c.case_number,
+                  clientName:   c.client?.name || c.clientName,
+                  courtName:    c.courtName    || c.court_name,
+                  lawyerName:   c.lawyerName   || c.lawyer_name,
+                  title:        f.title        || f.description,
+                  type:         f.type         || f.eventType,
+                  postponed_to: f.postponedTo  || f.postponed_to,
+                  notes:        f.notes        || f.description,
                   case: { caseNumber: c.caseNumber || c.case_number },
                 }))
               ),
