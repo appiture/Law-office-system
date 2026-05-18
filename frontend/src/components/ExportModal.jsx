@@ -203,6 +203,7 @@ export default function ExportModal({ onClose }) {
         includeSections: uniqueSections,
         selectedIds: selectedRows?.length > 0 ? selectedRows.map(r => r.id) : [],
         emailTo: recipientEmail,
+        allData,                  // ← send the frontend data to avoid backend re-fetch
       });
 
       if (res.isBackground) {

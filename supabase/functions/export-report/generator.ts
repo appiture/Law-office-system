@@ -17,6 +17,8 @@ export interface ExportRequest {
   includeSections?: string[];
   selectedIds?: string[];
   emailTo?: string;
+  useQueue?: boolean;
+  allData?: any;   // frontend-loaded data, used directly to skip DB fetch
 }
 
 export type Row = (string | number | null | undefined)[];
@@ -81,8 +83,10 @@ export async function fetchData(db: any, orgId: string, req: ExportRequest) {
 
     case "cases":
       query = db.from("cases").select(`
-        id, case_number, case_type, status, court_name,
-        lawyer_name, details, created_at, updated_at,
+        id, case_number, title, case_type, status, court_name, judge_name,
+        lawyer_name, next_hearing_date, filing_date,
+        opponent_name, opponent_lawyer,
+        details, created_at, updated_at,
         client:clients(id, name, phone, email)
       `).is("deleted_at", null);
       query = applyFilters(query);
@@ -93,80 +97,160 @@ export async function fetchData(db: any, orgId: string, req: ExportRequest) {
       return { cases: cases || [] };
 
     case "payments": {
-      // ── Step 1: Fetch cases that have at least one payment charge ─────────
-      let casesQ = db.from("cases").select(`
-        id, case_number, case_type, status, court_name, lawyer_name, details,
-        client:clients(id, name, phone, email),
-        payment_charges(
-          id, name, is_lawyer_fee, total_amount, paid_amount, balance_amount,
-          status, due_date, description, notes,
-          payment_history(
-            id, amount_paid, payment_date, timestamp, payment_mode,
-            payment_reference, charge_name, created_by, notes
+      // Strategy: query from payment_history (has payment_charge_id FK → payment_charges)
+      // Then payment_charges has case_id FK → cases → clients
+      // Group in-memory by case to build paymentCases[] shape
+
+      const { data: historyRows, error: histErr } = await db
+        .from("payment_history")
+        .select(`
+          id, amount_paid, timestamp, payment_mode, payment_reference,
+          charge_name, created_by, payment_date,
+          payment_charges:payment_charge_id (
+            id, name, total, paid, balance, due_date, status,
+            description, is_lawyer_fee,
+            cases:case_id (
+              id, case_number, title, case_type, status, court_name, lawyer_name,
+              clients:client_id ( id, name, phone, email )
+            )
           )
-        )
-      `).is("deleted_at", null).eq("organization_id", orgId);
+        `)
+        .eq("organization_id", orgId)
+        .order("timestamp", { ascending: false })
+        .limit(2000);
 
-      // Date filter on cases' payment dates is tricky across nested; filter by case created_at
-      if (filters?.status) casesQ = casesQ.eq("status", filters.status);
-      if (filters?.searchTerm) casesQ = casesQ.or(`case_number.ilike.%${filters.searchTerm}%,court_name.ilike.%${filters.searchTerm}%`);
+      if (histErr) {
+        console.error("[payments fetchData] history query error:", histErr.message);
+      }
 
-      const { data: rawCases } = await casesQ.order("created_at", { ascending: false }).limit(500);
+      // Also fetch all payment_charges for this org to show categories even without payments
+      const { data: chargeRows } = await db
+        .from("payment_charges")
+        .select(`
+          id, name, total, paid, balance, due_date, status,
+          description, is_lawyer_fee, case_id,
+          cases:case_id (
+            id, case_number, title, case_type, status, court_name, lawyer_name,
+            clients:client_id ( id, name, phone, email )
+          )
+        `)
+        .eq("organization_id", orgId)
+        .is("deleted_at", null)
+        .limit(2000);
 
-      // ── Step 2: Map into paymentCases[] shape the generator expects ───────
-      const paymentCases = (rawCases || [])
-        .filter((c: any) => (c.payment_charges || []).length > 0)
-        .map((c: any) => {
-          const charges = c.payment_charges || [];
-          const totalBilled  = charges.reduce((s: number, ch: any) => s + Number(ch.total_amount   || 0), 0);
-          const totalPaid    = charges.reduce((s: number, ch: any) => s + Number(ch.paid_amount    || 0), 0);
-          const totalPending = charges.reduce((s: number, ch: any) => s + Number(ch.balance_amount || 0), 0);
+      // ── Build paymentCases map keyed by case_id ────────────────────────────
+      const caseMap: Record<string, any> = {};
 
-          return {
-            caseId:      c.id,
-            caseNumber:  c.case_number,
-            caseTitle:   c.details?.title || c.details?.caseTitle || c.case_number,
-            caseType:    c.case_type,
-            caseStatus:  c.status,
-            courtName:   c.court_name,
-            lawyerName:  c.lawyer_name || c.details?.lawyerName,
-            clientId:    c.client?.id,
-            clientName:  c.client?.name,
-            clientPhone: c.client?.phone,
-            clientEmail: c.client?.email,
-            totalBilled,
-            totalPaid,
-            totalPending,
-            chargeItems: charges.map((ch: any) => ({
-              id:            ch.id,
-              label:         ch.name,
-              isLawyerFee:   ch.is_lawyer_fee,
-              totalAmount:   ch.total_amount,
-              paidAmount:    ch.paid_amount,
-              balanceAmount: ch.balance_amount,
-              status:        ch.status,
-              dueDate:       ch.due_date,
-              description:   ch.description,
-              notes:         ch.notes,
-            })),
-            paymentHistory: charges.flatMap((ch: any) =>
-              (ch.payment_history || []).map((p: any) => ({
-                id:               p.id,
-                chargeLabel:      ch.name,
-                amount:           p.amount_paid,
-                paymentDate:      p.payment_date || p.timestamp,
-                paymentMode:      p.payment_mode,
-                paymentReference: p.payment_reference,
-                recordedBy:       p.created_by,
-                createdAt:        p.timestamp,
-                remarks:          p.notes,
-              }))
-            ),
+      const ensureCase = (caseObj: any) => {
+        if (!caseObj?.id) return;
+        if (!caseMap[caseObj.id]) {
+          const client = caseObj.clients || caseObj.client || {};
+          caseMap[caseObj.id] = {
+            caseId:       caseObj.id,
+            caseNumber:   caseObj.case_number,
+            caseTitle:    caseObj.title || caseObj.case_number,
+            caseType:     caseObj.case_type,
+            caseStatus:   caseObj.status,
+            courtName:    caseObj.court_name,
+            lawyerName:   caseObj.lawyer_name,
+            clientId:     client.id,
+            clientName:   client.name,
+            clientPhone:  client.phone,
+            clientEmail:  client.email,
+            totalBilled:  0,
+            totalPaid:    0,
+            totalPending: 0,
+            chargeItems:  [],
+            paymentHistory: [],
+            _chargeIdsSeen: new Set<string>(),
           };
+        }
+        return caseMap[caseObj.id];
+      };
+
+      // 1) Seed case map from charge rows (covers cases with charges but no payments yet)
+      for (const ch of (chargeRows || [])) {
+        const c = ch.cases;
+        if (!c) continue;
+        const entry = ensureCase(c);
+        if (!entry) continue;
+
+        if (!entry._chargeIdsSeen.has(ch.id)) {
+          entry._chargeIdsSeen.add(ch.id);
+          const billed  = Number(ch.total   || 0);
+          const paid    = Number(ch.paid    || 0);
+          const balance = Number(ch.balance || 0);
+          entry.totalBilled  += billed;
+          entry.totalPaid    += paid;
+          entry.totalPending += balance;
+          entry.chargeItems.push({
+            id:            ch.id,
+            label:         ch.name,
+            isLawyerFee:   ch.is_lawyer_fee,
+            totalAmount:   billed,
+            paidAmount:    paid,
+            balanceAmount: balance,
+            status:        ch.status,
+            dueDate:       ch.due_date,
+            description:   ch.description,
+          });
+        }
+      }
+
+      // 2) Add payment history rows
+      for (const h of (historyRows || [])) {
+        const ch  = h.payment_charges;
+        if (!ch) continue;
+        const c   = ch.cases;
+        if (!c) continue;
+
+        const entry = ensureCase(c);
+        if (!entry) continue;
+
+        // Ensure charge is registered (may not be if charges query was limited)
+        if (!entry._chargeIdsSeen.has(ch.id)) {
+          entry._chargeIdsSeen.add(ch.id);
+          const billed  = Number(ch.total   || 0);
+          const paid    = Number(ch.paid    || 0);
+          const balance = Number(ch.balance || 0);
+          entry.totalBilled  += billed;
+          entry.totalPaid    += paid;
+          entry.totalPending += balance;
+          entry.chargeItems.push({
+            id:            ch.id,
+            label:         ch.name,
+            isLawyerFee:   ch.is_lawyer_fee,
+            totalAmount:   billed,
+            paidAmount:    paid,
+            balanceAmount: balance,
+            status:        ch.status,
+            dueDate:       ch.due_date,
+            description:   ch.description,
+          });
+        }
+
+        entry.paymentHistory.push({
+          id:               h.id,
+          chargeLabel:      h.charge_name || ch.name,
+          amount:           Number(h.amount_paid || 0),
+          paymentDate:      h.payment_date || h.timestamp,
+          paymentMode:      h.payment_mode,
+          paymentReference: h.payment_reference,
+          recordedBy:       h.created_by,
+          createdAt:        h.timestamp,
+          remarks:          null,
         });
+      }
+
+      // Convert map to array, strip internal _chargeIdsSeen set
+      const paymentCases = Object.values(caseMap).map((e: any) => {
+        const { _chargeIdsSeen, ...rest } = e;
+        return rest;
+      });
 
       return { paymentCases };
     }
+
 
 
     case "hearings":
@@ -288,28 +372,29 @@ export function formatData(type: string, data: any): Sheet[] {
       return [{
         name: "Client Register",
         headers: [
-          "Client ID", "Full Name", "Phone", "Alternate Phone",
+          "#", "Client ID", "Full Name", "Phone", "Alternate Phone",
           "Email", "Occupation", "Date of Birth",
           "Address", "City", "State", "Pincode",
           "ID Proof Type", "ID Proof Number",
           "Notes", "Registered On"
         ],
-        rows: (data.clients || []).map((c: any) => [
-          c.id,
-          c.name,
-          c.phone,
-          dv(c, "alternatePhone", "alternate_phone"),
-          c.email,
-          dv(c, "occupation"),
-          fmtDate(dv(c, "dateOfBirth", "dob", "date_of_birth")),
-          c.address,
-          dv(c, "city"),
-          dv(c, "state"),
-          dv(c, "pincode", "zipCode", "zip"),
-          dv(c, "idProofType", "id_proof_type", "idType"),
-          dv(c, "idProofNumber", "id_proof_number", "idNumber"),
+        rows: (data.clients || []).map((c: any, idx: number) => [
+          idx + 1,
+          c.id || "",
+          c.name || "",
+          c.phone || "",
+          c.alternatePhone || c.alternate_phone || dv(c, "alternatePhone", "alternate_phone"),
+          c.email || "",
+          c.occupation || dv(c, "occupation") || "",
+          fmtDate(c.dateOfBirth || c.date_of_birth || dv(c, "dateOfBirth", "dob", "date_of_birth")),
+          c.address || "",
+          c.city || dv(c, "city") || "",
+          c.state || dv(c, "state") || "",
+          c.pincode || c.zipCode || dv(c, "pincode", "zipCode", "zip") || "",
+          c.idProofType || c.id_proof_type || dv(c, "idProofType", "id_proof_type") || "",
+          c.idProofNumber || c.id_proof_number || dv(c, "idProofNumber", "id_proof_number") || "",
           trunc(c.notes, 120),
-          fmtDate(c.created_at),
+          fmtDate(c.created_at || c.createdAt),
         ])
       }];
 
@@ -318,37 +403,30 @@ export function formatData(type: string, data: any): Sheet[] {
       return [{
         name: "Case Register",
         headers: [
-          "Case No", "Case Title", "Case Type", "Status",
+          "#", "Case No", "Case Title", "Case Type", "Status",
           "Client Name", "Client Phone",
-          "Court Name", "Court Room", "Bench / Judge",
+          "Court Name", "Judge / Bench",
           "Assigned Lawyer", "Opposing Party", "Opposing Counsel",
-          "Petition No", "FIR / Complaint No",
-          "Filing Date", "Next Hearing Date", "Last Hearing Date",
-          "Case Stage", "Priority",
+          "Filing Date", "Next Hearing Date",
           "Notes / Summary", "Created At"
         ],
-        rows: (data.cases || []).map((c: any) => [
+        rows: (data.cases || []).map((c: any, idx: number) => [
+          idx + 1,
           caseNo(c),
-          dv(c, "title", "caseTitle", "case_title") || caseNo(c),
-          c.case_type,
-          c.status,
-          c.client?.name || cName(c),
-          c.client?.phone || dv(c, "clientPhone", "client_phone"),
-          c.court_name,
-          dv(c, "courtRoom", "court_room"),
-          dv(c, "bench", "judge", "benchName"),
-          c.lawyer_name || dv(c, "lawyerName", "lawyer"),
-          dv(c, "opposingParty", "opposing_party", "opponent"),
-          dv(c, "opposingCounsel", "opposing_counsel", "opponentLawyer"),
-          dv(c, "petitionNumber", "petition_number", "petitionNo"),
-          dv(c, "firNumber", "fir_number", "complaintNo"),
-          fmtDate(dv(c, "filingDate", "filing_date")),
-          fmtDate(dv(c, "nextHearingDate", "next_hearing_date")),
-          fmtDate(dv(c, "lastHearingDate", "last_hearing_date")),
-          dv(c, "caseStage", "stage", "case_stage"),
-          dv(c, "priority"),
-          trunc(dv(c, "notes", "summary", "description"), 150),
-          fmtDate(c.created_at),
+          c.title || c.caseTitle || dv(c, "title", "caseTitle") || caseNo(c),
+          c.caseType || c.case_type || "",
+          c.status || "",
+          c.client?.name || c.clientName || cName(c),
+          c.client?.phone || c.clientPhone || dv(c, "clientPhone", "client_phone"),
+          c.courtName || c.court_name || dv(c, "courtName", "court_name") || "",
+          c.judgeName || c.judge_name || dv(c, "bench", "judge", "benchName") || "",
+          c.lawyerName || c.lawyer_name || dv(c, "lawyerName", "lawyer") || "",
+          c.opponentName || c.opponent_name || dv(c, "opposingParty", "opposing_party", "opponent") || "",
+          c.opponentLawyer || c.opponent_lawyer || dv(c, "opposingCounsel", "opposing_counsel") || "",
+          fmtDate(c.filingDate || c.filing_date || dv(c, "filingDate", "filing_date")),
+          fmtDate(c.nextHearingDate || c.next_hearing_date || dv(c, "nextHearingDate", "next_hearing_date")),
+          trunc(c.notes || c.summary || c.description || dv(c, "notes", "summary", "description") || "", 150),
+          fmtDate(c.created_at || c.createdAt),
         ])
       }];
 
@@ -522,24 +600,25 @@ export function formatData(type: string, data: any): Sheet[] {
       return [{
         name: "Court Hearings & Timeline",
         headers: [
-          "Hearing ID", "Event Type", "Title / Description",
+          "#", "Hearing ID", "Event Type", "Title / Description",
           "Status", "Scheduled Date", "Postponed To",
           "Case No", "Client Name", "Court Name",
           "Assigned Lawyer", "Notes / Outcome", "Created At"
         ],
-        rows: (data.hearings || []).map((h: any) => [
-          h.id,
-          h.type,
-          h.title || dv(h, "description"),
-          h.status,
+        rows: (data.hearings || []).map((h: any, idx: number) => [
+          idx + 1,
+          h.id || "",
+          h.type || h.eventType || "",
+          h.title || h.description || dv(h, "description") || "",
+          h.status || "",
           fmtDate(h.date || h.scheduled_at || h.scheduledAt),
           fmtDate(h.postponed_to || h.postponedTo),
-          h.case?.case_number || caseNo(h) || h.caseNumber,
-          h.case?.client?.name || h.clientName || cName(h),
-          h.case?.court_name || h.courtName,
-          h.case?.lawyer_name || h.lawyerName,
-          trunc(h.notes || h.outcome, 120),
-          fmtDate(h.created_at),
+          h.caseNumber || h.case?.case_number || caseNo(h) || "",
+          h.clientName || h.case?.client?.name || cName(h) || "",
+          h.courtName || h.case?.court_name || dv(h, "courtName", "court_name") || "",
+          h.lawyerName || h.case?.lawyer_name || dv(h, "lawyerName") || "",
+          trunc(h.notes || h.outcome || "", 120),
+          fmtDate(h.created_at || h.createdAt),
         ])
       }];
 
@@ -548,22 +627,23 @@ export function formatData(type: string, data: any): Sheet[] {
       return [{
         name: "Document Repository",
         headers: [
-          "Document ID", "Title / File Name", "Category",
+          "#", "Document ID", "Title / File Name", "Category",
           "Description", "File Type", "File Size (KB)",
           "Case No", "Client Name",
           "Uploaded By", "Uploaded At"
         ],
-        rows: (data.documents || []).map((d: any) => [
-          d.id,
-          d.file_name || d.fileName || d.title,
-          d.category,
-          trunc(d.description, 100),
-          d.file_type || d.fileType || d.mime_type,
+        rows: (data.documents || []).map((d: any, idx: number) => [
+          idx + 1,
+          d.id || "",
+          d.fileName || d.file_name || d.title || "",
+          d.category || "",
+          trunc(d.description || "", 100),
+          d.fileType || d.file_type || d.mime_type || "",
           d.file_size != null ? (Number(d.file_size) / 1024).toFixed(1) : "",
-          d.case?.case_number || caseNo(d) || d.caseNumber,
-          d.case?.client?.name || d.clientName || cName(d),
-          d.uploaded_by || d.uploadedBy || d.created_by,
-          fmtDate(d.created_at || d.uploaded_at),
+          d.caseNumber || d.case?.case_number || caseNo(d) || "",
+          d.clientName || d.case?.client?.name || cName(d) || "",
+          d.uploadedBy || d.uploaded_by || d.created_by || "",
+          fmtDate(d.uploaded_at || d.uploadedAt || d.created_at),
         ])
       }];
 
@@ -578,22 +658,23 @@ export function formatData(type: string, data: any): Sheet[] {
         {
           name: "Task List",
           headers: [
-            "Task ID", "Title", "Description", "Priority", "Status",
+            "#", "Task ID", "Title", "Description", "Priority", "Status",
             "Overdue?", "Due Date", "Assigned To",
             "Created By", "Created At", "Completed At"
           ],
-          rows: tasks.map((t: any) => [
-            t.id,
-            t.title,
-            trunc(t.description || t.notes, 100),
-            t.priority,
-            t.status,
+          rows: tasks.map((t: any, idx: number) => [
+            idx + 1,
+            t.id || "",
+            t.title || "",
+            trunc(t.description || t.notes || "", 100),
+            t.priority || "",
+            t.status || "",
             isOvr(t) ? "YES" : "No",
-            fmtDate(t.due_date || t.dueDate),
-            t.assigned_to || t.assignedTo,
-            t.created_by,
-            fmtDate(t.created_at),
-            fmtDate(t.completed_at),
+            fmtDate(t.dueDate || t.due_date),
+            t.assignedTo || t.assigned_to || t.assignedToName || "",
+            t.createdBy || t.created_by || "",
+            fmtDate(t.created_at || t.createdAt),
+            fmtDate(t.completed_at || t.completedAt),
           ])
         },
         {
@@ -619,19 +700,20 @@ export function formatData(type: string, data: any): Sheet[] {
         {
           name: "Active Team Members",
           headers: [
-            "User ID", "Full Name", "Email", "Role",
+            "#", "User ID", "Full Name", "Email", "Role",
             "Account Status", "Password Reset Pending?",
             "Last Login", "Joined On"
           ],
-          rows: (data.members || []).map((m: any) => [
-            m.id,
-            m.full_name || m.name,
-            m.email,
-            m.role,
-            m.status,
+          rows: (data.members || data.team || []).map((m: any, idx: number) => [
+            idx + 1,
+            m.id || "",
+            m.full_name || m.fullName || m.name || "",
+            m.email || "",
+            m.role || "",
+            m.status || "",
             m.must_reset_password ? "YES" : "No",
-            fmtDate(m.last_sign_in_at || m.last_login),
-            fmtDate(m.created_at),
+            fmtDate(m.last_sign_in_at || m.last_login || m.lastLogin),
+            fmtDate(m.created_at || m.createdAt),
           ])
         },
         {
