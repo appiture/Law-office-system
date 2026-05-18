@@ -1,4 +1,4 @@
-import { normalizeFollowUpStatus, normalizePaymentStatus } from "../utils/formatters";
+import { normalizeHearingStatus, normalizePaymentStatus } from "../utils/formatters";
 
 export const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/i;
 
@@ -16,7 +16,7 @@ export const isValidEmail = (value) => {
 
 export const requiredText = (value) => String(value || "").trim();
 
-export { normalizeFollowUpStatus, normalizePaymentStatus };
+export { normalizeHearingStatus, normalizePaymentStatus };
 
 export const splitOtherSelection = (value, options, otherOption = "Other") => {
   const normalized = String(value || "").trim();
@@ -69,7 +69,7 @@ export const getApiErrorMessage = (error, fallback = "Request failed.") => {
 };
 
 export const assertClientPayload = (payload) => {
-  if (!requiredText(payload.name)) {
+  if (!requiredText(payload.client_name)) {
     throw new Error("Client name is required.");
   }
   if (!isTenDigitPhone(payload.phone)) {
@@ -87,8 +87,8 @@ export const assertCasePayload = (payload) => {
   if (!requiredText(payload.caseNumber)) {
     throw new Error("Case number is required.");
   }
-  if (!requiredText(payload.caseType)) {
-    throw new Error("Case type is required.");
+  if (!requiredText(payload.case_title)) {
+    throw new Error("Case title is required.");
   }
 };
 
@@ -150,17 +150,17 @@ export const assertDocumentPayload = (payload) => {
   }
 };
 
-export const assertFollowUpPayload = (payload) => {
+export const assertHearingPayload = (payload) => {
   if (!requiredText(payload.type)) {
     throw new Error("Event type is required.");
   }
-  if (!requiredText(payload.title)) {
+  if (!requiredText(payload.case_title)) {
     throw new Error("Event title is required.");
   }
-  if (!requiredText(payload.scheduledAt)) {
+  if (!requiredText(payload.hearing_date)) {
     throw new Error("Scheduled date and time is required.");
   }
-  if (normalizeFollowUpStatus(payload.status) === "POSTPONED" && !requiredText(payload.postponedTo)) {
+  if (normalizeHearingStatus(payload.status) === "POSTPONED" && !requiredText(payload.postponedTo)) {
     throw new Error("A postponed event must include the new date and time.");
   }
 };

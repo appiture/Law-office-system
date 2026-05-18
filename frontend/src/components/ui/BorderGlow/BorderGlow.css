@@ -13,6 +13,7 @@
   border-radius: var(--border-radius);
   isolation: isolate;
   transform: translate3d(0, 0, 0.01px);
+  will-change: transform;
   background: var(--card-bg, transparent);
   overflow: visible;
   height: 100%;
@@ -28,6 +29,8 @@
   border-radius: inherit;
   transition: opacity 0.25s ease-out;
   z-index: -1;
+  will-change: transform, opacity;
+  transform: translateZ(0);
 }
 
 .border-glow-card:not(:hover):not(.sweep-active)::before,

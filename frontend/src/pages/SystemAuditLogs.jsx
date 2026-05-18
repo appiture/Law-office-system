@@ -1,6 +1,6 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../services/supabaseClient";
-import AppShell from "../components/AppShell";
+import AppShell from "../components/layout/AppShell";
 import HeaderFilters from "../components/HeaderFilters";
 import { isPlatformAdmin } from "../services/adminService";
 import dayjs from "dayjs";
@@ -20,21 +20,7 @@ function SystemAuditLogs() {
     search: ""
   });
 
-  useEffect(() => {
-    const checkAdmin = async () => {
-      const isSuper = isPlatformAdmin();
-      setSuperAdmin(isSuper);
-      if (isSuper) {
-        // Fetch organizations for filter
-        const { data } = await supabase.from("organizations").select("id, name").order("name");
-        if (data) setOrganizations(data);
-      }
-    };
-    checkAdmin();
-    fetchLogs();
-  }, []);
-
-  const fetchLogs = async () => {
+  const fetchLogs = useCallback(async () => {
     setLoading(true);
     try {
       let query = supabase
@@ -79,16 +65,27 @@ function SystemAuditLogs() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters]);
+
+  useEffect(() => {
+    const checkAdmin = async () => {
+      const isSuper = isPlatformAdmin();
+      setSuperAdmin(isSuper);
+      if (isSuper) {
+        // Fetch organizations for filter
+        const { data } = await supabase.from("organizations").select("id, name").order("name");
+        if (data) setOrganizations(data);
+      }
+    };
+    checkAdmin();
+    fetchLogs();
+  }, [fetchLogs]);
 
   const handleFilterChange = (key, value) => {
     setFilters(prev => ({ ...prev, [key]: value }));
   };
 
-  useEffect(() => {
-    fetchLogs();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters.organizationId, filters.userId, filters.module, filters.actionType, filters.search]);
+  // Logs refresh automatically when filters change due to fetchLogs dependency
 
   const getActionColor = (actionType) => {
     if (actionType.includes("CREATE")) return "var(--color-success, green)";

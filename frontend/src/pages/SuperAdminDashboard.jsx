@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../services/supabaseClient";
-import AppShell from "../components/AppShell";
+import AppShell from "../components/layout/AppShell";
 import {
   isPlatformAdmin, checkAdminStatus,
   adminListOrganizations, adminReviewOrganization,
@@ -12,6 +12,7 @@ import {
   adminDeleteUser,
   adminUpdateOrganization,
 } from "../services/adminService";
+import { openExport } from "../store/exportStore";
 import "./formStyles.css";
 
 /* ── tiny helpers ── */
@@ -86,13 +87,13 @@ const TH = ({ children, right }) => (
   </div>
 );
 
-const SECTIONS = ["dashboard", "clients", "cases", "payments", "documents", "followups", "settings", "team"];
+const SECTIONS = ["dashboard", "clients", "cases", "payments", "documents", "hearings", "settings", "team"];
 
 function PermissionsModal({ title, initialPerms, onSave, onClose }) {
   const [perms, setPerms] = useState(initialPerms || {});
 
   const toggle = (s) => {
-    setPerms(prev => ({ ...prev, [s]: !Boolean(prev[s]) }));
+    setPerms(prev => ({ ...prev, [s]: !prev[s] }));
   };
 
   return (
@@ -342,7 +343,8 @@ function TabOrganizations({ orgs, onRefresh, showToast }) {
     setActioning({ org });
     try {
       const res = await adminReviewOrganization(org.id, action, org.requested_owner_email);
-      showToast(res?.message || "Done");
+      if (!res.success) throw new Error(res.message);
+      showToast(res.message || "Done");
       onRefresh();
     } catch (e) { showToast(e.message, "error"); }
     finally { setActioning(null); }
@@ -351,8 +353,9 @@ function TabOrganizations({ orgs, onRefresh, showToast }) {
   const handleSubscriptionSave = async (updates) => {
     const orgId = actioning.org.id;
     try {
-      await adminUpdateOrganization(orgId, updates);
-      showToast("Subscription details updated");
+      const res = await adminUpdateOrganization(orgId, updates);
+      if (!res.success) throw new Error(res.message);
+      showToast(res.message || "Subscription details updated");
       setActioning(null);
       onRefresh();
     } catch (e) { showToast(e.message, "error"); }
@@ -482,8 +485,9 @@ function TabUsers({ users, orgs, onRefresh, showToast }) {
   const handleUpdate = async (userId, role, status) => {
     setActioning(userId);
     try {
-      await adminUpdateUser(userId, role, status);
-      showToast("User updated");
+      const res = await adminUpdateUser(userId, role, status);
+      if (!res.success) throw new Error(res.message);
+      showToast(res.message || "User updated");
       onRefresh();
     } catch (e) { showToast(e.message, "error"); }
     finally { setActioning(null); }
@@ -592,8 +596,9 @@ function TabAdmins({ admins, onRefresh, showToast }) {
     if (!email.trim()) return;
     setLoading(true);
     try {
-      await adminAddPlatformAdmin(email.trim());
-      showToast("Platform admin added");
+      const res = await adminAddPlatformAdmin(email.trim());
+      if (!res.success) throw new Error(res.message);
+      showToast(res.message || "Platform admin added");
       setEmail("");
       onRefresh();
     } catch (err) { showToast(err.message, "error"); }
@@ -603,8 +608,9 @@ function TabAdmins({ admins, onRefresh, showToast }) {
   const handleRemove = async (adminEmail) => {
     if (!window.confirm(`Remove ${adminEmail} as platform admin?`)) return;
     try {
-      await adminRemovePlatformAdmin(adminEmail);
-      showToast("Platform admin removed");
+      const res = await adminRemovePlatformAdmin(adminEmail);
+      if (!res.success) throw new Error(res.message);
+      showToast(res.message || "Platform admin removed");
       onRefresh();
     } catch (err) { showToast(err.message, "error"); }
   };
@@ -701,12 +707,13 @@ function TabCreateOrg({ onRefresh, showToast }) {
     setLoading(true);
     setResult(null);
     try {
-      const data = await adminCreateOrganization({
+      const res = await adminCreateOrganization({
         orgName:    orgName.trim(),
         adminEmail: adminEmail.trim(),
       });
-      setResult(data);
-      showToast("Organization created successfully!");
+      if (!res.success) throw new Error(res.message);
+      setResult(res.data);
+      showToast(res.message || "Organization created successfully!");
       setOrgName("");
       setAdminEmail("");
       onRefresh();
@@ -868,13 +875,16 @@ export default function SuperAdminDashboard() {
   const loadAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [o, u, a, l] = await Promise.all([
+      const [resO, resU, resA, resL] = await Promise.all([
         adminListOrganizations("ALL"),
         adminListAllUsers(),
         adminListPlatformAdmins(),
         adminGetActivityLog(50),
       ]);
-      setOrgs(o); setUsers(u); setAdmins(a); setLogs(l);
+      setOrgs(resO.data || []);
+      setUsers(resU.data || []);
+      setAdmins(resA.data || []);
+      setLogs(resL.data || []);
     } catch (e) { showToast(e.message, "error"); }
     finally { setLoading(false); }
   }, []);
@@ -882,8 +892,8 @@ export default function SuperAdminDashboard() {
   useEffect(() => {
     const init = async () => {
       if (isPlatformAdmin()) { setAuthorized(true); setReady(true); return; }
-      const { isPlatformAdmin: isAdmin } = await checkAdminStatus({ force: true });
-      setAuthorized(isAdmin);
+      const res = await checkAdminStatus({ force: true });
+      setAuthorized(res.data?.isPlatformAdmin || false);
       setReady(true);
     };
     void init();
@@ -921,9 +931,23 @@ export default function SuperAdminDashboard() {
             whiteSpace: "nowrap",
           }}>{t.label}</button>
         ))}
+        <button onClick={() => openExport({
+          type: "platform",
+          availableData: [
+            { metric: "Total Organizations", value: orgs.length },
+            { metric: "Active Organizations", value: orgs.filter(o => o.status === "ACTIVE").length },
+            { metric: "Pending Organizations", value: orgs.filter(o => o.status === "PENDING_APPROVAL").length },
+            { metric: "Total Users", value: users.length },
+            { metric: "Active Users", value: users.filter(u => u.status === "ACTIVE").length },
+            { metric: "Platform Admins", value: admins.length },
+          ]
+        })}
+          style={{ marginLeft: "auto", background: "rgba(201,163,78,0.15)", border: "1px solid rgba(201,163,78,0.4)", borderRadius: 10, padding: "9px 16px", fontSize: 13, cursor: "pointer", color: "#C9A34E", fontWeight: 700 }}>
+          📊 Platform Report
+        </button>
         <button onClick={() => { void loadAll(); showToast("Refreshed"); }}
           disabled={loading}
-          style={{ marginLeft: "auto", background: "transparent", border: "1px solid var(--color-border)", borderRadius: 10, padding: "9px 16px", fontSize: 13, cursor: "pointer", color: "var(--color-text)", opacity: .6 }}>
+          style={{ marginLeft: 8, background: "transparent", border: "1px solid var(--color-border)", borderRadius: 10, padding: "9px 16px", fontSize: 13, cursor: "pointer", color: "var(--color-text)", opacity: .6 }}>
           {loading ? "…" : "↻ Refresh"}
         </button>
       </div>

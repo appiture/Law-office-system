@@ -32,7 +32,7 @@ export const normalizePaymentStatus = (value) => {
   return "PENDING";
 };
 
-export const normalizeFollowUpStatus = (value) => {
+export const normalizeHearingStatus = (value) => {
   const normalized = String(value || "").trim().toUpperCase();
   if (normalized === "COMPLETED") return "COMPLETED";
   if (normalized === "POSTPONED" || normalized === "CANCELLED") return "POSTPONED";
@@ -63,6 +63,7 @@ export const formatDate = (value) => {
   });
 };
 
-
-
-
+export const blankToNull = (val) => {
+  if (typeof val !== "string") return val;
+  return val.trim() === "" ? null : val.trim();
+};

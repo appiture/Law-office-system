@@ -1,3 +1,4 @@
+import { ROUTES } from "../constants/routes";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../services/supabaseClient";
@@ -115,13 +116,14 @@ export default function ResetPassword() {
       if (updateError) throw updateError;
 
       // 2. Clear the must_reset_password flag in public.users
-      await completePasswordReset();
+      const res = await completePasswordReset();
+      if (!res.success) throw new Error(res.message);
 
       // 3. Refresh the session cache so canAccessWorkspace is up to date
       await syncSupabaseSession(null, { force: true });
 
       setSuccess(true);
-      setTimeout(() => navigate("/dashboard", { replace: true }), 2000);
+      setTimeout(() => navigate(ROUTES.DASHBOARD, { replace: true }), 2000);
     } catch (err) {
       setError(err?.message || "Failed to update password. Please try again.");
     } finally {

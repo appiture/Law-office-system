@@ -1,10 +1,37 @@
-node_modules
-dist
-target
+node_modules/
+dist/
+target/
 .env
 .env.local
+.env.*.local
 .env.production
-.supabase
-.vscode
-.idea
-coverage
+.supabase/
+.vscode/
+.idea/
+coverage/
+
+# Secrets and credentials
+*.key
+*.pem
+*.p12
+*.secret
+*secret*
+*credential*
+*confidential*
+*vault*
+secrets.json
+credentials.json
+
+# Test results and logs
+test-results/
+playwright-report/
+blob-report/
+allure-results/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS files
+.DS_Store
+Thumbs.db

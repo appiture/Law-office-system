@@ -1,74 +1,9 @@
 /* ===================================================
-   VARIABLES & THEME SYSTEM
+   APP SPECIFIC STYLES
+   (Non-standard or legacy overrides)
 =================================================== */
 
-:root {
-  --color-primary: #3A5BA0;
-  --color-secondary: #C9A34E;
-  --color-bg: #F8FAFC;
-  --color-bg-secondary: #FFFFFF;
-  --color-bg-tertiary: #F1F5F9;
-  --color-card: #FFFFFF;
-  --color-text: #0F172A;
-  --color-text-secondary: #475569;
-  --color-text-tertiary: #94A3B8;
-  --color-border: #E2E8F0;
-  --color-border-hover: #CBD5E1;
-  --color-accent: #C9A34E;
-  --color-gold: #C9A34E;
-  --color-gold-light: rgba(201, 163, 78, 0.1);
-  --color-gold-dark: #a07830;
-  --color-shadow: rgba(0, 0, 0, 0.05);
-  --color-success: #10B981;
-  --color-error: #EF4444;
-  --color-warning: #F59E0B;
-  
-  --compact-gap: 12px;
-  --compact-padding: 14px;
-  --radius-lg: 18px;
-  --radius-md: 12px;
-}
-
-.dark {
-  --color-primary: #6C8EDC;
-  --color-secondary: #C9A34E;
-  --color-bg: #0F172A;
-  --color-bg-secondary: #1E293B;
-  --color-bg-tertiary: #1E293B;
-  --color-card: #1E293B;
-  --color-text: #F1F5F9;
-  --color-text-secondary: #94A3B8;
-  --color-text-tertiary: #64748B;
-  --color-border: #334155;
-  --color-border-hover: #475569;
-  --color-shadow: rgba(0, 0, 0, 0.3);
-}
-
-/* ===================================================
-   GLOBAL STYLES
-=================================================== */
-
-* {
-  box-sizing: border-box;
-}
-
-body {
-  margin: 0;
-  font-family: 'Inter', -apple-system, sans-serif;
-  background: var(--color-bg);
-  color: var(--color-text);
-  line-height: 1.5;
-}
-
-img,
-video,
-canvas,
-svg {
-  max-width: 100%;
-  height: auto;
-  display: block;
-}
-
+/* Page-specific overrides or minor components not yet standardized */
 .page-kicker, .case-tag {
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -84,56 +19,8 @@ svg {
   margin: 4px 0 0;
 }
 
-/* ===================================================
-   GLOBAL ENTERPRISE CARD SYSTEM
-=================================================== */
-
-.standard-card,
-.case-card,
-.form-card {
-  position: relative;
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--color-border);
-  background: var(--color-card);
-  min-height: 280px;
-  height: 100%;
-  padding: 18px;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
-  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
-}
-
-.metric-card {
-  position: relative;
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--color-border);
-  background: var(--color-card);
-  min-height: 110px;
-  padding: 18px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
-}
-
-.standard-card:hover,
-.case-card:hover,
-.metric-card:hover,
-.form-card:hover {
-  transform: translateY(-2px);
-  border-color: var(--color-border-hover);
-  box-shadow: 0 10px 24px var(--color-shadow);
-}
-
-.card-auto {
-  min-height: auto;
-  max-height: none;
-}
-
-.card-tall {
-  min-height: 320px;
-}
+.card-auto { min-height: auto; max-height: none; }
+.card-tall { min-height: 320px; }
 
 .card-scroll,
 .standard-card-scroll,
@@ -148,122 +35,11 @@ svg {
 .card-scroll::-webkit-scrollbar { width: 4px; }
 .card-scroll::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 10px; }
 
-/* ===================================================
-   LAYOUT & GRIDS
-=================================================== */
-
-.app-shell { 
-  min-height: 100vh;
-}
-
-.app-content {
-  flex: 1;
-  min-height: 0;
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-}
-
-.app-main {
-  min-width: 0;
-  padding: 18px;
-  display: flex;
-  flex-direction: column;
-  gap: 16px;
-  min-height: 100vh;
-}
-
-.card-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-  gap: 16px;
-  align-items: stretch;
-}
-
-.page-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-  margin-bottom: var(--compact-gap);
-}
-
 .page-header h2 {
   font-size: 1.4rem;
   font-weight: 800;
   margin: 0;
 }
-
-@media (max-width: 980px) {
-  .app-main { margin-left: 0; }
-}
-
-@media (max-width: 640px) {
-  .standard-card, .case-card, .metric-card, .form-card {
-    min-height: auto;
-    max-height: none;
-  }
-  .card-scroll { overflow-y: visible; max-height: none; }
-}
-
-/* ===================================================
-   FORM ELEMENTS
-=================================================== */
-
-input, select, textarea {
-  width: 100%;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-md);
-  padding: 8px 12px;
-  background: var(--color-bg-tertiary);
-  color: var(--color-text);
-  font: inherit;
-  transition: border-color 0.2s, box-shadow 0.2s;
-}
-
-input:focus, select:focus, textarea:focus {
-  outline: none;
-  border-color: var(--color-gold);
-  box-shadow: 0 0 0 3px var(--color-gold-light);
-}
-
-.primary-button, .btn-gold, .solid-link {
-  background: var(--color-gold);
-  color: white;
-  padding: 8px 16px;
-  border-radius: var(--radius-md);
-  font-weight: 700;
-  border: none;
-  cursor: pointer;
-  text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition: transform 0.2s, background 0.2s;
-}
-
-.primary-button:hover, .btn-gold:hover, .solid-link:hover {
-  background: var(--color-gold-dark);
-  transform: translateY(-1px);
-}
-
-.btn-neutral, .ghost-button {
-  background: var(--color-bg-tertiary);
-  color: var(--color-text);
-  padding: 8px 16px;
-  border-radius: var(--radius-md);
-  font-weight: 600;
-  border: 1px solid var(--color-border);
-  cursor: pointer;
-  text-decoration: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-
-/* ===================================================
-   COMPONENTS
-=================================================== */
 
 .client-avatar {
   width: 50px;
@@ -304,57 +80,4 @@ input:focus, select:focus, textarea:focus {
   border-top: 1px solid var(--color-border);
   display: flex;
   gap: 8px;
-}
-
-.metric-card h4 {
-  color: var(--color-text-secondary);
-  font-size: 0.75rem;
-  font-weight: 700;
-  text-transform: uppercase;
-  margin: 0;
-}
-
-.metric-card strong {
-  display: block;
-  font-size: 1.5rem;
-  font-weight: 800;
-  margin-top: 4px;
-}
-
-.empty-state, .empty-box {
-  text-align: center;
-  padding: 24px;
-  color: var(--color-text-secondary);
-  background: var(--color-bg-tertiary);
-  border-radius: var(--radius-md);
-  font-size: 0.9rem;
-}
-
-.form-error-banner {
-  background: rgba(239, 68, 68, 0.1);
-  color: var(--color-error);
-  padding: 10px 14px;
-  border-radius: 12px;
-  font-size: 0.9rem;
-  margin-bottom: 16px;
-  font-weight: 600;
-}
-
-.success-toast {
-  position: fixed;
-  bottom: 24px;
-  right: 24px;
-  background: var(--color-success);
-  color: white;
-  padding: 12px 24px;
-  border-radius: 12px;
-  font-weight: 700;
-  box-shadow: 0 10px 24px rgba(0,0,0,0.2);
-  z-index: 2000;
-  animation: slideIn 0.3s ease;
-}
-
-@keyframes slideIn {
-  from { transform: translateY(100%); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
 }

@@ -11,7 +11,7 @@ export const ROUTES = {
   CASES: "/cases",
   PAYMENTS: "/payments",
   DOCUMENTS: "/documents",
-  HEARINGS: "/followups",
+  HEARINGS: "/hearings",
   TASKS: "/tasks",
   TEAM: "/team",
   SETTINGS: "/settings",
@@ -19,8 +19,11 @@ export const ROUTES = {
   SUPER_ADMIN_DASHBOARD: "/platform-admin",
   SYSTEM_AUDIT: "/system-audit",
   RESET_PASSWORD: "/reset-password",
+  CASE_DETAILS: "/cases/:caseId",
+  CLIENT_DETAILS: "/clients/:clientId",
+  HEARING_DETAILS: "/hearings/:hearingId",
 };
 
 export const getCaseDetailsRoute = (caseId) => `/cases/${caseId}`;
 export const getClientDetailsRoute = (clientId) => `/clients/${clientId}`;
-export const getHearingDetailsRoute = (hearingId) => `/followups/${hearingId}`;
+export const getHearingDetailsRoute = (hearingId) => `/hearings/${hearingId}`;

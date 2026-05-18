@@ -1,0 +1,19 @@
+:root {
+  --glow-primary: rgba(201, 163, 78, 0.35);
+  --glow-secondary: rgba(139, 115, 85, 0.25);
+  --grid-opacity: 0.05;
+}
+
+.blur-premium {
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}
+
+.shadow-premium {
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+}
+
+.neon-border {
+  border: 1px solid var(--glow-primary);
+  box-shadow: 0 0 10px var(--glow-primary);
+}

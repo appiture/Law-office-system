@@ -25,7 +25,7 @@
 - `supabase/functions/invite-admin/index.ts`
 - `supabase/functions/invite-user/index.ts`
 - `supabase/functions/send-email/index.ts`
-- `supabase/functions/monthly-report/index.ts`
+- `supabase/functions/export-report/index.ts`
 - `supabase/functions/auth-utils/index.ts`
 - `supabase/functions/organization-utils/index.ts`
 - `supabase/functions/_shared/*.ts`
@@ -64,12 +64,12 @@ supabase functions deploy invite-user
 supabase functions deploy send-email
 supabase functions deploy auth-utils
 supabase functions deploy organization-utils
-supabase functions deploy monthly-report --no-verify-jwt
+supabase functions deploy export-report --no-verify-jwt
 ```
 
 ## Monthly Reports
 
-Schedule `monthly-report` monthly with Supabase Scheduled Edge Functions. Use a bearer token equal to either `SERVICE_ROLE_KEY` or `MONTHLY_REPORT_SECRET`.
+Schedule `export-report` monthly with Supabase Scheduled Edge Functions. Use a bearer token equal to either `SERVICE_ROLE_KEY` or `EXPORT_REPORT_SECRET`.
 
 Example request body:
 

@@ -130,7 +130,7 @@ const deleteOrganization = async (
   for (const table of [
     "payment_history",
     "documents",
-    "followups",
+    "hearings",
     "payment_charges",
     "payments",
     "cases",

@@ -8,6 +8,9 @@ export default defineConfig(({ mode }) => {
 
   return {
     plugins: [react()],
+    test: {
+      exclude: ['**/node_modules/**', '**/tests/e2e/**'],
+    },
     base: "/",
     server: {
       host: "127.0.0.1",

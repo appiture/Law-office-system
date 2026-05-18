@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useSearchParams } from "react-router-dom";
-import AppShell from "../components/AppShell";
+import AppShell from "../components/layout/AppShell";
 import CaseIdentityCard from "../components/CaseIdentityCard";
 import CaseCombobox from "../components/CaseCombobox";
 import HeaderFilters from "../components/HeaderFilters";
@@ -11,7 +11,7 @@ import { buildTenantAssetPrefix, getPersistentAssetUrl, removeAsset, uploadAsset
 import { supabaseBuckets } from "../services/supabaseClient";
 import { assertDocumentPayload, getApiErrorMessage, resolveOtherSelection } from "../utils/validation";
 import { formatDateTime } from "../utils/formatters";
-import ExportModal from "../components/ExportModal";
+import { openExport } from "../store/exportStore";
 import logger from "../services/loggerService";
 import "./formStyles.css";
 
@@ -218,7 +218,6 @@ function Documents() {
   const [uploadFor, setUploadFor] = useState(null);
   const [modalCases, setModalCases] = useState([]);
   const [modalLoading, setModalLoading] = useState(false);
-  const [showExportModal, setShowExportModal] = useState(false);
   const [filters, setFilters] = useState({ ...emptyFilters, searchTerm: initialSearchCase });
   const [loading, setLoading] = useState(false);
   const [hasLoaded, setHasLoaded] = useState(false);
@@ -275,10 +274,10 @@ function Documents() {
     void loadDocuments({ nextPage: 1, showAll: false, nextFilters });
   }, [filters, loadDocuments]);
 
-  const handleShowAll = () => {
+  const handleShowAll = useCallback(() => {
     setShowAllMode(true);
     void loadDocuments({ nextPage: 1, showAll: true });
-  };
+  }, [loadDocuments]);
 
   const handlePageChange = (nextPage) => {
     void loadDocuments({ nextPage });
@@ -315,7 +314,8 @@ function Documents() {
       setHasLoaded(false);
       setError("");
     }
-  }, [filters.searchTerm, filters.category, filters.fromDate, filters.toDate, initialSearchCase, initialSearchTriggered, handleSearch, hasLoaded, showAllMode, focusDocId]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters.searchTerm, filters.category, filters.fromDate, filters.toDate, initialSearchCase, initialSearchTriggered, handleSearch, handleShowAll, hasLoaded, showAllMode, focusDocId]);
 
   const deleteDocument = async (caseId, doc) => {
     if (!window.confirm(`Delete "${doc.fileName}"?`)) return;
@@ -334,7 +334,20 @@ function Documents() {
       subtitle="Standardized document management across all cases."
       actions={
         <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
-          <button type="button" className="btn-gold" onClick={() => setShowExportModal(true)}>
+          <button type="button" className="btn-gold" onClick={() => openExport({
+            type: "documents",
+            availableData: cases.flatMap(c => (c.documents || []).map(d => ({
+              ...d,
+              title: d.fileName || d.name,
+              caseNumber: c.caseNumber || c.case_number,
+              clientName: c.client?.name || c.clientName,
+              case: { caseNumber: c.caseNumber || c.case_number },
+              uploaded_at: d.createdAt || d.uploaded_at,
+              uploaded_by: d.uploadedBy || d.uploaded_by,
+            }))),
+            currentFilters: filters,
+            defaultDateRange: { start: filters.fromDate, end: filters.toDate }
+          })}>
             📥 Export
           </button>
           <button type="button" className="primary-button" onClick={() => openUploadModal(null)} disabled={modalLoading}>
@@ -484,29 +497,6 @@ function Documents() {
         />
       )}
 
-      {showExportModal && (
-        <ExportModal
-          isOpen={showExportModal}
-          onClose={() => setShowExportModal(false)}
-          type="documents"
-          availableData={
-            // Flatten documents from all loaded case objects for preview
-            cases.flatMap(c =>
-              (c.documents || []).map(d => ({
-                ...d,
-                title: d.fileName || d.name,
-                caseNumber: c.caseNumber || c.case_number,
-                clientName: c.client?.name || c.clientName,
-                case: { caseNumber: c.caseNumber || c.case_number },
-                uploaded_at: d.createdAt || d.uploaded_at,
-                uploaded_by: d.uploadedBy || d.uploaded_by,
-              }))
-            )
-          }
-          currentFilters={filters}
-          defaultDateRange={{ start: filters.fromDate, end: filters.toDate }}
-        />
-      )}
     </AppShell>
   );
 }

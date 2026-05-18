@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from "react";
 import { supabase } from "../services/supabaseClient";
-import AppShell from "../components/AppShell";
+import AppShell from "../components/layout/AppShell";
 import {
   isOrgAdmin,
   listOrganizationMembers,
@@ -10,16 +10,17 @@ import {
 } from "../services/adminService";
 import { getUserId } from "../services/authService";
 import HeaderFilters from "../components/HeaderFilters";
+import { openExport } from "../store/exportStore";
 import "./formStyles.css";
 
-const SECTIONS = ["dashboard", "clients", "cases", "payments", "documents", "followups", "settings", "team"];
+const SECTIONS = ["dashboard", "clients", "cases", "payments", "documents", "hearings", "settings", "team"];
 const STAFF_INVITE_SECTIONS = [
   { key: "dashboard", label: "Dashboard" },
   { key: "clients", label: "Clients" },
   { key: "cases", label: "Matters" },
   { key: "payments", label: "Fees" },
   { key: "documents", label: "Documents" },
-  { key: "followups", label: "Follow-Ups" },
+  { key: "hearings", label: "Hearings" },
   { key: "settings", label: "Settings" },
 ];
 
@@ -29,7 +30,7 @@ const defaultStaffPermissions = {
   cases: true,
   payments: false,
   documents: false,
-  followups: true,
+  hearings: true,
   settings: false,
   team: false,
 };
@@ -103,7 +104,7 @@ function UserPermissionsModal({ user, onClose, showToast }) {
               <input 
                 type="checkbox" 
                 checked={Boolean(perms[s])} 
-                onChange={() => setPerms(prev => ({ ...prev, [s]: !Boolean(prev[s]) }))}
+                onChange={() => setPerms(prev => ({ ...prev, [s]: !prev[s] }))}
                 style={{
                   width: 18, height: 18, cursor: "pointer",
                   accentColor: "var(--color-primary, #C9A34E)"
@@ -268,22 +269,23 @@ function InviteForm({ onInvited }) {
     setError("");
     setResult(null);
     try {
-      const data = await adminInviteTeamMember({ email: email.trim(), role });
-      let finalData = data;
+      const res = await adminInviteTeamMember({ email: email.trim(), role });
+      if (!res.success) throw new Error(res.message);
+      let finalData = res.data;
 
-      if ((role === "STAFF" || role === "LAWYER") && data?.userId) {
+      if ((role === "STAFF" || role === "LAWYER") && finalData?.userId) {
         const sectionsJson = Object.fromEntries(SECTIONS.map((section) => [
           section,
-          section in staffPermissions ? Boolean(staffPermissions[section]) : true,
+          section in staffPermissions ? staffPermissions[section] : true,
         ]));
         const { error: permissionsError } = await supabase.rpc("admin_set_user_permissions", {
-          target_user_id: data.userId,
+          target_user_id: finalData.userId,
           sections_json: sectionsJson,
         });
         if (permissionsError) {
           finalData = {
-            ...data,
-            message: `${data.message || "Team member invited."} Permissions could not be saved: ${permissionsError.message}`,
+            ...finalData,
+            message: `${res.message || "Team member invited."} Permissions could not be saved: ${permissionsError.message}`,
           };
         }
       }
@@ -391,7 +393,7 @@ function InviteForm({ onInvited }) {
                       checked={Boolean(staffPermissions[section.key])}
                       onChange={() => setStaffPermissions((current) => ({
                         ...current,
-                        [section.key]: !Boolean(current[section.key]),
+                        [section.key]: !current[section.key],
                       }))}
                       disabled={loading}
                     />
@@ -434,7 +436,8 @@ function MemberRow({ member, currentUserId, onUpdated, onRemoved, onEditPerms })
     if (newRole === member.role) { setRoleEditing(false); return; }
     setLoading(true);
     try {
-      await updateOrganizationMember(member.id, newRole, null);
+      const res = await updateOrganizationMember(member.id, newRole, null);
+      if (!res.success) throw new Error(res.message);
       onUpdated?.();
     } catch (err) { alert("Error: " + err.message); }
     finally { setLoading(false); setRoleEditing(false); }
@@ -444,7 +447,8 @@ function MemberRow({ member, currentUserId, onUpdated, onRemoved, onEditPerms })
     const newStatus = member.status === "ACTIVE" ? "INACTIVE" : "ACTIVE";
     setLoading(true);
     try {
-      await updateOrganizationMember(member.id, null, newStatus);
+      const res = await updateOrganizationMember(member.id, null, newStatus);
+      if (!res.success) throw new Error(res.message);
       onUpdated?.();
     } catch (err) { alert("Error: " + err.message); }
     finally { setLoading(false); }
@@ -454,7 +458,8 @@ function MemberRow({ member, currentUserId, onUpdated, onRemoved, onEditPerms })
     if (!window.confirm(`Remove ${member.full_name || member.email} from the organization?`)) return;
     setLoading(true);
     try {
-      await removeOrganizationMember(member.id);
+      const res = await removeOrganizationMember(member.id);
+      if (!res.success) throw new Error(res.message);
       onRemoved?.();
     } catch (err) { alert("Error: " + err.message); }
     finally { setLoading(false); }
@@ -607,8 +612,8 @@ export default function TeamManagement() {
   const loadMembers = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await listOrganizationMembers();
-      setMembers(data);
+      const res = await listOrganizationMembers();
+      setMembers(res.data || []);
     } catch (err) {
       showToast(err.message || "Failed to load team members", "error");
     } finally {
@@ -747,6 +752,23 @@ export default function TeamManagement() {
           setFilterFromDate("");
           setFilterToDate("");
         }}
+        actions={[
+          {
+            label: "Export Team",
+            icon: "📊",
+            variant: "outline",
+            onClick: () => openExport({
+              type: "team",
+              availableData: filtered.map(m => ({
+                name: m.full_name || m.name || m.email,
+                email: m.email,
+                role: m.role,
+                status: m.status,
+                createdAt: m.created_at,
+              }))
+            })
+          }
+        ]}
       />
 
         {/* Members table */}

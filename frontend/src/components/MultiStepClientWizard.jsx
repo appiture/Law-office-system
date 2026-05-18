@@ -7,13 +7,13 @@ import {
   assertCasePayload,
   assertChargePayload,
   assertClientPayload,
-  assertFollowUpPayload,
+  assertHearingPayload,
   getApiErrorMessage,
   normalizeDigits,
   requiredText,
   resolveOtherSelection,
 } from "../utils/validation";
-import { sentenceCaseStatus } from "../utils/formatters";
+import { blankToNull, sentenceCaseStatus } from "../utils/formatters";
 import { getUserRole } from "../services/authService";
 import IndiaLocationSelect from "./IndiaLocationSelect";
 import "../pages/formStyles.css";
@@ -21,22 +21,17 @@ import "../pages/formStyles.css";
 const ID_TYPES = ["Aadhaar", "PAN", "Passport", "Voter ID", "Driving Licence", "Other"];
 const CASE_TYPES = ["Civil", "Criminal", "Family", "Property", "Consumer", "Labour", "Tax", "Corporate", "Constitutional", "Other"];
 const CASE_STATUS_OPTIONS = ["DRAFT", "RUNNING", "PENDING", "WAITING", "CLOSED_WON", "CLOSED_LOST", "CLOSED", "ON_HOLD"];
-const FOLLOW_UP_TYPES = ["HEARING", "DEADLINE", "JUDGMENT", "NOTE", "BAIL", "CHARGE", "SUBMISSION", "OTHER"];
-const FOLLOW_UP_STATUS_OPTIONS = ["PENDING", "COMPLETED", "POSTPONED"];
+const HEARING_TYPES = ["HEARING", "DEADLINE", "JUDGMENT", "NOTE", "BAIL", "CHARGE", "SUBMISSION", "OTHER"];
+const HEARING_STATUS_OPTIONS = ["PENDING", "COMPLETED", "POSTPONED"];
 
-// Alias must be declared before the components that use it
 const sentence = sentenceCaseStatus;
 
 const STEPS = [
   { key: "client", label: "Client Details" },
   { key: "case", label: "Case Details" },
   { key: "payment", label: "Payment Details" },
-  { key: "followup", label: "Follow-up Details" },
+  { key: "hearing", label: "Hearing Details" },
 ];
-
-function blankToNull(value) {
-  return String(value ?? "").trim() === "" ? null : value;
-}
 
 function FG({ label, required, children, className, hint }) {
   return (
@@ -274,31 +269,31 @@ function PaymentStep({ payments, setPayments }) {
   );
 }
 
-function FollowUpStep({ followUps, setFollowUps }) {
+function HearingStep({ hearings, setHearings }) {
   const update = (index, field, value) => {
-    setFollowUps(followUps.map((item, itemIndex) => itemIndex === index ? { ...item, [field]: value } : item));
+    setHearings(hearings.map((item, itemIndex) => itemIndex === index ? { ...item, [field]: value } : item));
   };
 
   return (
     <div className="form-section">
-      <div className="form-section-title"><span>Follow-up Details</span></div>
-      {followUps.length ? followUps.map((item, index) => (
+      <div className="form-section-title"><span>Hearing Details</span></div>
+      {hearings.length ? hearings.map((item, index) => (
         <div key={item.key} className="enhanced-card" style={{ marginBottom: 12 }}>
           <div className="enhanced-card-header">
             <div className="enhanced-card-title-wrap">
-              <h4 className="enhanced-card-title">Follow-up #{index + 1}</h4>
-              <button type="button" className="btn-danger-soft" onClick={() => setFollowUps(followUps.filter((_, itemIndex) => itemIndex !== index))}>Remove</button>
+              <h4 className="enhanced-card-title">Hearing #{index + 1}</h4>
+              <button type="button" className="btn-danger-soft" onClick={() => setHearings(hearings.filter((_, itemIndex) => itemIndex !== index))}>Remove</button>
             </div>
           </div>
           <div className="form-section-grid">
             <FG label="Type" required>
               <select value={item.type} onChange={(event) => update(index, "type", event.target.value)}>
-                {FOLLOW_UP_TYPES.map((type) => <option key={type} value={type}>{sentence(type)}</option>)}
+                {HEARING_TYPES.map((type) => <option key={type} value={type}>{sentence(type)}</option>)}
               </select>
             </FG>
             <FG label="Status">
               <select value={item.status} onChange={(event) => update(index, "status", event.target.value)}>
-                {FOLLOW_UP_STATUS_OPTIONS.map((status) => <option key={status} value={status}>{sentence(status)}</option>)}
+                {HEARING_STATUS_OPTIONS.map((status) => <option key={status} value={status}>{sentence(status)}</option>)}
               </select>
             </FG>
             <FG label="Scheduled Date & Time" required>
@@ -317,10 +312,10 @@ function FollowUpStep({ followUps, setFollowUps }) {
             </FG>
           </div>
         </div>
-      )) : <div className="empty-box" style={{ marginBottom: 12 }}>No follow-ups added yet.</div>}
+      )) : <div className="empty-box" style={{ marginBottom: 12 }}>No hearings added yet.</div>}
 
-      <button type="button" className="btn-neutral" style={{ width: "100%" }} onClick={() => setFollowUps([...followUps, { key: Date.now(), type: "HEARING", title: "", scheduledAt: "", status: "PENDING", notes: "", postponedTo: "" }])}>
-        Add Follow-up
+      <button type="button" className="btn-neutral" style={{ width: "100%" }} onClick={() => setHearings([...hearings, { key: Date.now(), type: "HEARING", title: "", scheduledAt: "", status: "PENDING", notes: "", postponedTo: "" }])}>
+        Add Hearing
       </button>
     </div>
   );
@@ -378,7 +373,7 @@ export default function MultiStepClientWizard({ client, onClose, onSave, initial
       status: client?.cases?.[0]?.status || "DRAFT",
     },
     charges: [],
-    followUps: [],
+    hearings: [],
   });
 
   const title = useMemo(() => client ? `Edit ${client.name}` : "New Client", [client]);
@@ -412,6 +407,7 @@ export default function MultiStepClientWizard({ client, onClose, onSave, initial
     try {
       assertClientPayload({
         ...formData.client,
+        client_name: formData.client.name,
         phone: normalizeDigits(formData.client.phone),
         altPhone: formData.client.altPhone ? normalizeDigits(formData.client.altPhone) : "",
         email: formData.client.email?.trim(),
@@ -436,10 +432,12 @@ export default function MultiStepClientWizard({ client, onClose, onSave, initial
           requiredText(formData.client.name) &&
           normalizeDigits(formData.client.phone).length === 10;
 
+        const case_type_val = resolveOtherSelection(formData.caseData.caseType, formData.caseData.caseTypeOther);
         assertCasePayload({
           ...formData.caseData,
           clientId: hasPersistedClient || hasValidNewClient ? (formData.client.id || "NEW_CLIENT") : "",
-          caseType: resolveOtherSelection(formData.caseData.caseType, formData.caseData.caseTypeOther),
+          caseType: case_type_val,
+          case_title: case_type_val,
         });
       }
 
@@ -454,8 +452,12 @@ export default function MultiStepClientWizard({ client, onClose, onSave, initial
       }
 
       if (currentStep === 3) {
-        formData.followUps.forEach((followUp) => {
-          assertFollowUpPayload(followUp);
+        formData.hearings.forEach((hearing) => {
+          assertHearingPayload({
+            ...hearing,
+            case_title: hearing.title,
+            hearing_date: hearing.scheduledAt,
+          });
         });
       }
 
@@ -485,6 +487,7 @@ export default function MultiStepClientWizard({ client, onClose, onSave, initial
       const payload = {
         client: {
           ...formData.client,
+          client_name: formData.client.name,
           phone: normalizeDigits(formData.client.phone),
           altPhone: formData.client.altPhone && normalizeDigits(formData.client.altPhone).length === 10 ? normalizeDigits(formData.client.altPhone) : null,
           email: formData.client.email?.trim() || null,
@@ -495,6 +498,7 @@ export default function MultiStepClientWizard({ client, onClose, onSave, initial
           ...formData.caseData,
           clientId: formData.client.id || null,
           caseType: resolveOtherSelection(formData.caseData.caseType, formData.caseData.caseTypeOther),
+          case_title: resolveOtherSelection(formData.caseData.caseType, formData.caseData.caseTypeOther),
           filingDate: blankToNull(formData.caseData.filingDate),
           firstHearingDate: blankToNull(formData.caseData.firstHearingDate),
           nextHearingDate: blankToNull(formData.caseData.nextHearingDate),
@@ -508,13 +512,15 @@ export default function MultiStepClientWizard({ client, onClose, onSave, initial
           isLawyerFee: Boolean(charge.isLawyerFee),
           description: charge.description || "",
         })),
-        followUps: profileOnly ? [] : formData.followUps.map((followUp) => ({
-          type: followUp.type,
-          title: followUp.title,
-          scheduledAt: blankToNull(followUp.scheduledAt),
-          status: followUp.status,
-          notes: followUp.notes || "",
-          postponedTo: followUp.status === "POSTPONED" ? blankToNull(followUp.postponedTo) : null,
+        hearings: profileOnly ? [] : formData.hearings.map((hearing) => ({
+          type: hearing.type,
+          title: hearing.title,
+          case_title: hearing.title,
+          scheduledAt: blankToNull(hearing.scheduledAt),
+          hearing_date: blankToNull(hearing.scheduledAt),
+          status: hearing.status,
+          notes: hearing.notes || "",
+          postponedTo: hearing.status === "POSTPONED" ? blankToNull(hearing.postponedTo) : null,
         })),
         saveAsDraft,
         currentStep,
@@ -558,7 +564,7 @@ export default function MultiStepClientWizard({ client, onClose, onSave, initial
           {currentStep === 0 ? <ClientStep form={formData.client} onChange={setClientField} /> : null}
           {currentStep === 1 ? <CaseStep form={formData.caseData} onChange={setCaseField} lawyers={lawyers} userRole={userRole} /> : null}
           {currentStep === 2 ? <PaymentStep payments={formData.charges} setPayments={(charges) => setFormData((current) => ({ ...current, charges }))} /> : null}
-          {currentStep === 3 ? <FollowUpStep followUps={formData.followUps} setFollowUps={(followUps) => setFormData((current) => ({ ...current, followUps }))} /> : null}
+          {currentStep === 3 ? <HearingStep hearings={formData.hearings} setHearings={(hearings) => setFormData((current) => ({ ...current, hearings }))} /> : null}
         </div>
 
         <div className="flow-modal-footer">

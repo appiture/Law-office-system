@@ -1,11 +1,11 @@
-
+import { ROUTES } from "../constants/routes";
 import { getWorkspaceContext, resetWorkspaceContextCache } from "../repositories/supabaseRepository";
 import { supabase } from "./supabaseClient";
+import { successResponse, errorResponse } from "../utils/apiResponse";
 // import { clearAllActionLocks } from "../lib/rateLimiter"; // Removed per Item 19
 
 const SESSION_CACHE_KEY = "lawoffice.session";
 const REMEMBERED_EMAIL_KEY = "lawoffice.rememberedEmail";
-const REMEMBERED_ORGANIZATION_KEY = "lawoffice.organization";
 const SESSION_TIMEOUT_MS = 30000;
 const WORKSPACE_TIMEOUT_MS = 60000;
 
@@ -146,7 +146,6 @@ export const syncSupabaseSession = async (providedSession = null, options = {}) 
           workspace?.organizationName ||
           session.user?.user_metadata?.organization ||
           previousCache.organizationName ||
-          localStorage.getItem(REMEMBERED_ORGANIZATION_KEY) ||
           "Law Office",
         organizationLogoUrl: workspace?.organizationLogoUrl || previousCache.organizationLogoUrl || "",
         organizationLogoPath: workspace?.organizationLogoPath || previousCache.organizationLogoPath || "",
@@ -172,7 +171,9 @@ export const syncSupabaseSession = async (providedSession = null, options = {}) 
 
       writeSessionCache(cached);
       window.dispatchEvent(new Event("sessionUpdated"));
-      return cached;
+      return successResponse(cached);
+    } catch (err) {
+      return errorResponse(err.message);
     } finally {
       _syncPromise = null;
     }
@@ -201,7 +202,6 @@ export const getOrganizationId = () => readSessionCache().organizationId || "";
 
 export const getOrganizationName = () =>
   readSessionCache().organizationName ||
-  localStorage.getItem(REMEMBERED_ORGANIZATION_KEY) ||
   "Law Office";
 
 export const getOrganizationLogoUrl = () => readSessionCache().organizationLogoUrl || "";
@@ -227,28 +227,7 @@ export const isDemoExpired = () => {
   return new Date(expiry) < new Date();
 };
 
-export const getSubscriptionStatus = () => readSessionCache().subscriptionStatus || "ACTIVE";
 
-/**
- * Explicitly check the auth state via the auth-utils edge function.
- * Used during login flow to determine if a password reset is required.
- */
-export const checkAuthState = async (session) => {
-  if (!session?.access_token) return { mustReset: false };
-  
-  try {
-    const { data, error } = await supabase.functions.invoke("auth-utils");
-    if (error) throw error;
-    
-    if (data?.mustResetPassword) {
-      return { mustReset: true, ...data };
-    }
-    return { mustReset: false, ...data };
-  } catch (err) {
-    console.error("checkAuthState failed:", err);
-    return { mustReset: false };
-  }
-};
 
 /* ------------------------------------------------------------------ */
 /*  Logout                                                             */
@@ -263,7 +242,7 @@ export const fullLogout = async () => {
   if (supabase) {
     await supabase.auth.signOut();
   }
-  window.location.href = "/login";
+  window.location.href = ROUTES.LOGIN;
 };
 
 export const clearAuthData = () => {
@@ -278,8 +257,6 @@ export const clearAuthData = () => {
 
 export const getRememberedEmail = () => localStorage.getItem(REMEMBERED_EMAIL_KEY) || "";
 
-export const getRememberedOrganization = () => localStorage.getItem(REMEMBERED_ORGANIZATION_KEY) || "";
-
 export const setRememberedEmail = (email, enabled) => {
   if (!enabled) {
     localStorage.removeItem(REMEMBERED_EMAIL_KEY);
@@ -287,17 +264,6 @@ export const setRememberedEmail = (email, enabled) => {
   }
   localStorage.setItem(REMEMBERED_EMAIL_KEY, email);
 };
-
-export const setRememberedOrganization = (organization) => {
-  const value = String(organization || "").trim();
-  if (!value) {
-    localStorage.removeItem(REMEMBERED_ORGANIZATION_KEY);
-    return;
-  }
-  localStorage.setItem(REMEMBERED_ORGANIZATION_KEY, value);
-};
-
-export const isRememberEmailEnabled = () => Boolean(localStorage.getItem(REMEMBERED_EMAIL_KEY));
 
 
 

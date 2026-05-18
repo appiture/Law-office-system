@@ -116,6 +116,7 @@ export function TrendAreaChart({ data, valueFormatter, emptyMessage }) {
 }
 
 export function DonutBreakdownChart({ data, centerLabel, centerValue, emptyMessage }) {
+  const chartId = useId();
   const [animated, setAnimated] = useState(false);
   const radius = 54;
   const circumference = 2 * Math.PI * radius;
@@ -151,7 +152,7 @@ export function DonutBreakdownChart({ data, centerLabel, centerValue, emptyMessa
           <g transform="rotate(-90 80 80)">
             {segments.map((segment) => (
                 <circle
-                  key={segment.key}
+                  key={`${chartId}-${segment.key}`}
                   cx="80"
                   cy="80"
                   r={radius}

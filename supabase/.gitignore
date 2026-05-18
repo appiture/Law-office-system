@@ -1,8 +1,17 @@
 # Supabase
 .branches
-.temp
+.temp/
+.supabase/
 
-# dotenvx
+# Env and Secrets
+.env
 .env.keys
 .env.local
 .env.*.local
+*.key
+*.pem
+*.secret
+*secret*
+*credential*
+*confidential*
+*vault*

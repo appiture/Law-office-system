@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useSearchParams } from "react-router-dom";
-import AppShell from "../components/AppShell";
+import AppShell from "../components/layout/AppShell";
 import CaseIdentityCard from "../components/CaseIdentityCard";
 import HeaderFilters from "../components/HeaderFilters";
 import ControlledSearchPanel, { EmptyState, ErrorState, LoadingState, PaginationControls } from "../components/ControlledSearchPanel";
@@ -14,7 +14,8 @@ import {
 } from "../utils/validation";
 import { formatDateTime } from "../utils/formatters";
 import { getUserRole } from "../services/authService";
-import ExportModal from "../components/ExportModal";
+import { openExport } from "../store/exportStore";
+import { CASE_STATUS } from "../constants/statuses";
 import "./formStyles.css";
 
 const CASE_TYPES = [
@@ -23,26 +24,26 @@ const CASE_TYPES = [
 ];
 
 const STATUS_OPTIONS = [
-  { value: "RUNNING",      label: "Running" },
-  { value: "PENDING",      label: "Pending" },
-  { value: "WAITING",      label: "Waiting – Next Date" },
-  { value: "CLOSED_WON",  label: "Closed – Won" },
-  { value: "CLOSED_LOST", label: "Closed – Lost" },
-  { value: "CLOSED",      label: "Closed – Other" },
-  { value: "ON_HOLD",     label: "On Hold" },
+  { value: CASE_STATUS.RUNNING,      label: "Running" },
+  { value: CASE_STATUS.PENDING,      label: "Pending" },
+  { value: CASE_STATUS.WAITING,      label: "Waiting – Next Date" },
+  { value: CASE_STATUS.CLOSED_WON,  label: "Closed – Won" },
+  { value: CASE_STATUS.CLOSED_LOST, label: "Closed – Lost" },
+  { value: CASE_STATUS.CLOSED,      label: "Closed – Other" },
+  { value: CASE_STATUS.ON_HOLD,     label: "On Hold" },
 ];
 
 const PAGE_SIZE = 25;
 const emptyFilters = { searchTerm: "", caseType: "", status: "", fromDate: "", toDate: "" };
 
 const STATUS_COLORS = {
-  RUNNING:     { bg:"rgba(37,99,235,0.1)",  color:"var(--color-primary)" },
-  PENDING:     { bg:"rgba(245,158,11,0.1)",  color:"var(--color-warning)" },
-  WAITING:     { bg:"rgba(139,92,246,0.1)", color:"var(--color-status-waiting)" },
-  CLOSED_WON:  { bg:"rgba(34,197,94,0.1)",  color:"var(--color-success)" },
-  CLOSED_LOST: { bg:"rgba(239,68,68,0.1)",  color:"var(--color-error)" },
-  CLOSED:      { bg:"rgba(107,114,128,0.1)",color:"var(--color-text-secondary)" },
-  ON_HOLD:     { bg:"rgba(245,158,11,0.1)", color:"var(--color-warning)" },
+  [CASE_STATUS.RUNNING]:     { bg:"rgba(37,99,235,0.1)",  color:"var(--color-primary)" },
+  [CASE_STATUS.PENDING]:     { bg:"rgba(245,158,11,0.1)",  color:"var(--color-warning)" },
+  [CASE_STATUS.WAITING]:     { bg:"rgba(139,92,246,0.1)", color:"var(--color-status-waiting)" },
+  [CASE_STATUS.CLOSED_WON]:  { bg:"rgba(34,197,94,0.1)",  color:"var(--color-success)" },
+  [CASE_STATUS.CLOSED_LOST]: { bg:"rgba(239,68,68,0.1)",  color:"var(--color-error)" },
+  [CASE_STATUS.CLOSED]:      { bg:"rgba(107,114,128,0.1)",color:"var(--color-text-secondary)" },
+  [CASE_STATUS.ON_HOLD]:     { bg:"rgba(245,158,11,0.1)", color:"var(--color-warning)" },
 };
 
 const emptyForm = {
@@ -50,7 +51,7 @@ const emptyForm = {
   judgeName:"", assignedLawyer:"", assigned_lawyer_id:"", filingDate:"", firstHearingDate:"",
   nextHearingDate:"", opponentName:"", opponentLawyer:"",
   caseTypeOther:"",
-  caseDescription:"", status:"RUNNING",
+  caseDescription:"", status: CASE_STATUS.RUNNING,
 };
 
 // ── FG Helper ─────────────────────────────────────────────────
@@ -85,7 +86,7 @@ function CaseModal({ clients, lawyers = [], editCase, onClose, onSaved, canAssig
       opponentName:     editCase.opponentName     ?? "",
       opponentLawyer:   editCase.opponentLawyer   ?? "",
       caseDescription:  editCase.caseDescription  ?? "",
-      status:           editCase.status           ?? "RUNNING",
+      status:           editCase.status           ?? CASE_STATUS.RUNNING,
     } : { ...emptyForm }
   );
   const [saving, setSaving]   = useState(false);
@@ -103,10 +104,12 @@ function CaseModal({ clients, lawyers = [], editCase, onClose, onSaved, canAssig
     }
     setSaving(true);
     try {
+      const case_type_val = resolveOtherSelection(form.caseType, form.caseTypeOther);
       const payload = {
         ...form,
         clientId: Number(form.clientId),
-        caseType: resolveOtherSelection(form.caseType, form.caseTypeOther),
+        caseType: case_type_val,
+        case_title: case_type_val,
       };
       assertCasePayload(payload);
       await platformApi.saveCase(payload, editCase?.id);
@@ -254,7 +257,7 @@ function CaseModal({ clients, lawyers = [], editCase, onClose, onSaved, canAssig
 
 // ── Status Badge ───────────────────────────────────────────────
 function StatusBadge({ status }) {
-  const s = STATUS_COLORS[status] || STATUS_COLORS.CLOSED;
+  const s = STATUS_COLORS[status] || STATUS_COLORS[CASE_STATUS.CLOSED];
   return (
     <span style={{ background:s.bg, color:s.color, padding:"3px 10px", borderRadius:999, fontSize:11, fontWeight:800, letterSpacing:"0.05em", textTransform:"uppercase" }}>
       {STATUS_OPTIONS.find(o => o.value === status)?.label || status}
@@ -272,7 +275,6 @@ function Cases() {
   const [lawyers, setLawyers] = useState([]);
   const [cases,   setCases]   = useState([]);
   const [showModal,    setShowModal]    = useState(false);
-  const [showExportModal, setShowExportModal] = useState(false);
   const [editingCase,  setEditingCase]  = useState(null);
   const [filters, setFilters] = useState(() => ({ ...emptyFilters, searchTerm: searchParams.get("search") || "" }));
   const [hasLoaded, setHasLoaded] = useState(Boolean(searchParams.get("search")));
@@ -283,7 +285,7 @@ function Cases() {
   const [total, setTotal] = useState(0);
   const [showAllMode, setShowAllMode] = useState(false);
 
-  const loadData = async ({ nextPage = page, showAll = showAllMode, nextFilters = filters } = {}) => {
+  const loadData = useCallback(async ({ nextPage = page, showAll = showAllMode, nextFilters = filters } = {}) => {
     setLoading(true);
     setError("");
     try {
@@ -307,7 +309,7 @@ function Cases() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [filters, page, showAllMode]);
 
   const initialEditId = searchParams.get("editId");
   const [initialEditTriggered, setInitialEditTriggered] = useState(false);
@@ -337,7 +339,7 @@ function Cases() {
     if (searchParams.get("search")) {
       void loadData({ nextPage: 1, showAll: false });
     }
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [loadData, searchParams]);
 
   useEffect(() => {
     if (initialEditId && !initialEditTriggered && cases.length > 0) {
@@ -369,6 +371,7 @@ function Cases() {
       setHasLoaded(false);
       setError("");
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters.searchTerm, filters.caseType, filters.status, filters.fromDate, filters.toDate, hasLoaded, showAllMode]);
 
   return (
@@ -377,7 +380,12 @@ function Cases() {
       subtitle="Search cases by case number, client, court, lawyer, opponent, or notes."
       actions={
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          <button type="button" className="btn-gold" onClick={() => setShowExportModal(true)}>
+          <button type="button" className="btn-gold" onClick={() => openExport({
+            type: "cases",
+            availableData: cases,
+            currentFilters: filters,
+            defaultDateRange: { start: filters.fromDate, end: filters.toDate }
+          })}>
             📥 Export
           </button>
           {userRole !== "LAWYER" && (
@@ -484,16 +492,7 @@ function Cases() {
         />
       )}
 
-      {showExportModal && (
-        <ExportModal
-          isOpen={showExportModal}
-          onClose={() => setShowExportModal(false)}
-          type="cases"
-          availableData={cases}
-          currentFilters={filters}
-          defaultDateRange={{ start: filters.fromDate, end: filters.toDate }}
-        />
-      )}
+
     </AppShell>
   );
 }

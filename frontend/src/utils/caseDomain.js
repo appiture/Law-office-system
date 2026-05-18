@@ -5,7 +5,7 @@ const statusPriority = {
   UNPAID: 0,
 };
 
-export const UPCOMING_FOLLOW_UP_WINDOW_DAYS = 7;
+export const UPCOMING_HEARING_WINDOW_DAYS = 7;
 
 export const toIsoDate = (value) => {
   if (!value) return null;
@@ -50,23 +50,23 @@ export const computeChargeFinancials = (charge) => {
   };
 };
 
-export const deriveFollowUpAlertLevel = (followUp) => {
+export const deriveHearingAlertLevel = (hearing) => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const sourceDate = followUp?.status === "POSTPONED" && followUp?.postponedTo
-    ? new Date(followUp.postponedTo)
-    : new Date(followUp?.scheduledAt || followUp?.date || followUp?.createdAt || today);
+  const sourceDate = hearing?.status === "POSTPONED" && hearing?.postponedTo
+    ? new Date(hearing.postponedTo)
+    : new Date(hearing?.scheduledAt || hearing?.date || hearing?.createdAt || today);
 
   if (Number.isNaN(sourceDate.getTime())) return "planned";
   sourceDate.setHours(0, 0, 0, 0);
 
-  if (String(followUp?.status || "").toUpperCase() === "COMPLETED") return "completed";
+  if (String(hearing?.status || "").toUpperCase() === "COMPLETED") return "completed";
   if (sourceDate < today) return "missed";
   if (sourceDate.getTime() === today.getTime()) return "today";
 
   const upcoming = new Date(today);
-  upcoming.setDate(upcoming.getDate() + UPCOMING_FOLLOW_UP_WINDOW_DAYS);
+  upcoming.setDate(upcoming.getDate() + UPCOMING_HEARING_WINDOW_DAYS);
   if (sourceDate <= upcoming) return "upcoming";
   return "planned";
 };
@@ -139,11 +139,11 @@ export const buildDashboardSummary = (cases = []) => {
     }
 
     if (
-      legalCase.followUps.some((followUp) => {
-        const scheduled = new Date(followUp.scheduledAt);
+      legalCase.hearings.some((hearing) => {
+        const scheduled = new Date(hearing.scheduledAt);
         if (Number.isNaN(scheduled.getTime())) return false;
         scheduled.setHours(0, 0, 0, 0);
-        return followUp.type === "HEARING" && scheduled.getTime() === today.getTime();
+        return hearing.type === "HEARING" && scheduled.getTime() === today.getTime();
       })
     ) {
       todayHearings.push(legalCase);

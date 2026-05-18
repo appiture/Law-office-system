@@ -2,20 +2,6 @@
 import { useRef, useEffect, useCallback, useMemo } from 'react';
 import { gsap } from 'gsap';
 
-// Note: InertiaPlugin is a premium GSAP plugin. 
-// We check if it exists before registering to avoid errors.
-// If it's missing, the component will fall back to standard animations.
-let InertiaPlugin;
-try {
-  // Try to import if available, otherwise stay undefined
-  // In a standard npm install, this will fail or be empty
-} catch {
-  // Ignore
-}
-
-if (InertiaPlugin) {
-  gsap.registerPlugin(InertiaPlugin);
-}
 
 import './DotGrid.css';
 
@@ -40,7 +26,7 @@ function hexToRgb(hex) {
   };
 }
 
-const DotGrid = ({
+const DotGridComponent = ({
   dotSize = 16,
   gap = 32,
   baseColor = '#5227FF',
@@ -227,12 +213,6 @@ const DotGrid = ({
             });
           };
 
-          if (InertiaPlugin) {
-            gsap.to(dot, {
-              inertia: { xOffset: pushX, yOffset: pushY, resistance },
-              onComplete: onFinish
-            });
-          } else {
             // Fallback for when InertiaPlugin is not available
             gsap.to(dot, {
               xOffset: pushX,
@@ -241,7 +221,6 @@ const DotGrid = ({
               ease: 'power2.out',
               onComplete: onFinish
             });
-          }
         }
       }
     };
@@ -271,12 +250,6 @@ const DotGrid = ({
             });
           };
 
-          if (InertiaPlugin) {
-            gsap.to(dot, {
-              inertia: { xOffset: pushX, yOffset: pushY, resistance },
-              onComplete: onFinish
-            });
-          } else {
             // Fallback for when InertiaPlugin is not available
             gsap.to(dot, {
               xOffset: pushX,
@@ -285,7 +258,6 @@ const DotGrid = ({
               ease: 'power3.out',
               onComplete: onFinish
             });
-          }
         }
       }
     };
@@ -309,7 +281,8 @@ const DotGrid = ({
   );
 };
 
-export default DotGrid;
+import { memo } from 'react';
+export default memo(DotGridComponent);
 
 
 

@@ -1,6 +1,10 @@
 import { ArrowLeft } from "lucide-react";
+import MobileNav from "./MobileNav";
+import ThemeToggle from "./ThemeToggle";
 
-function PageHeader({ 
+import NotificationBell from "./NotificationBell";
+
+function Header({ 
   setSidebarOpen, 
   handleBack, 
   canGoBack, 
@@ -11,19 +15,14 @@ function PageHeader({
   theme, 
   toggleTheme, 
   actions,
-  sidebarOpen
+  sidebarOpen,
+  pendingTaskCount
 }) {
   return (
     <header className="page-header" onClick={() => sidebarOpen && setSidebarOpen(false)}>
       <div className="page-header-start">
-        <button
-          type="button"
-          className="mobile-nav-trigger"
-          aria-label="Open navigation"
-          onClick={() => setSidebarOpen(true)}
-        >
-          Menu
-        </button>
+        <MobileNav setSidebarOpen={setSidebarOpen} />
+        
         {canGoBack && (
           <button
             type="button"
@@ -40,24 +39,18 @@ function PageHeader({
           <p className="page-kicker">{superAdmin ? "Platform Admin" : organizationName}</p>
           <div className="header-title-row">
             <h2 className="header-main-title">{title}</h2>
-            <button 
-              type="button"
-              className="theme-toggle-header-btn"
-              onClick={toggleTheme}
-              title="Toggle Theme"
-            >
-              {theme === "light" ? "🌙" : "☀️"}
-            </button>
+            <ThemeToggle theme={theme} toggleTheme={toggleTheme} />
           </div>
           {subtitle ? <p className="page-subtitle">{subtitle}</p> : null}
         </div>
       </div>
 
       <div className="page-actions">
+        {!superAdmin && <NotificationBell count={pendingTaskCount} />}
         {actions}
       </div>
     </header>
   );
 }
 
-export default PageHeader;
+export default Header;

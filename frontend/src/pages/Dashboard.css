@@ -56,6 +56,25 @@
   box-shadow: 0 4px 12px var(--color-shadow);
 }
 
+.dashboard-quick-filter-select {
+  height: 40px;
+  padding: 0 12px;
+  border-radius: 12px;
+  background: var(--color-bg-secondary);
+  border: 1.5px solid var(--color-border);
+  color: var(--color-text);
+  font-weight: 800;
+  font-size: 13px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  outline: none;
+}
+
+.dashboard-quick-filter-select:focus {
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px var(--color-bg-tertiary);
+}
+
 .dashboard-filter-panel {
   position: absolute;
   top: calc(100% + 8px);
@@ -219,75 +238,7 @@
   font-size: 1.1rem;
 }
 
-.dashboard-kpi-row {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 14px;
-  margin-bottom: 18px;
-}
-
-@media (max-width: 1200px) {
-  .dashboard-kpi-row {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 640px) {
-  .dashboard-kpi-row {
-    grid-template-columns: 1fr;
-  }
-}
-
-.dashboard-kpi-card-wrapper {
-  height: 100%;
-}
-
-.dashboard-kpi-card {
-  min-height: 110px;
-  padding: 24px;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 10px;
-  background: var(--color-bg-secondary) !important;
-  border: 1.5px solid var(--color-border) !important;
-  border-radius: 20px;
-  box-shadow: 0 8px 30px var(--color-shadow);
-  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  position: relative;
-  z-index: 2;
-}
-
-.dashboard-kpi-card:hover {
-  transform: translateY(-5px);
-  border-color: var(--color-primary) !important;
-  box-shadow: 0 15px 40px var(--color-shadow);
-}
-
-.dark .dashboard-kpi-card {
-  background: #1e293b !important; /* Hardcoded to ensure visibility in dark mode */
-  border-color: rgba(255, 255, 255, 0.1) !important;
-}
-
-.dashboard-kpi-card strong {
-  font-size: 2rem;
-  color: var(--color-primary);
-  font-weight: 900;
-  letter-spacing: -0.5px;
-}
-
-.dark .dashboard-kpi-card strong {
-  color: var(--color-secondary);
-}
-
-.dashboard-kpi-card span {
-  color: var(--color-text);
-  opacity: 0.6;
-  font-size: 11px;
-  font-weight: 800;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-}
+/* KPI styles moved to designSystem.css metric-card */
 
 .dashboard-focus-grid {
   display: grid;
@@ -348,9 +299,12 @@
 
 .dashboard-panel-title span {
   color: var(--color-text);
-  opacity: 0.6;
+  opacity: 0.7;
   font-size: 12px;
   font-weight: 750;
+}
+.dark .dashboard-panel-title span {
+  opacity: 0.8;
 }
 
 .dashboard-calendar-card {
@@ -384,7 +338,7 @@
 
 .dashboard-calendar-cell {
   min-height: 64px;
-  border: 1px solid rgba(0, 0, 0, 0.05);
+  border: 1px solid var(--color-border);
   background: var(--color-bg);
   border-radius: 8px;
   color: var(--color-text);

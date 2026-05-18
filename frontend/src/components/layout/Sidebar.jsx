@@ -1,5 +1,5 @@
 import { NavLink } from "react-router-dom";
-import { fullLogout } from "../services/authService";
+import UserMenu from "./UserMenu";
 
 function Sidebar({ 
   superAdmin, 
@@ -84,25 +84,14 @@ function Sidebar({
         })}
       </nav>
 
-      <div className="profile-panel">
-        <div className="profile-info">
-          {userAvatar ? (
-            <img src={userAvatar} alt={userName} className="user-avatar" onError={() => setUserAvatar(null)} />
-          ) : (
-            <div className="user-avatar-fallback">{userEmail.charAt(0).toUpperCase()}</div>
-          )}
-          <div className="profile-copy">
-            <p className="profile-label">Signed in as</p>
-            <strong>{userName || userEmail}</strong>
-            <p className="profile-role" style={superAdmin ? { color: "#C9A34E", fontWeight: 700 } : {}}>
-              {superAdmin ? "⭐ Super Admin" : userRole}
-            </p>
-          </div>
-        </div>
-        <button type="button" className="ghost-button" onClick={() => void fullLogout()}>
-          Logout
-        </button>
-      </div>
+      <UserMenu 
+        userAvatar={userAvatar}
+        userName={userName}
+        userEmail={userEmail}
+        userRole={userRole}
+        superAdmin={superAdmin}
+        setUserAvatar={setUserAvatar}
+      />
     </aside>
   );
 }

@@ -1,14 +1,16 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Link, useParams, useLocation, useNavigate } from "react-router-dom";
-import AppShell from "../components/AppShell";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
+import { Link, useParams, useLocation } from "react-router-dom";
+import { ROUTES } from "../constants/routes";
+import { EXPORT_FORMATS } from "../constants/exportFormats";
+import AppShell from "../components/layout/AppShell";
 import { supabasePlatformApi as platformApi } from "../repositories/supabaseRepository";
 import { getPersistentAssetUrl } from "../services/storageService";
-import { currency, formatDate, sentenceCaseStatus, textOrDash } from "../utils/formatters";
+import { formatDate, textOrDash } from "../utils/formatters";
 import ProfileCard from "../components/ui/ProfileCard/ProfileCard";
 import MultiStepClientWizard from "../components/MultiStepClientWizard";
 import { createPortal } from "react-dom";
 import { usePermissions } from "../context/PermissionsContext";
-import "./ClientDetails.css";
+import "./sharedDetailsLayout.css";
 
 function DetailSection({ id, title, label, actions, children, className = "", style = {} }) {
   return (
@@ -65,7 +67,7 @@ function InfoRow({ label, value }) {
 }
 
 function ClientDetails() {
-  const navigate = useNavigate();
+
   const { clientId } = useParams();
   const location = useLocation();
   const [client, setClient] = useState(null);
@@ -81,7 +83,7 @@ function ClientDetails() {
   const { canAccess } = usePermissions();
   const canViewClients = canAccess("clients");
   const canViewCases = canAccess("cases");
-  const canViewPayments = canAccess("payments");
+
 
   const loadData = useCallback(async (isCancelled = () => false) => {
     try {
@@ -174,7 +176,7 @@ function ClientDetails() {
       link.href = url;
       link.download = `Client_Report_${client?.name || 'Client'}_${new Date().getTime()}.json`;
       link.click();
-    } else if (format === 'csv') {
+    } else if (format === EXPORT_FORMATS.CSV) {
       let csv = "Section,Field,Value\n";
       csv += `Identity,Name,${data.identity.name}\n`;
       csv += `Identity,Email,${data.identity.email}\n`;
@@ -212,7 +214,7 @@ function ClientDetails() {
         <div className="case-details-error">
           <h2>Error Loading Client</h2>
           <p>{error || "No matching client was found."}</p>
-          <Link to="/clients" className="btn-primary">Back to Clients</Link>
+          <Link to={ROUTES.CLIENTS} className="btn-primary">Back to Clients</Link>
         </div>
       </AppShell>
     );
@@ -257,7 +259,7 @@ function ClientDetails() {
             <button className="btn-gold">📥 Export Report</button>
             <div className="download-options">
               <button onClick={() => downloadReport('print')}>📄 PDF / Print</button>
-              <button onClick={() => downloadReport('csv')}>📊 CSV Data</button>
+              <button onClick={() => downloadReport(EXPORT_FORMATS.CSV)}>📊 CSV Data</button>
               <button onClick={() => downloadReport('json')}>🛠️ JSON Backup</button>
             </div>
           </div>

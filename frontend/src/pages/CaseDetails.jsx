@@ -1,14 +1,15 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Link, useParams, useLocation, useNavigate } from "react-router-dom";
-import AppShell from "../components/AppShell";
+import { ROUTES } from "../constants/routes";
+import AppShell from "../components/layout/AppShell";
 import { supabasePlatformApi as platformApi } from "../repositories/supabaseRepository";
 import { getPersistentAssetUrl } from "../services/storageService";
-import { currency, formatDate, sentenceCaseStatus, textOrDash } from "../utils/formatters";
+import { currency, formatDate, sentenceCaseStatus } from "../utils/formatters";
 import ProfileCard from "../components/ui/ProfileCard/ProfileCard";
 import MultiStepClientWizard from "../components/MultiStepClientWizard";
 import { createPortal } from "react-dom";
 import { usePermissions } from "../context/PermissionsContext";
-import "./CaseDetails.css";
+import "./sharedDetailsLayout.css";
 
 function DetailSection({ id, title, label, actions, children, className = "", style = {} }) {
   return (
@@ -63,8 +64,8 @@ function CaseDetails() {
   const canViewClients = canAccess("clients");
   const canViewCases = canAccess("cases");
   const canViewPayments = canAccess("payments");
-  const canViewFollowUps = canAccess("followups");
-  const canViewDocuments = canAccess("documents");
+  const canViewHearings = canAccess("hearings");
+
 
   const loadData = useCallback(async (isCancelled = () => false) => {
     try {
@@ -147,7 +148,7 @@ function CaseDetails() {
         <div className="case-details-error">
           <h2>Error Loading Case</h2>
           <p>{error || "No matching record was found."}</p>
-          <Link to="/cases" className="btn-primary">Back to Cases</Link>
+          <Link to={ROUTES.CASES} className="btn-primary">Back to Cases</Link>
         </div>
       </AppShell>
     );
@@ -189,7 +190,7 @@ function CaseDetails() {
       }
       actions={
         <div style={{ display: 'flex', gap: '10px' }}>
-          <button onClick={() => navigate('/cases')} className="btn-neutral">Back</button>
+          <button onClick={() => navigate(ROUTES.CASES)} className="btn-neutral">Back</button>
           {canViewCases && (
             <button onClick={() => openWizard(client, 1, legalCase)} className="btn-gold">✏️ Edit Case</button>
           )}
@@ -241,15 +242,15 @@ function CaseDetails() {
             </DetailSection>
           )}
 
-          {canViewFollowUps && (
-            <DetailSection id="case-timeline" title="Timeline & Dates" label="Hearings" className="magic-bento-card--full">
+          {canViewHearings && (
+            <DetailSection id="hearings-card" title="Timeline & Dates" label="Hearings" className="magic-bento-card--full">
               <div className="payment-history-table-wrap">
                 <table className="payment-history-table">
                   <thead>
                     <tr><th>Date</th><th>Title / Description</th><th>Status</th></tr>
                   </thead>
                   <tbody>
-                    {(legalCase.followUps || []).map(fu => (
+                    {(legalCase.hearings || []).map(fu => (
                       <tr key={fu.id}>
                         <td>{formatDate(fu.scheduledAt)}</td>
                         <td><strong>{fu.title}</strong></td>

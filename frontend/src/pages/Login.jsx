@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "../services/supabaseClient";
 import { requiredText } from "../utils/validation";
 import {
@@ -10,6 +10,7 @@ import {
   syncSupabaseSession,
 } from "../services/authService";
 import { checkMustResetPassword, checkAdminStatus } from "../services/adminService";
+import { ROUTES } from "../constants/routes";
 import appitureLogo from "../assets/appiture_logo.png";
 import "./Login.css";
 
@@ -42,12 +43,12 @@ function Login() {
         if (cancelled) return;
         if (isAuthenticated()) {
           if (session?.canAccessWorkspace) {
-            navigate("/dashboard", { replace: true });
+            navigate(ROUTES.DASHBOARD, { replace: true });
           } else {
             // Could be a platform admin (no org workspace) — check before giving up
-            const { isPlatformAdmin: isAdmin } = await checkAdminStatus({ force: true });
-            if (!cancelled && isAdmin) {
-              navigate("/platform-admin", { replace: true });
+            const res = await checkAdminStatus({ force: true });
+            if (!cancelled && res.success && res.data.isPlatformAdmin) {
+              navigate(ROUTES.SUPER_ADMIN_DASHBOARD, { replace: true });
             }
           }
         }
@@ -71,15 +72,15 @@ function Login() {
     if (session?.canAccessWorkspace) {
       // Check if this is a first-login account that must reset its password
       try {
-        const mustReset = await checkMustResetPassword();
-        if (mustReset) {
-          navigate("/reset-password", { replace: true });
+        const res = await checkMustResetPassword();
+        if (res.success && res.data) {
+          navigate(ROUTES.RESET_PASSWORD, { replace: true });
           return;
         }
       } catch {
         // Non-critical — let them into the workspace
       }
-      navigate("/dashboard", { replace: true });
+      navigate(ROUTES.DASHBOARD, { replace: true });
       return;
     }
 
@@ -130,9 +131,9 @@ function Login() {
         <div>
           <p className="glass-kicker">Secure Access</p>
           <h1>Law Office Management Platform</h1>
-           <p className="glass-subtitle">
-             Sign in to access the active law office workspace.
-           </p>
+          <p className="glass-subtitle">
+            Sign in to access the active law office workspace.
+          </p>
         </div>
 
         <form className="glass-form" onSubmit={handleSignIn}>
@@ -166,9 +167,9 @@ function Login() {
         </div>
         <p>for queries contact <a href="https://www.appiture.in" target="_blank" rel="noopener noreferrer">www.appiture.in</a></p>
         <p style={{ marginTop: 12, fontSize: 11, opacity: 0.35 }}>
-          <a href="/super-admin-login" style={{ color: "#FBBF24", textDecoration: "none" }}>
+          <Link to={ROUTES.SUPER_ADMIN_LOGIN} style={{ color: "#FBBF24", textDecoration: "none" }}>
             ⭐ Super Admin Portal
-          </a>
+          </Link>
         </p>
       </footer>
     </div>

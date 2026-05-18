@@ -1,28 +1,54 @@
+import { ROUTES } from '../constants/routes';
+
 /**
  * Navigation Helper for Universal Deep Linking
  * Centralizes all routing logic for notifications and entity access
  */
 
-export const getEntityUrl = (entityType, entityId, parentId = null) => {
-  if (!entityId) return '/dashboard';
+export const getEntityUrl = (entityType, entityId) => {
+  if (!entityId) return ROUTES.DASHBOARD;
 
   switch (entityType?.toLowerCase()) {
     case 'client':
-      return `/clients/${entityId}`;
+      return `${ROUTES.CLIENTS}/${entityId}`;
     case 'case':
-      return `/cases/${entityId}`;
+      return `${ROUTES.CASES}/${entityId}`;
     case 'hearing':
-    case 'followup':
     case 'deadline':
-      return `/followups/${entityId}`;
+      return `${ROUTES.HEARINGS}/${entityId}`;
     case 'payment':
-      return `/payments?searchId=${entityId}`;
+      return `${ROUTES.PAYMENTS}?searchId=${entityId}`;
     case 'task':
-      return `/tasks?focus=${entityId}`;
+      return `${ROUTES.TASKS}?focus=${entityId}`;
     case 'document':
-      return `/documents?focus=${entityId}`;
+      return `${ROUTES.DOCUMENTS}?focus=${entityId}`;
     default:
-      return '/dashboard';
+      return ROUTES.DASHBOARD;
+  }
+};
+
+/**
+ * Maps notification types to correct platform routes
+ */
+export const getNotificationRedirect = (notification) => {
+  if (!notification) return ROUTES.DASHBOARD;
+  
+  const type = (notification.entityType || "").toUpperCase();
+  const id = notification.entityId;
+
+  switch (type) {
+    case "HEARING":
+      return `${ROUTES.HEARINGS}/${id || ""}`;
+    case "TASK":
+      return `${ROUTES.TASKS}/${id || ""}`;
+    case "PAYMENT":
+      return `${ROUTES.PAYMENTS}/${id || ""}`;
+    case "CASE":
+      return `${ROUTES.CASES}/${id || ""}`;
+    case "CLIENT":
+      return `${ROUTES.CLIENTS}/${id || ""}`;
+    default:
+      return ROUTES.DASHBOARD;
   }
 };
 
@@ -32,3 +58,4 @@ export const getEntityUrl = (entityType, entityId, parentId = null) => {
 export const useEntityFocus = (searchParams, paramName = 'focus') => {
   return searchParams.get(paramName);
 };
+

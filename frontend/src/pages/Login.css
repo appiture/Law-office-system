@@ -68,7 +68,7 @@
 }
 
 .glass-form input:not([type="checkbox"])::placeholder {
-  color: #64748b;
+  color: #94a3b8;
 }
 
 .glass-form input:not([type="checkbox"]):focus {

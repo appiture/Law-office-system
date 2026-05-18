@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useSearchParams, Link } from "react-router-dom";
-import AppShell from "../components/AppShell";
+import AppShell from "../components/layout/AppShell";
 import CaseIdentityCard from "../components/CaseIdentityCard";
 import HeaderFilters from "../components/HeaderFilters";
 import ControlledSearchPanel, { EmptyState, ErrorState, LoadingState, PaginationControls } from "../components/ControlledSearchPanel";
@@ -15,7 +15,7 @@ import {
   resolveOtherSelection,
 } from "../utils/validation";
 import { currency, formatDate, sentenceCaseStatus, textOrDash } from "../utils/formatters";
-import ExportModal from "../components/ExportModal";
+import { openExport } from "../store/exportStore";
 import logger from "../services/loggerService";
 import "./formStyles.css";
 
@@ -381,7 +381,6 @@ function Payments() {
   const [feeModal,     setFeeModal]     = useState(null); 
   const [payModal,     setPayModal]     = useState(null); 
   const [detailEntry,  setDetailEntry]  = useState(null); 
-  const [showExportModal, setShowExportModal] = useState(false);
   const [searchParams] = useSearchParams();
   const initialSearchCase = searchParams.get("searchCase") || "";
   const highlightCaseId   = searchParams.get("highlightCase") || "";
@@ -485,7 +484,7 @@ function Payments() {
       setHasLoaded(false);
       setError("");
     }
-  }, [filters.searchTerm, filters.status, filters.month, filters.fromDate, filters.toDate, initialSearchCase, initialSearchTriggered, handleSearch, hasLoaded, showAllMode]);
+  }, [filters, initialSearchCase, initialSearchTriggered, handleSearch, hasLoaded, showAllMode]);
 
   const handleShowAll = () => {
     setShowAllMode(true);
@@ -498,7 +497,22 @@ function Payments() {
       subtitle="Search fees and payments by case, client, fee category, mode, or reference."
       actions={
         <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "nowrap", overflowX: "auto" }}>
-          <button type="button" className="btn-gold" style={{ fontSize: "12px", padding: "6px 12px", whiteSpace: "nowrap" }} onClick={() => setShowExportModal(true)}>
+          <button type="button" className="btn-gold" style={{ fontSize: "12px", padding: "6px 12px", whiteSpace: "nowrap" }} onClick={() => openExport({
+            type: "payments",
+            availableData: cases.flatMap(c => (c.paymentHistory || []).map(p => ({
+              ...p,
+              caseNumber: c.caseNumber || c.case_number,
+              clientName: c.client?.name || c.clientName,
+              charge_name: p.chargeLabel || p.charge_name,
+              amount_paid: p.amount || p.amount_paid,
+              payment_mode: p.paymentMode || p.payment_mode,
+              payment_reference: p.paymentReference || p.payment_reference,
+              payment_date: p.paymentDate || p.payment_date,
+              case: { caseNumber: c.caseNumber || c.case_number },
+            }))),
+            currentFilters: filters,
+            defaultDateRange: { start: filters.fromDate, end: filters.toDate }
+          })}>
             📥 Export
           </button>
           <button type="button" className="primary-button" style={{ fontSize: "12px", padding: "6px 12px", whiteSpace: "nowrap" }} onClick={() => void openPaymentModal(null)} disabled={modalLoading}>
@@ -689,31 +703,6 @@ function Payments() {
       {payModal && <PaymentModal initialCaseId={payModal.initialCaseId} cases={modalCases.length ? modalCases : cases} onClose={() => setPayModal(null)} onSaved={loadData} />}
       {detailEntry && <PaymentDetailModal entry={detailEntry} onClose={() => setDetailEntry(null)} />}
 
-      {showExportModal && (
-        <ExportModal
-          isOpen={showExportModal}
-          onClose={() => setShowExportModal(false)}
-          type="payments"
-          availableData={
-            // Flatten paymentHistory from all loaded case objects for preview
-            cases.flatMap(c =>
-              (c.paymentHistory || []).map(p => ({
-                ...p,
-                caseNumber: c.caseNumber || c.case_number,
-                clientName: c.client?.name || c.clientName,
-                charge_name: p.chargeLabel || p.charge_name,
-                amount_paid: p.amount || p.amount_paid,
-                payment_mode: p.paymentMode || p.payment_mode,
-                payment_reference: p.paymentReference || p.payment_reference,
-                payment_date: p.paymentDate || p.payment_date,
-                case: { caseNumber: c.caseNumber || c.case_number },
-              }))
-            )
-          }
-          currentFilters={filters}
-          defaultDateRange={{ start: filters.fromDate, end: filters.toDate }}
-        />
-      )}
     </AppShell>
   );
 }

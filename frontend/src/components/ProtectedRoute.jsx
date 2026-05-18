@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Navigate, useLocation } from "react-router-dom";
+import { ROUTES } from "../constants/routes";
 import { 
   canAccessWorkspace, 
   isAuthenticated, 
@@ -35,8 +36,9 @@ function ProtectedRoute({ children, section, requirePlatformAdmin = false }) {
         // Hit the DB once to verify before blocking with the workspace error.
         if (isAuthenticated() && !canAccessWorkspace()) {
           try {
-            const { isPlatformAdmin: adminResult } = await checkAdminStatus({ force: true });
-            if (!cancelled) {
+            const res = await checkAdminStatus({ force: true });
+            if (!cancelled && res.success) {
+              const adminResult = res.data.isPlatformAdmin;
               setIsAdmin(adminResult);
               if (adminResult) {
                 setAuthenticated(true);
@@ -75,30 +77,31 @@ function ProtectedRoute({ children, section, requirePlatformAdmin = false }) {
   }
 
   if (!authenticated) {
-    return <Navigate to="/login" replace />;
+    if (window.isLoggingOut) return null;
+    return <Navigate to={ROUTES.LOGIN} replace />;
   }
 
-  if (mustResetPassword() && location.pathname !== "/reset-password") {
-    return <Navigate to="/reset-password" replace />;
+  if (mustResetPassword() && location.pathname !== ROUTES.RESET_PASSWORD) {
+    return <Navigate to={ROUTES.RESET_PASSWORD} replace />;
   }
 
   // Explicit platform admin route protection
   if (requirePlatformAdmin && !isAdmin) {
-    return <Navigate to="/" replace />;
+    return <Navigate to={ROUTES.DASHBOARD} replace />;
   }
 
   // Path-based fallback for platform admin routes just in case
-  if (location.pathname.startsWith("/platform-admin") && !isAdmin) {
-    return <Navigate to="/" replace />;
+  if (location.pathname.startsWith(ROUTES.SUPER_ADMIN_DASHBOARD) && !isAdmin) {
+    return <Navigate to={ROUTES.DASHBOARD} replace />;
   }
   
-  if (location.pathname.startsWith("/system-audit") && !isAdmin) {
-    return <Navigate to="/" replace />;
+  if (location.pathname.startsWith(ROUTES.SYSTEM_AUDIT) && !isAdmin) {
+    return <Navigate to={ROUTES.DASHBOARD} replace />;
   }
 
   // Platform admin with no workspace → send directly to their portal
-  if (isAdmin && !canAccessWorkspace() && !location.pathname.startsWith("/platform-admin") && !location.pathname.startsWith("/system-audit")) {
-    return <Navigate to="/platform-admin" replace />;
+  if (isAdmin && !canAccessWorkspace() && !location.pathname.startsWith(ROUTES.SUPER_ADMIN_DASHBOARD) && !location.pathname.startsWith(ROUTES.SYSTEM_AUDIT)) {
+    return <Navigate to={ROUTES.SUPER_ADMIN_DASHBOARD} replace />;
   }
 
   // Demo expired block (only platform admins are exempt)
@@ -146,7 +149,7 @@ function ProtectedRoute({ children, section, requirePlatformAdmin = false }) {
   }
 
   if (section && !canAccess(section)) {
-    return <Navigate to="/" replace />;
+    return <Navigate to={ROUTES.DASHBOARD} replace />;
   }
 
   return children;

@@ -1,4 +1,4 @@
-# Logs
+# Logs and tests
 logs
 *.log
 npm-debug.log*
@@ -6,22 +6,38 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
+test-results/
+playwright-report/
+blob-report/
 
-node_modules
-dist
-dist-ssr
+node_modules/
+dist/
+dist-ssr/
 *.local
 
-# Editor directories and files
+# Editor and OS
 .vscode/*
 !.vscode/extensions.json
-.idea
+.idea/
 .DS_Store
+Thumbs.db
 *.suo
 *.ntvs*
 *.njsproj
 *.sln
 *.sw?
+
+# Secrets and Env
 .env
 .env.*
 !.env.example
+*.key
+*.pem
+*.p12
+*.secret
+*secret*
+*credential*
+*confidential*
+*vault*
+secrets.json
+credentials.json

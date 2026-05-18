@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { useSearchParams, useParams } from "react-router-dom";
-import AppShell from "../components/AppShell";
+import AppShell from "../components/layout/AppShell";
 import CaseIdentityCard from "../components/CaseIdentityCard";
 import HeaderFilters from "../components/HeaderFilters";
 import ControlledSearchPanel, { EmptyState, ErrorState, LoadingState, PaginationControls } from "../components/ControlledSearchPanel";
@@ -9,15 +9,16 @@ import CaseCombobox from "../components/CaseCombobox";
 import { supabasePlatformApi as platformApi } from "../repositories/supabaseRepository";
 import { supabase } from "../services/supabaseClient";
 import {
-  assertFollowUpPayload,
+  assertHearingPayload,
   getApiErrorMessage,
-  normalizeFollowUpStatus,
+  normalizeHearingStatus,
   resolveOtherSelection,
   splitOtherSelection,
 } from "../utils/validation";
 import { formatDateTime, textOrDash } from "../utils/formatters";
-import ExportModal from "../components/ExportModal";
+import { openExport } from "../store/exportStore";
 import logger from "../services/loggerService";
+import { HEARING_STATUS } from "../constants/statuses";
 import "./formStyles.css";
 
 const EVENT_TYPES = ["HEARING", "DEADLINE", "JUDGMENT", "NOTE", "BAIL", "CHARGE", "SUBMISSION", "OTHER"];
@@ -40,7 +41,7 @@ const toDateTimeLocal = (v) => {
 };
 
 const emptyForm = {
-  type:"HEARING", title:"", scheduledAt:"", status:"PENDING",
+  type:"HEARING", case_title:"", hearing_date:"", status: HEARING_STATUS.PENDING,
   notes:"", postponedTo:"", alertLevel:"", typeOther:"",
 };
 
@@ -55,7 +56,7 @@ function FG({ label, required, hint, className, children }) {
   );
 }
 
-// ── Follow-up Event Modal ─────────────────────────────────────
+// ── Hearing Event Modal ───────────────────────────────────────
 function EventModal({ caseId, editItem, cases: availableCases = [], onClose, onSaved }) {
   const isEdit = Boolean(editItem);
   const cases = availableCases;
@@ -63,9 +64,9 @@ function EventModal({ caseId, editItem, cases: availableCases = [], onClose, onS
     caseId:      caseId || "",
     type:        splitOtherSelection(editItem.type, EVENT_TYPES, "OTHER").selected || "HEARING",
     typeOther:   splitOtherSelection(editItem.type, EVENT_TYPES, "OTHER").custom,
-    title:       editItem.title       || "",
-    scheduledAt: toDateTimeLocal(editItem.scheduledAt),
-    status:      normalizeFollowUpStatus(editItem.status),
+    case_title:  editItem.case_title  || editItem.title || "",
+    hearing_date: toDateTimeLocal(editItem.hearing_date || editItem.scheduledAt),
+    status:      normalizeHearingStatus(editItem.status),
     notes:       editItem.notes       || "",
     postponedTo: toDateTimeLocal(editItem.postponedTo),
   } : { caseId: caseId || "", ...emptyForm });
@@ -83,25 +84,25 @@ function EventModal({ caseId, editItem, cases: availableCases = [], onClose, onS
   const set = (f, v) => { setForm(p => ({ ...p, [f]: v })); setError(""); };
 
   const save = async () => {
-    if (!form.caseId)          { setError("Please select a case.");         return; }
-    if (!form.title.trim())    { setError("Event title is required.");    return; }
-    if (!form.scheduledAt)     { setError("Scheduled date is required."); return; }
+    if (!form.caseId)              { setError("Please select a case.");         return; }
+    if (!form.case_title.trim())   { setError("Event title is required.");    return; }
+    if (!form.hearing_date)        { setError("Scheduled date is required."); return; }
     if (form.type === "OTHER" && !form.typeOther.trim()) {
       setError("Please enter the custom event type."); return;
     }
     setSaving(true);
     try {
       const payload = {
-        type:        resolveOtherSelection(form.type, form.typeOther, "OTHER"),
-        title:       form.title,
-        scheduledAt: form.scheduledAt,
-        status:      normalizeFollowUpStatus(form.status),
-        notes:       form.notes || "",
-        postponedTo: normalizeFollowUpStatus(form.status) === "POSTPONED" ? (form.postponedTo || null) : null,
+        type:         resolveOtherSelection(form.type, form.typeOther, "OTHER"),
+        case_title:   form.case_title,
+        hearing_date: form.hearing_date,
+        status:       normalizeHearingStatus(form.status),
+        notes:        form.notes || "",
+        postponedTo:  normalizeHearingStatus(form.status) === HEARING_STATUS.POSTPONED ? (form.postponedTo || null) : null,
       };
-      assertFollowUpPayload(payload);
-      if (isEdit) await platformApi.updateFollowUp(form.caseId, editItem.id, payload);
-      else        await platformApi.addFollowUp(form.caseId, payload);
+      assertHearingPayload(payload);
+      if (isEdit) await platformApi.updateHearing(form.caseId, editItem.id, payload);
+      else        await platformApi.addHearing(form.caseId, payload);
       setToast(true);
       await onSaved();
       closeTimerRef.current = window.setTimeout(() => { setToast(false); onClose(); }, 2400);
@@ -152,20 +153,25 @@ function EventModal({ caseId, editItem, cases: availableCases = [], onClose, onS
               )}
               <FG label="Status">
                 <select value={form.status} onChange={e => set("status", e.target.value)}>
-                  <option value="PENDING">Pending</option>
-                  <option value="COMPLETED">Completed</option>
-                  <option value="POSTPONED">Postponed</option>
+                  <option value={HEARING_STATUS.PENDING}>Pending</option>
+                  <option value={HEARING_STATUS.COMPLETED}>Completed</option>
+                  <option value={HEARING_STATUS.POSTPONED}>Postponed</option>
                 </select>
               </FG>
-              <FG label="Event Title" required className="fcol-full">
-                <input value={form.title} onChange={e => set("title", e.target.value)}
-                  placeholder="e.g. First Hearing, Evidence Submission Deadline, Bail Hearing" />
-              </FG>
-              <FG label="Scheduled Date & Time" required>
-                <input type="datetime-local" value={form.scheduledAt}
-                  onChange={e => set("scheduledAt", e.target.value)} />
-              </FG>
-              {normalizeFollowUpStatus(form.status) === "POSTPONED" && (
+                <FG label="Event Title" required hint="E.g., Next Hearing Date, Submission Deadline, etc.">
+                  <input
+                    value={form.case_title}
+                    onChange={e => set("case_title", e.target.value)}
+                    placeholder="Enter event title"
+                  />
+                </FG>
+                <FG label="Scheduled At" required>
+                  <input
+                    type="datetime-local"
+                    value={form.hearing_date}
+                    onChange={e => set("hearing_date", e.target.value)}
+                  />
+                </FG>{normalizeHearingStatus(form.status) === HEARING_STATUS.POSTPONED && (
                 <FG label="Postponed To">
                   <input type="datetime-local" value={form.postponedTo}
                     onChange={e => set("postponedTo", e.target.value)} />
@@ -223,7 +229,7 @@ function TimelineNode({ item, onEdit, onComplete, onDelete }) {
             <div style={{ fontWeight:800, color:"#0f172a", fontSize:14, marginTop:2 }}>{item.title}</div>
           </div>
           <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
-            {normalizeFollowUpStatus(item.status) !== "COMPLETED" && (
+            {normalizeHearingStatus(item.status) !== HEARING_STATUS.COMPLETED && (
               <button className="btn-edit-soft" onClick={() => onComplete(item)} style={{ fontSize:11 }}>
                 ✔ Mark Done
               </button>
@@ -242,14 +248,13 @@ function TimelineNode({ item, onEdit, onComplete, onDelete }) {
   );
 }
 
-// ── FollowUps Page ────────────────────────────────────────────
-function FollowUps() {
+// ── Hearings Page ────────────────────────────────────────────
+function Hearings() {
   const [cases,      setCases]      = useState([]);
   const [modalCases, setModalCases] = useState([]);
   const [eventModal, setEventModal] = useState(null); // { caseId, editItem? }
-  const [showExportModal, setShowExportModal] = useState(false);
   const [searchParams] = useSearchParams();
-  const { followupId } = useParams();
+  const { hearingId } = useParams();
   const initialSearchCase = searchParams.get("searchCase") || "";
   const highlightCaseId   = searchParams.get("highlightCase") || "";
   const [filters, setFilters] = useState({ ...emptyFilters, searchTerm: initialSearchCase });
@@ -266,7 +271,7 @@ function FollowUps() {
     setLoading(true);
     setError("");
     try {
-      const response = await platformApi.searchFollowUps({
+      const response = await platformApi.searchHearings({
         filters: nextFilters,
         showAll,
         page: nextPage,
@@ -310,11 +315,11 @@ function FollowUps() {
     setEventModal(payload);
   };
 
-  const openFollowupModal = async (id) => {
+  const openHearingModal = useCallback(async (id) => {
     setModalLoading(true);
     try {
       const { data, error } = await supabase
-        .from("followups")
+        .from("hearings")
         .select("*")
         .eq("id", id)
         .single();
@@ -331,43 +336,42 @@ function FollowUps() {
         await openEventModal({ caseId: data.case_id, editItem });
       }
     } catch (err) {
-      logger.error("Failed to load follow-up", err);
+      logger.error("Failed to load hearing", err);
     } finally {
       setModalLoading(false);
     }
-  };
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (followupId) {
-      openFollowupModal(followupId);
+    if (hearingId) {
+      openHearingModal(hearingId);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [followupId]);
+  }, [hearingId, openHearingModal]);
 
   // Scroll to and highlight a specific case card when arriving from a notification
   useEffect(() => {
     if (!highlightCaseId || cases.length === 0) return;
-    const el = document.getElementById(`followup-case-${highlightCaseId}`);
+    const el = document.getElementById(`hearing-case-${highlightCaseId}`);
     if (el) {
       el.scrollIntoView({ behavior: "smooth", block: "center" });
     }
   }, [highlightCaseId, cases]);
 
   const markCompleted = async (caseId, item) => {
-    await platformApi.updateFollowUp(caseId, item.id, {
+    await platformApi.updateHearing(caseId, item.id, {
       type: item.type, title: item.title, scheduledAt: item.scheduledAt,
-      status: "COMPLETED", notes: item.notes || "", postponedTo: item.postponedTo || null,
+      status: HEARING_STATUS.COMPLETED, notes: item.notes || "", postponedTo: item.postponedTo || null,
     });
     await loadData();
   };
 
-  const deleteEvent = async (caseId, followUpId) => {
+  const deleteEvent = async (caseId, hearingId) => {
     if (!window.confirm("Remove this timeline event?")) return;
-    await platformApi.deleteFollowUp(caseId, followUpId);
+    await platformApi.deleteHearing(caseId, hearingId);
     await loadData();
   };
 
-  const totalEvents = cases.reduce((sum, c) => sum + (c.followUps?.length || 0), 0);
+  const totalEvents = cases.reduce((sum, c) => sum + (c.hearings?.length || 0), 0);
   const handleSearch = useCallback((nextFilters = filters) => {
     setShowAllMode(false);
     void loadData({ nextPage: 1, showAll: false, nextFilters });
@@ -386,6 +390,7 @@ function FollowUps() {
       setHasLoaded(false);
       setError("");
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters.searchTerm, filters.type, filters.status, filters.fromDate, filters.toDate, initialSearchCase, initialSearchTriggered, handleSearch, hasLoaded, showAllMode]);
 
   const handleShowAll = () => {
@@ -399,7 +404,23 @@ function FollowUps() {
       subtitle="Central timeline for hearings, deadlines, and key case milestones — colour-coded by urgency."
       actions={
         <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
-          <button type="button" className="btn-gold" onClick={() => setShowExportModal(true)}>
+          <button 
+            type="button" 
+            className="btn-gold" 
+            onClick={() => openExport({
+              type: "hearings",
+              availableData: cases.flatMap(c =>
+                (c.hearings || []).map(f => ({
+                  ...f,
+                  caseNumber: c.caseNumber || c.case_number,
+                  clientName: c.client?.name || c.clientName,
+                  case: { caseNumber: c.caseNumber || c.case_number },
+                }))
+              ),
+              currentFilters: filters,
+              dateRange: { start: filters.fromDate, end: filters.toDate }
+            })}
+          >
             📥 Export
           </button>
           <button type="button" className="primary-button" onClick={() => void openEventModal({})} disabled={modalLoading} style={{ whiteSpace: 'nowrap' }}>
@@ -430,9 +451,9 @@ function FollowUps() {
             id: "status",
             label: "Status",
             options: [
-              { value: "PENDING", label: "Pending" },
-              { value: "COMPLETED", label: "Completed" },
-              { value: "POSTPONED", label: "Postponed" }
+              { value: HEARING_STATUS.PENDING, label: "Pending" },
+              { value: HEARING_STATUS.COMPLETED, label: "Completed" },
+              { value: HEARING_STATUS.POSTPONED, label: "Postponed" }
             ]
           }
         ]}
@@ -456,12 +477,12 @@ function FollowUps() {
       )}
 
       <section className="card-grid">
-        {!hasLoaded && <EmptyState label="Use the filters above to load follow-ups." />}
-        {loading && <LoadingState label="Loading follow-ups..." />}
+        {!hasLoaded && <EmptyState label="Use the filters above to load hearings." />}
+        {loading && <LoadingState label="Loading hearings..." />}
         {hasLoaded && !loading && cases.map(legalCase => (
           <div
             key={legalCase.id}
-            id={`followup-case-${legalCase.id}`}
+            id={`hearing-case-${legalCase.id}`}
             style={highlightCaseId === String(legalCase.id) ? {
               outline: "2.5px solid var(--color-gold)",
               borderRadius: "14px",
@@ -472,13 +493,13 @@ function FollowUps() {
             <CaseIdentityCard
               item={legalCase}
               className="case-card-premium"
-              detailsTarget={`/cases/${legalCase.id}#followups-card`}
+              detailsTarget={`/cases/${legalCase.id}#hearings-card`}
             >
             <div className="mini-section">
               <div className="section-heading">
                  <div>
                    <h4 style={{ margin:0, fontSize:13, fontWeight:800, color:"var(--color-text)" }}>
-                     📌 Timeline Events ({legalCase.followUps?.length ?? 0})
+                     📌 Timeline Events ({legalCase.hearings?.length ?? 0})
                    </h4>
                   <p className="section-copy">Hearings, deadlines, and key milestones</p>
                 </div>
@@ -491,7 +512,7 @@ function FollowUps() {
               {/* Alert group legend */}
               <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
                 {ALERT_GROUPS.map(g => {
-                  const count = legalCase.followUps?.filter(f => f.alertLevel === g.key).length ?? 0;
+                  const count = legalCase.hearings?.filter(f => f.alertLevel === g.key).length ?? 0;
                   return count > 0 ? (
                     <span key={g.key} style={{ fontSize:11, fontWeight:700, color:g.color, background:`${g.color}15`, padding:"3px 9px", borderRadius:999 }}>
                       {g.label} ({count})
@@ -501,13 +522,13 @@ function FollowUps() {
               </div>
 
               {/* Timeline */}
-              {legalCase.followUps?.length > 0 ? (
+              {legalCase.hearings?.length > 0 ? (
                 <div style={{ position:"relative", paddingLeft:8 }}>
                   {/* Vertical line */}
                    <div style={{ position:"absolute", left:5, top:0, bottom:0, width:2, background:"linear-gradient(180deg,var(--color-gold-light),var(--color-border))", borderRadius:999 }} />
                   <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
                     {ALERT_GROUPS.flatMap(g =>
-                      (legalCase.followUps || [])
+                      (legalCase.hearings || [])
                         .filter(f => f.alertLevel === g.key)
                         .map(item => (
                           <TimelineNode
@@ -531,7 +552,7 @@ function FollowUps() {
           </div>
         ))}
 
-        {hasLoaded && !loading && cases.length === 0 && <EmptyState label="No follow-ups match your filters." />}
+        {hasLoaded && !loading && cases.length === 0 && <EmptyState label="No hearings match your filters." />}
       </section>
 
       <PaginationControls page={page} total={total} pageSize={PAGE_SIZE} onPageChange={(nextPage) => void loadData({ nextPage })} />
@@ -546,31 +567,11 @@ function FollowUps() {
         />
       )}
 
-      {showExportModal && (
-        <ExportModal
-          isOpen={showExportModal}
-          onClose={() => setShowExportModal(false)}
-          type="followups"
-          availableData={
-            // Flatten followUps from all loaded case objects for preview
-            cases.flatMap(c =>
-              (c.followUps || []).map(f => ({
-                ...f,
-                caseNumber: c.caseNumber || c.case_number,
-                clientName: c.client?.name || c.clientName,
-                case: { caseNumber: c.caseNumber || c.case_number },
-              }))
-            )
-          }
-          currentFilters={filters}
-          defaultDateRange={{ start: filters.fromDate, end: filters.toDate }}
-        />
-      )}
     </AppShell>
   );
 }
 
-export default FollowUps;
+export default Hearings;
 
 
 

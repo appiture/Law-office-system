@@ -1,16 +1,18 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useSearchParams } from "react-router-dom";
-import AppShell from "../components/AppShell";
+import AppShell from "../components/layout/AppShell";
 import { supabasePlatformApi as platformApi } from "../repositories/supabaseRepository";
-import { getOrganizationId, getUserId } from "../services/authService";
+import { getOrganizationId } from "../services/authService";
 import HeaderFilters from "../components/HeaderFilters";
-import ExportModal from "../components/ExportModal";
+import { openExport } from "../store/exportStore";
 import logger from "../services/loggerService";
+import { TASK_STATUS } from "../constants/statuses";
+import { formatDate } from "../utils/formatters";
 import "./Tasks.css";
 
 const PRIORITY_OPTIONS = ["LOW", "MEDIUM", "HIGH", "URGENT"];
-const STATUS_OPTIONS   = ["PENDING", "IN_PROGRESS", "COMPLETED", "CANCELLED"];
+const STATUS_OPTIONS   = [TASK_STATUS.PENDING, TASK_STATUS.IN_PROGRESS, TASK_STATUS.COMPLETED, TASK_STATUS.CANCELLED];
 
 const PRIORITY_META = {
   LOW:     { label: "Low",     emoji: "🟢", cls: "priority-low" },
@@ -20,26 +22,23 @@ const PRIORITY_META = {
 };
 
 const STATUS_META = {
-  PENDING:     { label: "Pending",     emoji: "⏳", cls: "status-pending" },
-  IN_PROGRESS: { label: "In Progress", emoji: "🔄", cls: "status-in-progress" },
-  COMPLETED:   { label: "Completed",   emoji: "✅", cls: "status-completed" },
-  CANCELLED:   { label: "Cancelled",   emoji: "❌", cls: "status-cancelled" },
+  [TASK_STATUS.PENDING]:     { label: "Pending",     emoji: "⏳", cls: "status-pending" },
+  [TASK_STATUS.IN_PROGRESS]: { label: "In Progress", emoji: "🔄", cls: "status-in-progress" },
+  [TASK_STATUS.COMPLETED]:   { label: "Completed",   emoji: "✅", cls: "status-completed" },
+  [TASK_STATUS.CANCELLED]:   { label: "Cancelled",   emoji: "❌", cls: "status-cancelled" },
 };
 
 const blankTask = () => ({
   title: "",
   description: "",
   priority: "MEDIUM",
-  status: "PENDING",
+  status: TASK_STATUS.PENDING,
   dueDate: "",
   assignedTo: "",
 });
 
 function formatDueDate(dateStr) {
-  if (!dateStr) return "";
-  const d = new Date(dateStr);
-  if (isNaN(d.getTime())) return dateStr;
-  return d.toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" });
+  return formatDate(dateStr);
 }
 
 function isDueSoon(dateStr) {
@@ -80,7 +79,7 @@ function QuickAddBar({ onAdd, saving }) {
   const submit = () => {
     const trimmed = title.trim();
     if (!trimmed) { inputRef.current?.focus(); return; }
-    onAdd({ title: trimmed, priority, dueDate, description: "", status: "PENDING", assignedTo: "" });
+    onAdd({ title: trimmed, priority, dueDate, description: "", status: TASK_STATUS.PENDING, assignedTo: "" });
     setTitle("");
     setPriority("MEDIUM");
     setDueDate("");
@@ -127,24 +126,24 @@ function QuickAddBar({ onAdd, saving }) {
 function TaskCard({ task, onEdit, onDelete, onToggleStatus }) {
   const pm = PRIORITY_META[task.priority] || PRIORITY_META.MEDIUM;
   const sm = STATUS_META[task.status]     || STATUS_META.PENDING;
-  const overdue = task.status === "PENDING" && isOverdue(task.dueDate);
-  const soon    = task.status === "PENDING" && isDueSoon(task.dueDate);
+  const overdue = task.status === TASK_STATUS.PENDING && isOverdue(task.dueDate);
+  const soon    = task.status === TASK_STATUS.PENDING && isDueSoon(task.dueDate);
 
   return (
     <div className={`task-card ${sm.cls} ${overdue ? "task-overdue" : soon ? "task-due-soon" : ""}`}>
       <div className="task-card-top">
         <button
           type="button"
-          className={`task-check ${task.status === "COMPLETED" ? "checked" : ""}`}
+          className={`task-check ${task.status === TASK_STATUS.COMPLETED ? "checked" : ""}`}
           onClick={() => onToggleStatus(task)}
-          title={task.status === "COMPLETED" ? "Mark as Pending" : "Mark as Complete"}
+          title={task.status === TASK_STATUS.COMPLETED ? "Mark as Pending" : "Mark as Complete"}
         >
-          {task.status === "COMPLETED" ? "✓" : ""}
+          {task.status === TASK_STATUS.COMPLETED ? "✓" : ""}
         </button>
 
         <div className="task-card-body">
           <div className="task-card-title-row">
-            <span className={`task-title ${task.status === "COMPLETED" ? "task-done-strike" : ""}`}>
+            <span className={`task-title ${task.status === TASK_STATUS.COMPLETED ? "task-done-strike" : ""}`}>
               {task.title}
             </span>
             <span className={`task-priority-badge ${pm.cls}`}>{pm.emoji} {pm.label}</span>
@@ -272,7 +271,6 @@ export default function Tasks() {
   const [toast, setToast]           = useState("");
   const [editingTask, setEditingTask] = useState(null);
   const [showModal, setShowModal]   = useState(false);
-  const [showExportModal, setShowExportModal] = useState(false);
   const [filterStatus, setFilterStatus] = useState("ALL");
   const [filterPriority, setFilterPriority] = useState("ALL");
   const [searchQuery, setSearchQuery] = useState("");
@@ -375,12 +373,12 @@ export default function Tasks() {
   };
 
   const handleToggleStatus = async (task) => {
-    const nextStatus = task.status === "COMPLETED" ? "PENDING" : "COMPLETED";
+    const nextStatus = task.status === TASK_STATUS.COMPLETED ? TASK_STATUS.PENDING : TASK_STATUS.COMPLETED;
     setSaving(true);
     try {
       const updated = await platformApi.updateTask(task.id, { ...task, status: nextStatus });
       setTasks(prev => prev.map(t => t.id === task.id ? updated : t));
-      showToast(nextStatus === "COMPLETED" ? "Marked complete! ✅" : "Marked pending.");
+      showToast(nextStatus === TASK_STATUS.COMPLETED ? "Marked complete! ✅" : "Marked pending.");
       dispatchTasksUpdated();
     } catch (err) {
       setError(err.message || "Failed to update task.");
@@ -389,9 +387,9 @@ export default function Tasks() {
     }
   };
 
-  const pendingCount    = tasks.filter(t => t && (t.status === "PENDING" || t.status === "IN_PROGRESS")).length;
-  const completedCount  = tasks.filter(t => t && t.status === "COMPLETED").length;
-  const overdueCount    = tasks.filter(t => t && (t.status === "PENDING" || t.status === "IN_PROGRESS") && isOverdue(t.dueDate)).length;
+  const pendingCount    = tasks.filter(t => t && (t.status === TASK_STATUS.PENDING || t.status === TASK_STATUS.IN_PROGRESS)).length;
+  const completedCount  = tasks.filter(t => t && t.status === TASK_STATUS.COMPLETED).length;
+  const overdueCount    = tasks.filter(t => t && (t.status === TASK_STATUS.PENDING || t.status === TASK_STATUS.IN_PROGRESS) && isOverdue(t.dueDate)).length;
 
   const searchTokens = buildSearchTokens(searchQuery);
   const filteredTasks = tasks.filter(task => {
@@ -409,8 +407,8 @@ export default function Tasks() {
 
   const PRIORITY_ORDER = { URGENT: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
   const sortedTasks = [...filteredTasks].sort((a, b) => {
-    if (a.status === "COMPLETED" && b.status !== "COMPLETED") return 1;
-    if (b.status === "COMPLETED" && a.status !== "COMPLETED") return -1;
+    if (a.status === TASK_STATUS.COMPLETED && b.status !== TASK_STATUS.COMPLETED) return 1;
+    if (b.status === TASK_STATUS.COMPLETED && a.status !== TASK_STATUS.COMPLETED) return -1;
     const pa = PRIORITY_ORDER[a.priority] ?? 2;
     const pb = PRIORITY_ORDER[b.priority] ?? 2;
     if (pa !== pb) return pa - pb;
@@ -425,7 +423,12 @@ export default function Tasks() {
       subtitle="Manage your team's action items, deadlines, and deliverables."
       actions={
         <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-          <button type="button" className="btn-gold" onClick={() => setShowExportModal(true)} style={{ background: "rgba(196, 154, 108, 0.1)", color: "var(--color-gold)", border: "1px solid var(--color-gold)" }}>
+          <button type="button" className="btn-gold" onClick={() => openExport({
+            type: "tasks",
+            availableData: sortedTasks,
+            currentFilters: { status: filterStatus, priority: filterPriority, searchTerm: searchQuery },
+            defaultDateRange: { start: filterFromDate, end: filterToDate }
+          })} style={{ background: "rgba(196, 154, 108, 0.1)", color: "var(--color-gold)", border: "1px solid var(--color-gold)" }}>
             📥 Export
           </button>
           <button type="button" className="btn-gold" onClick={() => { setEditingTask(null); setShowModal(true); }}>
@@ -535,17 +538,6 @@ export default function Tasks() {
           onClose={() => { setShowModal(false); setEditingTask(null); }}
           onSave={handleSave}
           saving={saving}
-        />
-      )}
-
-      {showExportModal && (
-        <ExportModal
-          isOpen={showExportModal}
-          onClose={() => setShowExportModal(false)}
-          type="tasks"
-          availableData={filteredTasks}
-          currentFilters={{ status: filterStatus, priority: filterPriority, searchTerm: searchQuery }}
-          defaultDateRange={{ start: filterFromDate, end: filterToDate }}
         />
       )}
 

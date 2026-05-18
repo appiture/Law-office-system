@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import AppShell from "../components/AppShell";
+import AppShell from "../components/layout/AppShell";
 import { supabasePlatformApi } from "../repositories/supabaseRepository";
 import { uploadAsset, buildTenantAssetPrefix } from "../services/storageService";
 import { supabaseBuckets } from "../services/supabaseClient";
@@ -10,11 +10,14 @@ import {
   getOrganizationPhone,
   getOrganizationEmail,
   getOrganizationWebsite,
+  getOrganizationId,
   getUserFullName, 
   getUserAvatarUrl,
   getUserEmail,
+  getUserId,
   syncSupabaseSession
 } from "../services/authService";
+import { clearCache } from "../lib/cache";
 import "./formStyles.css";
 
 function Settings() {
@@ -115,6 +118,13 @@ function Settings() {
         avatarPath
       });
       await syncSupabaseSession(null, { force: true });
+      
+      const userId = getUserId();
+      if (userId) {
+        clearCache(`adminStatus:${userId}`);
+        clearCache(`notifications:${getOrganizationId()}:${userId}`);
+      }
+
       setSuccess("Profile saved successfully!");
       setTimeout(() => setSuccess(""), 3000);
     } catch (err) {
@@ -141,6 +151,12 @@ function Settings() {
         website: orgWebsite
       });
       await syncSupabaseSession(null, { force: true });
+      
+      const orgId = getOrganizationId();
+      if (orgId) {
+        clearCache(`pendingTasksCount:${orgId}`);
+      }
+
       setSuccess("Organization branding saved successfully!");
       setTimeout(() => setSuccess(""), 3000);
     } catch (err) {

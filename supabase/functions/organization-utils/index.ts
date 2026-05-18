@@ -28,17 +28,17 @@ Deno.serve(async (request: Request): Promise<Response> => {
       .single();
     if (organizationError) throw organizationError;
 
-    const [users, clients, cases, documents, followups] = await Promise.all([
+    const [users, clients, cases, documents, hearings] = await Promise.all([
       countForOrg("users", organizationId),
       countForOrg("clients", organizationId),
       countForOrg("cases", organizationId),
       countForOrg("documents", organizationId),
-      countForOrg("followups", organizationId),
+      countForOrg("hearings", organizationId),
     ]);
 
     return jsonResponse({
       organization,
-      metrics: { users, clients, cases, documents, followups },
+      metrics: { users, clients, cases, documents, hearings },
     });
   } catch (error) {
     return jsonResponse({

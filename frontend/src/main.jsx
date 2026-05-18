@@ -1,5 +1,7 @@
 import React from 'react'
 import ReactDOM from 'react-dom/client'
+import { validateEnv } from './utils/envValidation'
+validateEnv();
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import * as Sentry from "@sentry/react"
 import App from './App'

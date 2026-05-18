@@ -62,12 +62,39 @@ Deno.serve(async (request: Request): Promise<Response> => {
       html = requireText(body.html, "HTML body", 50000);
     }
 
+    const attachments = [];
+    if (Array.isArray(body.attachments)) {
+      for (const att of body.attachments) {
+        if (!att.filename || !att.content || !att.contentType) {
+          throw new Error("Invalid attachment structure. Must have filename, content, and contentType.");
+        }
+        
+        const validMimes = [
+          "application/pdf",
+          "text/csv",
+          "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        ];
+        
+        if (!validMimes.includes(att.contentType)) {
+          throw new Error(`Invalid attachment MIME type: ${att.contentType}`);
+        }
+        
+        attachments.push({
+          filename: att.filename,
+          content: att.content,
+          contentType: att.contentType
+        });
+      }
+    }
+
     const delivery = await sendEmail({
       to: recipientEmail,
       subject,
       html,
       organizationId,
       templateName: emailType.toLowerCase(),
+      attachments,
     });
 
     const providerMessageId = delivery?.id || null;

@@ -1,4 +1,5 @@
 import { Component } from "react";
+import { ROUTES } from "../constants/routes";
 
 /**
  * Global error boundary — catches unhandled React rendering errors
@@ -27,7 +28,7 @@ class ErrorBoundary extends Component {
 
   handleGoHome = () => {
     this.setState({ hasError: false, error: null });
-    window.location.href = "/dashboard";
+    window.location.href = ROUTES.DASHBOARD;
   };
 
   render() {

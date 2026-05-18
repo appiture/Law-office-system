@@ -1,3 +1,4 @@
+import { ROUTES } from "../constants/routes";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "../services/supabaseClient";
@@ -37,9 +38,9 @@ function SuperAdminLogin() {
         if (cancelled || !session) { setChecking(false); return; }
 
         // Refresh admin status from DB
-        const { isPlatformAdmin: isAdmin } = await checkAdminStatus({ force: true });
-        if (!cancelled && isAdmin) {
-          navigate("/platform-admin", { replace: true });
+        const res = await checkAdminStatus({ force: true });
+        if (!cancelled && res.success && res.data.isPlatformAdmin) {
+          navigate(ROUTES.SUPER_ADMIN_DASHBOARD, { replace: true });
           return;
         }
       } catch {
@@ -70,18 +71,18 @@ function SuperAdminLogin() {
       if (authError) throw authError;
 
       /* 2. Verify platform-admin status */
-      const { isPlatformAdmin: isAdmin } = await checkAdminStatus({ force: true });
-      if (!isAdmin) {
+      const res = await checkAdminStatus({ force: true });
+      if (!res.success || !res.data.isPlatformAdmin) {
         // Sign them back out — they have no business here
         await supabase.auth.signOut();
-        throw new Error("Access denied. This portal is for platform administrators only.");
+        throw new Error(res.message || "Access denied. This portal is for platform administrators only.");
       }
 
       /* 3. Check if this super admin must reset their password first */
       try {
-        const mustReset = await checkMustResetPassword();
-        if (mustReset) {
-          navigate("/reset-password", { replace: true });
+        const resetRes = await checkMustResetPassword();
+        if (resetRes.success && resetRes.data) {
+          navigate(ROUTES.RESET_PASSWORD, { replace: true });
           return;
         }
       } catch {
@@ -89,7 +90,7 @@ function SuperAdminLogin() {
       }
 
       /* 4. All good → go to the Super Admin Dashboard */
-      navigate("/platform-admin", { replace: true });
+      navigate(ROUTES.SUPER_ADMIN_DASHBOARD, { replace: true });
     } catch (err) {
       setError(err?.message || "Unable to sign in.");
     } finally {
@@ -202,7 +203,7 @@ function SuperAdminLogin() {
         <p style={{ textAlign: "center", fontSize: 12, opacity: 0.4, margin: 0 }}>
           Regular staff?{" "}
           <a
-            href="/login"
+            href={ROUTES.LOGIN}
             style={{ color: "#FBBF24", textDecoration: "none", fontWeight: 600 }}
           >
             Go to staff login →

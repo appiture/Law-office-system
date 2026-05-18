@@ -4,7 +4,7 @@ import {
   assertChargePayload,
   assertClientPayload,
   assertDocumentPayload,
-  assertFollowUpPayload,
+  assertHearingPayload,
   assertPaymentPayload,
   normalizeDigits,
   requiredText,
@@ -12,16 +12,15 @@ import {
 import {
   buildDashboardSummary,
   computeChargeFinancials,
-  deriveFollowUpAlertLevel,
+  deriveHearingAlertLevel,
   summarizeCaseTotals,
   toIsoDate,
 } from "../utils/caseDomain";
 import { createSignedAssetUrl } from "../services/storageService";
 import { withRetry, normalizeError } from "../services/apiErrorService";
-// import { guardAction } from "../lib/rateLimiter";
 import { getUser } from "../store/sessionStore";
-
-const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
+import { caseRepository } from "./caseRepository";
+import { clientRepository } from "./clientRepository";const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes
 const MAX_SERVER_PAGE = 1000; // Safety cap for server-side queries
 
 /* ------------------------------------------------------------------ */
@@ -72,19 +71,11 @@ const normalizeRole = (value) => {
   return normalized || "LAWYER";
 };
 
-const normalizeAssignmentToken = (value) =>
-  String(value || "")
-    .toLowerCase()
-    .replace(/\b(adv|advocate|lawyer)\b/g, "")
-    .replace(/[^a-z0-9@.]+/g, "");
+// Removed unused: normalizeAssignmentToken
 
 const isLawyerContext = (context) => normalizeRole(context?.role) === "LAWYER";
 
-const isCaseAssignedToContext = (legalCase, context) => {
-  if (!isLawyerContext(context)) return true;
-  if (!legalCase?.assigned_lawyer_id) return false;
-  return String(legalCase.assigned_lawyer_id) === String(context?.userId);
-};
+// Removed unused: isCaseAssignedToContext
 
 const requireSupabase = () => {
   if (!supabase) {
@@ -126,6 +117,8 @@ const resetWorkspaceContextCache = () => {
   _pendingDataPromise = null;
   _pendingMappedCasesPromise = null;
   _pendingMappedClientsPromise = null;
+  // Ensure we don't return stale data if someone immediately calls a repo method
+  logger.info("Workspace context cache reset complete.");
 };
 
 let _pendingContextPromise = null;
@@ -281,7 +274,7 @@ const getWorkspaceData = async ({ refresh = false } = {}) => {
           charges: [],
           paymentHistory: [],
           documents: [],
-          followups: [],
+          hearings: [],
           tasks: [],
         };
         cache.data = empty;
@@ -312,7 +305,7 @@ const getWorkspaceData = async ({ refresh = false } = {}) => {
       let chargesQuery = client.from("payment_charges").select("id, payment_id, case_id, organization_id, name, total, paid, balance, due_date, status, display_order, description, is_lawyer_fee, created_at, created_by, updated_by").eq("organization_id", organizationId).is("deleted_at", null);
       let paymentHistoryQuery = client.from("payment_history").select("id, case_id, organization_id, payment_charge_id, charge_name, amount_paid, payment_mode, payment_reference, timestamp, updated_by, created_by").eq("organization_id", organizationId);
       let documentsQuery = client.from("documents").select("id, case_id, organization_id, file_url, file_path, file_name, file_type, file_size, category, description, created_at, uploaded_by").eq("organization_id", organizationId).is("deleted_at", null);
-      let followupsQuery = client.from("followups").select("id, case_id, organization_id, type, title, date, notes, status, postponed_to, created_at, created_by").eq("organization_id", organizationId).is("deleted_at", null);
+      let hearingsQuery = client.from("hearings").select("id, case_id, organization_id, type, title, date, notes, status, postponed_to, created_at, created_by").eq("organization_id", organizationId).is("deleted_at", null);
       let tasksQuery = client.from("tasks").select("*").eq("organization_id", organizationId).is("deleted_at", null);
 
       if (isLawyerContext(context)) {
@@ -322,22 +315,22 @@ const getWorkspaceData = async ({ refresh = false } = {}) => {
           chargesQuery = chargesQuery.in("case_id", visibleCaseIds);
           paymentHistoryQuery = paymentHistoryQuery.in("case_id", visibleCaseIds);
           documentsQuery = documentsQuery.in("case_id", visibleCaseIds);
-          followupsQuery = followupsQuery.in("case_id", visibleCaseIds);
+          hearingsQuery = hearingsQuery.in("case_id", visibleCaseIds);
           // Note: tasks might not be linked to a case_id, but if they are, they should be filtered.
           // However, action items are often personal or team-wide.
           // For now, we fetch all org tasks unless we decide to strictly filter by case.
         } else {
           // No cases, so no related data
-          return { clients: [], cases: [], payments: [], charges: [], paymentHistory: [], documents: [], followups: [], tasks: [] };
+          return { clients: [], cases: [], payments: [], charges: [], paymentHistory: [], documents: [], hearings: [], tasks: [] };
         }
       }
 
-      let [payments, charges, paymentHistory, documents, followups, tasks] = await Promise.all([
+      let [payments, charges, paymentHistory, documents, hearings, tasks] = await Promise.all([
         list(paymentsQuery.order("created_at", { ascending: false }).range(0, MAX_SERVER_PAGE - 1)),
         list(chargesQuery.order("display_order", { ascending: true }).range(0, MAX_SERVER_PAGE - 1)),
         list(paymentHistoryQuery.order("timestamp", { ascending: false }).range(0, MAX_SERVER_PAGE - 1)),
         list(documentsQuery.order("created_at", { ascending: false }).range(0, MAX_SERVER_PAGE - 1)),
-        list(followupsQuery.order("date", { ascending: true }).range(0, MAX_SERVER_PAGE - 1)),
+        list(hearingsQuery.order("date", { ascending: true }).range(0, MAX_SERVER_PAGE - 1)),
         list(tasksQuery.order("created_at", { ascending: false }).range(0, MAX_SERVER_PAGE - 1))
       ]);
 
@@ -346,7 +339,7 @@ const getWorkspaceData = async ({ refresh = false } = {}) => {
         clients = clients.filter((item) => visibleClientIds.has(String(item.id)));
       }
 
-      const data = { clients, cases, payments, charges, paymentHistory, documents, followups, tasks };
+      const data = { clients, cases, payments, charges, paymentHistory, documents, hearings, tasks };
       cache.data = data;
       cache.dataTimestamp = Date.now();
       cache.mappedCases = null;
@@ -383,6 +376,7 @@ const mapClientRecord = async (client, { includeAssets = true } = {}) => {
 
   return {
     id: client.id,
+    client_name: client.name,
     name: client.name,
     phone: client.phone,
     email: client.email,
@@ -438,10 +432,10 @@ const buildDatasetIndexes = (dataset) => {
     documentsByCase.get(item.case_id).push(item);
   });
 
-  const followUpsByCase = new Map();
-  dataset.followups.forEach((item) => {
-    if (!followUpsByCase.has(item.case_id)) followUpsByCase.set(item.case_id, []);
-    followUpsByCase.get(item.case_id).push(item);
+  const hearingsByCase = new Map();
+  dataset.hearings.forEach((item) => {
+    if (!hearingsByCase.has(item.case_id)) hearingsByCase.set(item.case_id, []);
+    hearingsByCase.get(item.case_id).push(item);
   });
 
   const historyByCase = new Map();
@@ -457,8 +451,22 @@ const buildDatasetIndexes = (dataset) => {
     tasksByCase.get(item.case_id).push(item);
   });
 
-  return { clientsById, chargesById, chargesByCase, documentsByCase, followUpsByCase, historyByCase, tasksByCase };
+  return { clientsById, chargesById, chargesByCase, documentsByCase, hearingsByCase, historyByCase, tasksByCase };
 };
+
+const _mapTask = (row) => ({
+  id: row.id || row._id,
+  title: row.title || "",
+  description: row.description || "",
+  priority: row.priority || "MEDIUM",
+  status: row.status || "PENDING",
+  dueDate: row.due_date || row.dueDate || null,
+  assignedTo: row.assigned_to || row.assignedTo || "",
+  createdBy: row.created_by || row.createdBy || "",
+  createdAt: row.created_at || row.createdAt || new Date().toISOString(),
+  updatedAt: row.updated_at || row.updatedAt || null,
+  caseId: row.case_id || row.caseId || null,
+});
 
 const mapCaseRecord = async (
   legalCase,
@@ -468,7 +476,7 @@ const mapCaseRecord = async (
     chargesById,
     chargesByCase,
     documentsByCase,
-    followUpsByCase,
+    hearingsByCase,
     historyByCase,
     tasksByCase,
     includeClientAssets = true,
@@ -505,19 +513,21 @@ const mapCaseRecord = async (
     ? await Promise.all(caseDocuments.map((item) => mapDocumentRecord(item)))
     : [];
 
-  const caseFollowUps = followUpsByCase ? (followUpsByCase.get(legalCase.id) || []) : dataset.followups.filter((item) => item.case_id === legalCase.id);
-  const followUps = caseFollowUps
+  const caseHearings = hearingsByCase ? (hearingsByCase.get(legalCase.id) || []) : dataset.hearings.filter((item) => item.case_id === legalCase.id);
+  const hearings = caseHearings
     .map((item) => ({
       id: item.id,
       type: item.type,
+      case_title: item.title || item.type,
       title: item.title || item.type,
+      hearing_date: item.date,
       scheduledAt: item.date,
       status: item.status,
       notes: item.notes || "",
       postponedTo: item.postponed_to || null,
       createdBy: item.created_by || "",
       createdAt: item.created_at,
-      alertLevel: deriveFollowUpAlertLevel({
+      alertLevel: deriveHearingAlertLevel({
         status: item.status,
         scheduledAt: item.date,
         postponedTo: item.postponed_to,
@@ -552,6 +562,7 @@ const mapCaseRecord = async (
     id: legalCase.id,
     caseId: legalCase.id,
     caseNumber: legalCase.case_number,
+    case_title: legalCase.case_type,
     caseType: legalCase.case_type,
     courtName: legalCase.court_name,
     assignedLawyer: legalCase.lawyer_name,
@@ -573,7 +584,7 @@ const mapCaseRecord = async (
     chargeItems,
     paymentHistory: history,
     documents,
-    followUps,
+    hearings,
     tasks,
     totalAmount: totals.totalAmount,
     paidAmount: totals.paidAmount,
@@ -651,7 +662,7 @@ const getMappedClients = async ({ refresh = false } = {}) => {
             paidAmount: legalCase.paidAmount,
             balanceAmount: legalCase.balanceAmount,
             documentCount: legalCase.documents.length,
-            followUpCount: legalCase.followUps.length,
+            hearingCount: legalCase.hearings.length,
             clientName: legalCase.client?.name,
             clientPhotoUrl: legalCase.client?.photoUrl,
           }));
@@ -799,32 +810,10 @@ const paginateItems = (items, page = 1, pageSize = DEFAULT_PAGE_SIZE) => {
   };
 };
 
-const isWriteOperation = (key) => ["save", "add", "update", "delete"].some((prefix) => key.startsWith(prefix));
-
-const checkServerRateLimit = async (key) => {
-  const { error } = await requireSupabase().rpc("check_rate_limit", {
-    _action_key: key,
-    _max_requests: 10,
-    _window_seconds: 60,
-  });
-  if (error) throw error;
-};
 
 /* ── Task helpers (localStorage fallback when DB table absent) ──────── */
 const _TASKS_KEY = (orgId) => `lawoffice.tasks.${orgId}`;
 
-const _mapTask = (row) => ({
-  id: row.id || row._id,
-  title: row.title || "",
-  description: row.description || "",
-  priority: row.priority || "MEDIUM",
-  status: row.status || "PENDING",
-  dueDate: row.due_date || row.dueDate || null,
-  assignedTo: row.assigned_to || row.assignedTo || "",
-  createdBy: row.created_by || row.createdBy || "",
-  createdAt: row.created_at || row.createdAt || new Date().toISOString(),
-  updatedAt: row.updated_at || row.updatedAt || null,
-});
 
 const _localTasks = (orgId) => {
   try {
@@ -893,706 +882,8 @@ const supabasePlatformApi = {
       value: item.full_name || item.email,
     }));
   },
-  searchClients: async ({ filters = {}, page = 1, pageSize = DEFAULT_PAGE_SIZE, showAll = false } = {}) => {
-    const effectiveFilters = getEffectiveFilters(filters, showAll);
-    const tokens = getSearchTokens(effectiveFilters.searchTerm, effectiveFilters.name);
-    const phoneTokens = getSearchTokens(effectiveFilters.phone);
-    const emailTokens = getSearchTokens(effectiveFilters.email);
-    const clients = await getMappedClients();
-    const matches = clients.filter((item) => {
-      const searchMatch = matchesSearchTokens(tokens, [
-        item.name,
-        item.phone,
-        item.email,
-        item.address,
-        item.city,
-        item.state,
-        item.pinCode,
-        item.occupation,
-        item.notes,
-        item.idProofNumber,
-      ]);
-      const phoneMatch = matchesSearchTokens(phoneTokens, [item.phone, item.altPhone, item.emergencyContactPhone]);
-      const emailMatch = matchesSearchTokens(emailTokens, [item.email]);
-      const dateRangeMatch = isDateWithinRange(item.createdAt, effectiveFilters.fromDate, effectiveFilters.toDate);
-
-      return searchMatch && phoneMatch && emailMatch && dateRangeMatch;
-    });
-    return paginateItems(matches, page, pageSize);
-  },
-  getClient: async (clientId) => {
-    const context = await internalGetWorkspaceContext();
-    if (isLawyerContext(context)) {
-      const clients = await getMappedClients();
-      const client = clients.find((item) => String(item.id) === String(clientId));
-      if (!client) throw new Error("Client not found.");
-      return client;
-    }
-
-    const data = await single(
-      requireSupabase()
-        .from("clients")
-        .select("*")
-        .eq("id", clientId)
-        .eq("organization_id", context.organizationId)
-        .is("deleted_at", null)
-    );
-    if (!data) throw new Error("Client not found.");
-    return mapClientRecord(data);
-  },
-  saveClient: async (payload, clientId) => {
-    const actionKey = `saveClient:${clientId || "new"}`;
-    return ((_k, _f) => _f())(actionKey, async () => {
-      const context = await internalGetWorkspaceContext();
-      if (!context?.organizationId) throw new Error("No organization workspace is available.");
-
-      assertClientPayload({
-        ...payload,
-        phone: normalizeDigits(payload.phone),
-        email: payload.email?.trim(),
-      });
-
-      const record = {
-        organization_id: context.organizationId,
-        name: payload.name?.trim(),
-        phone: normalizeDigits(payload.phone),
-        email: payload.email ? normalizeEmail(payload.email) : "",
-        address: payload.address || "",
-        photo_url: payload.photoUrl || "",
-        photo_path: payload.photoPath || "",
-        notes: payload.notes || "",
-        updated_by: context.email,
-        id_proof: {
-          type: payload.idProofType || "",
-          number: payload.idProofNumber || "",
-          file_url: payload.idProofFileUrl || "",
-          file_path: payload.idProofFilePath || "",
-        },
-        details: {
-          gender: payload.gender || "",
-          dateOfBirth: payload.dateOfBirth || "",
-          occupation: payload.occupation || "",
-          referralSource: payload.referralSource || "",
-          altPhone: payload.altPhone ? normalizeDigits(payload.altPhone) : "",
-          city: payload.city || "",
-          state: payload.state || "",
-          pinCode: payload.pinCode || "",
-          emergencyContactName: payload.emergencyContactName || "",
-          emergencyContactPhone: payload.emergencyContactPhone ? normalizeDigits(payload.emergencyContactPhone) : "",
-        },
-      };
-
-      let savedClientId = clientId;
-      if (clientId) {
-        const { error } = await requireSupabase()
-          .from("clients")
-          .update(record)
-          .eq("id", clientId)
-          .eq("organization_id", context.organizationId);
-        if (error) throw error;
-      } else {
-        record.created_by = context.email;
-        const inserted = await single(requireSupabase().from("clients").insert(record).select("id"));
-        savedClientId = inserted?.id;
-      }
-
-      resetWorkspaceDataCache();
-      return supabasePlatformApi.getClient(savedClientId);
-    });
-  },
-  deleteClient: async (clientId) => {
-    const actionKey = `deleteClient:${clientId}`;
-    return ((_k, _f) => _f())(actionKey, async () => {
-      const context = await internalGetWorkspaceContext();
-      if (!context?.organizationId) throw new Error("No organization workspace is available.");
-
-      const { error: rpcError } = await requireSupabase()
-        .rpc("hard_delete_client", { target_client_id: clientId });
-
-      if (!rpcError) {
-        resetWorkspaceDataCache();
-        return { id: clientId, deleted: true };
-      }
-
-      if (rpcError.code !== "42883" && rpcError.code !== "PGRST202") {
-        throw rpcError;
-      }
-
-      const existingClient = await single(
-        requireSupabase()
-          .from("clients")
-          .select("id")
-          .eq("id", clientId)
-          .eq("organization_id", context.organizationId)
-          .is("deleted_at", null)
-      );
-      if (!existingClient) throw new Error("Client not found.");
-
-      const caseRows = await list(
-        requireSupabase()
-          .from("cases")
-          .select("id")
-          .eq("client_id", clientId)
-          .eq("organization_id", context.organizationId)
-          .is("deleted_at", null)
-      );
-      const caseIds = caseRows.map((item) => item.id).filter(Boolean);
-
-      const deleteFrom = async (table, column, values) => {
-        if (!values.length) return;
-        const { error } = await requireSupabase()
-          .from(table)
-          .delete()
-          .eq("organization_id", context.organizationId)
-          .in(column, values);
-        if (error) throw error;
-      };
-
-      await deleteFrom("payment_history", "case_id", caseIds);
-      await deleteFrom("documents", "case_id", caseIds);
-      await deleteFrom("followups", "case_id", caseIds);
-      await deleteFrom("payment_charges", "case_id", caseIds);
-      await deleteFrom("payments", "case_id", caseIds);
-      await deleteFrom("cases", "id", caseIds);
-
-      const { error } = await requireSupabase()
-        .from("clients")
-        .delete()
-        .eq("id", clientId)
-        .eq("organization_id", context.organizationId);
-
-      if (error) throw error;
-      resetWorkspaceDataCache();
-      return { id: clientId, deleted: true };
-    });
-  },
-  getCases: async () => {
-    return getMappedCases();
-  },
-  searchCases: async ({ filters = {}, page = 1, pageSize = DEFAULT_PAGE_SIZE, showAll = false } = {}) => {
-    const effectiveFilters = getEffectiveFilters(filters, showAll);
-    const tokens = getSearchTokens(effectiveFilters.searchTerm, effectiveFilters.caseNumber, effectiveFilters.clientName);
-    const caseType = normalizeSearchText(effectiveFilters.caseType);
-    const status = normalizeSearchText(effectiveFilters.status);
-    const cases = await getMappedCases();
-    const matches = cases.filter((item) => {
-      const searchMatch = matchesSearchTokens(tokens, [
-        item.caseNumber,
-        item.caseType,
-        item.status,
-        item.courtName,
-        item.judgeName,
-        item.assignedLawyer,
-        item.opponentName,
-        item.opponentLawyer,
-        item.caseDescription,
-        item.client?.name,
-        item.client?.phone,
-        item.client?.email,
-      ]);
-      const typeMatch = !caseType || normalizeSearchText(item.caseType).includes(caseType);
-      const statusMatch = !status || normalizeSearchText(item.status) === status;
-      const dateRangeMatch = isDateWithinRange(item.createdAt, effectiveFilters.fromDate, effectiveFilters.toDate);
-
-      return searchMatch && typeMatch && statusMatch && dateRangeMatch;
-    });
-    return paginateItems(matches, page, pageSize);
-  },
-  getCase: async (caseId) => {
-    const context = await internalGetWorkspaceContext();
-    let query = requireSupabase()
-      .from("cases")
-      .select("*")
-      .eq("id", caseId)
-      .eq("organization_id", context.organizationId)
-      .is("deleted_at", null);
-
-    if (isLawyerContext(context)) {
-      query = query.eq("assigned_lawyer_id", context.userId);
-    }
-
-    const data = await single(query);
-    if (!data) throw new Error("Case not found.");
-    const dataset = await getWorkspaceData();
-    return mapCaseRecord(data, dataset);
-  },
-  saveCase: async (payload, caseId) => {
-    const actionKey = `saveCase:${caseId || "new"}`;
-    return ((_k, _f) => _f())(actionKey, async () => {
-      const context = await internalGetWorkspaceContext();
-      if (!context?.organizationId) throw new Error("No organization workspace is available.");
-      await assertClientBelongsToWorkspace(payload.clientId);
-
-      assertCasePayload(payload);
-
-      const record = {
-        organization_id: context.organizationId,
-        client_id: payload.clientId,
-        case_number: payload.caseNumber?.trim(),
-        case_type: payload.caseType?.trim(),
-        court_name: payload.courtName || "",
-        lawyer_name: payload.assignedLawyer || "",
-        assigned_lawyer_id: payload.assigned_lawyer_id || null,
-        assigned_by: payload.assigned_lawyer_id ? context.userId : null,
-        assigned_at: payload.assigned_lawyer_id ? new Date().toISOString() : null,
-        status: payload.status || "OPEN",
-        updated_by: context.email,
-        details: {
-          judgeName: payload.judgeName || "",
-          filingDate: payload.filingDate || "",
-          firstHearingDate: payload.firstHearingDate || "",
-          nextHearingDate: payload.nextHearingDate || "",
-          opponentName: payload.opponentName || "",
-          opponentLawyer: payload.opponentLawyer || "",
-          caseDescription: payload.caseDescription || "",
-        },
-      };
-
-      let savedCaseId = caseId;
-      if (caseId) {
-        const { error } = await requireSupabase()
-          .from("cases")
-          .update(record)
-          .eq("id", caseId)
-          .eq("organization_id", context.organizationId);
-        if (error) throw error;
-      } else {
-        record.created_by = context.email;
-        const inserted = await single(requireSupabase().from("cases").insert(record).select("id"));
-        savedCaseId = inserted?.id;
-      }
-
-      if (savedCaseId) {
-        await ensurePaymentShell(context.organizationId, savedCaseId);
-        await logObservabilityEvent(context, "cases", caseId ? "UPDATE_CASE" : "CREATE_CASE", { caseId: savedCaseId });
-      }
-
-      resetWorkspaceDataCache();
-      return supabasePlatformApi.getCase(savedCaseId);
-    });
-  },
-  addDocument: async (caseId, payload) => {
-    const actionKey = `addDocument:${caseId}`;
-    return ((_k, _f) => _f())(actionKey, async () => {
-      const context = await internalGetWorkspaceContext();
-      await supabasePlatformApi.getCase(caseId);
-      validateCaseScopedPath(payload.filePath, context.organizationId, caseId);
-      assertDocumentPayload(payload);
-      const { error } = await requireSupabase().from("documents").insert({
-        organization_id: context.organizationId,
-        case_id: caseId,
-        category: payload.category,
-        file_name: payload.fileName,
-        file_url: payload.fileUrl || "",
-        file_path: payload.filePath || "",
-        file_type: payload.fileType || "",
-        file_size: payload.fileSize || 0,
-        description: payload.description || "",
-        uploaded_by: context.email,
-      });
-
-      if (error) throw error;
-      await logObservabilityEvent(context, "documents", "DOCUMENT_UPLOAD", { caseId, category: payload.category });
-      resetWorkspaceDataCache();
-      return supabasePlatformApi.getCase(caseId);
-    });
-  },
-  deleteDocument: async (caseId, documentId) => {
-    const context = await internalGetWorkspaceContext();
-    const { error } = await requireSupabase()
-      .from("documents")
-      .update({ deleted_at: new Date().toISOString(), updated_by: context.email })
-      .eq("id", documentId)
-      .eq("organization_id", context.organizationId);
-    if (error) throw error;
-    resetWorkspaceDataCache();
-    return supabasePlatformApi.getCase(caseId);
-  },
-  addChargeItem: async (caseId, payload) => {
-    const actionKey = `addCharge:${caseId}`;
-    return ((_k, _f) => _f())(actionKey, async () => {
-      const context = await internalGetWorkspaceContext();
-      await supabasePlatformApi.getCase(caseId);
-      assertChargePayload(payload);
-      const payment = await ensurePaymentShell(context.organizationId, caseId);
-
-      const { data: insertedCharge, error } = await requireSupabase().from("payment_charges").insert({
-        organization_id: context.organizationId,
-        payment_id: payment.id,
-        case_id: caseId,
-        name: payload.label,
-        total: Number(payload.totalAmount),
-        paid: Number(payload.paidAmount || 0),
-        due_date: payload.dueDate || null,
-        display_order: payload.displayOrder || 0,
-        description: payload.description || "",
-        is_lawyer_fee: Boolean(payload.isLawyerFee),
-        created_by: context.email,
-        updated_by: context.email,
-      }).select("id, name, paid").single();
-
-      if (error) throw error;
-
-      if (insertedCharge.paid > 0) {
-        const historyResult = await requireSupabase().from("payment_history").insert({
-          organization_id: context.organizationId,
-          case_id: caseId,
-          payment_charge_id: insertedCharge.id,
-          charge_name: insertedCharge.name,
-          amount_paid: insertedCharge.paid,
-          payment_mode: payload.paymentMode || "Cash",
-          payment_reference: payload.paymentReference || "",
-          timestamp: new Date().toISOString(),
-          updated_by: context.email,
-          created_by: context.email,
-        });
-        if (historyResult.error) throw historyResult.error;
-      }
-
-      await logObservabilityEvent(context, "payments", "CREATE_CHARGE", { caseId, chargeId: insertedCharge.id });
-      await syncPaymentTotals(payment.id, context.organizationId);
-      resetWorkspaceDataCache();
-      return supabasePlatformApi.getCase(caseId);
-    });
-  },
-  updateChargeItem: async (caseId, chargeItemId, payload) => {
-    const actionKey = `updateCharge:${chargeItemId}`;
-    return ((_k, _f) => _f())(actionKey, async () => {
-      const context = await internalGetWorkspaceContext();
-      await supabasePlatformApi.getCase(caseId);
-      assertChargePayload(payload);
-      const existing = await single(
-        requireSupabase()
-          .from("payment_charges")
-          .select("id, payment_id")
-          .eq("id", chargeItemId)
-          .eq("organization_id", context.organizationId)
-      );
-      if (!existing) throw new Error("Charge item not found.");
-
-      const { error } = await requireSupabase()
-        .from("payment_charges")
-        .update({
-          name: payload.label,
-          total: Number(payload.totalAmount),
-          paid: Number(payload.paidAmount || 0),
-          due_date: payload.dueDate || null,
-          display_order: payload.displayOrder || 0,
-          description: payload.description || "",
-          is_lawyer_fee: Boolean(payload.isLawyerFee),
-          updated_by: context.email,
-        })
-        .eq("id", chargeItemId)
-        .eq("organization_id", context.organizationId);
-
-      if (error) throw error;
-      await logObservabilityEvent(context, "payments", "UPDATE_CHARGE", { caseId, chargeId: chargeItemId });
-      await syncPaymentTotals(existing.payment_id, context.organizationId);
-      resetWorkspaceDataCache();
-      return supabasePlatformApi.getCase(caseId);
-    });
-  },
-  addPayment: async (caseId, payload) => {
-    const actionKey = `addPayment:${payload.chargeItemId}`;
-    return ((_k, _f) => _f())(actionKey, async () => {
-      const context = await internalGetWorkspaceContext();
-      const legalCase = await supabasePlatformApi.getCase(caseId);
-      const selectedChargeItem = assertChargeBelongsToCase(payload.chargeItemId, legalCase);
-      assertPaymentPayload(payload, selectedChargeItem.balanceAmount);
-
-      const existing = await single(
-        requireSupabase()
-          .from("payment_charges")
-          .select("*")
-          .eq("id", payload.chargeItemId)
-          .eq("organization_id", context.organizationId)
-      );
-      if (!existing) throw new Error("Charge item not found.");
-
-      const paid = Number(existing.paid || 0) + Number(payload.amount || 0);
-
-      const historyResult = await requireSupabase().from("payment_history").insert({
-        organization_id: context.organizationId,
-        case_id: caseId,
-        payment_charge_id: existing.id,
-        charge_name: existing.name,
-        amount_paid: Number(payload.amount || 0),
-        payment_mode: payload.paymentMode,
-        payment_reference: payload.paymentReference || "",
-        timestamp: toIsoDate(payload.paymentDate) || new Date().toISOString(),
-        updated_by: context.email,
-        created_by: context.email,
-      });
-
-      if (historyResult.error) throw historyResult.error;
-
-      const updateResult = await requireSupabase()
-        .from("payment_charges")
-        .update({
-          paid,
-          updated_by: context.email,
-        })
-        .eq("id", existing.id)
-        .eq("organization_id", context.organizationId);
-
-      if (updateResult.error) throw updateResult.error;
-      await logObservabilityEvent(context, "payments", "RECORD_PAYMENT", { caseId, amount: payload.amount });
-      resetWorkspaceDataCache();
-      return supabasePlatformApi.getCase(caseId);
-    });
-  },
-  getPayments: async () => getMappedCases(),
-  searchPayments: async ({ filters = {}, page = 1, pageSize = DEFAULT_PAGE_SIZE, showAll = false } = {}) => {
-    const effectiveFilters = getEffectiveFilters(filters, showAll);
-    const tokens = getSearchTokens(effectiveFilters.searchTerm, effectiveFilters.caseNumber, effectiveFilters.clientName);
-    const status = normalizeSearchText(effectiveFilters.status);
-    const cases = await getMappedCases();
-    const matches = cases.filter((item) => {
-      const chargeValues = (item.chargeItems || []).flatMap((charge) => [
-        charge.label,
-        charge.status,
-        charge.description,
-        charge.dueDate,
-      ]);
-      const historyValues = (item.paymentHistory || []).flatMap((entry) => [
-        entry.chargeLabel,
-        entry.paymentMode,
-        entry.paymentReference,
-        entry.recordedBy,
-        entry.paymentDate,
-        entry.createdAt,
-      ]);
-      const searchMatch = matchesSearchTokens(tokens, [
-        item.caseNumber,
-        item.caseType,
-        item.status,
-        item.client?.name,
-        item.client?.phone,
-        item.client?.email,
-        chargeValues,
-        historyValues,
-      ]);
-      const statusMatch = !status || (item.chargeItems || []).some((charge) => normalizeSearchText(charge.status) === status);
-      
-      let monthMatch = true;
-      if (effectiveFilters.month) {
-        const monthPrefix = effectiveFilters.month; // "YYYY-MM"
-        const hasPaymentInMonth = (item.paymentHistory || []).some(entry => String(entry.paymentDate || entry.createdAt || "").startsWith(monthPrefix));
-        const hasChargeInMonth = (item.chargeItems || []).some(charge => String(charge.createdAt || charge.dueDate || "").startsWith(monthPrefix));
-        monthMatch = hasPaymentInMonth || hasChargeInMonth;
-      }
-
-      let dateRangeMatch = true;
-      if (effectiveFilters.fromDate || effectiveFilters.toDate) {
-        const start = effectiveFilters.fromDate ? new Date(effectiveFilters.fromDate) : null;
-        const end = effectiveFilters.toDate ? new Date(effectiveFilters.toDate) : null;
-        if (start) start.setHours(0, 0, 0, 0);
-        if (end) end.setHours(23, 59, 59, 999);
-
-        dateRangeMatch = (item.chargeItems || []).some(charge => {
-          if (Number(charge.balanceAmount || 0) <= 0) return false;
-          if (!charge.dueDate) return false;
-          const d = new Date(charge.dueDate);
-          if (start && d < start) return false;
-          if (end && d > end) return false;
-          return true;
-        });
-      }
-
-      return searchMatch && statusMatch && monthMatch && dateRangeMatch;
-    });
-    return paginateItems(matches, page, pageSize);
-  },
-  searchDocuments: async ({ filters = {}, page = 1, pageSize = DEFAULT_PAGE_SIZE, showAll = false } = {}) => {
-    const effectiveFilters = getEffectiveFilters(filters, showAll);
-    const tokens = getSearchTokens(effectiveFilters.searchTerm);
-    const category = normalizeSearchText(effectiveFilters.category);
-    
-    const cases = await getMappedCases();
-    const matches = cases.filter((item) => {
-      // 1. Category filter (if selected)
-      const docsInDateRange = (item.documents || []).filter((document) =>
-        isDateWithinRange(document.createdAt || item.createdAt, effectiveFilters.fromDate, effectiveFilters.toDate)
-      );
-      const docsForFilter = docsInDateRange.filter((document) =>
-        !category || normalizeSearchText(document.category) === category
-      );
-      if (docsForFilter.length === 0) return false;
-      
-      // 2. Search term filter (if provided)
-      return matchesSearchTokens(tokens, [
-        item.caseNumber,
-        item.caseType,
-        item.client?.name,
-        item.client?.phone,
-        item.client?.email,
-        docsForFilter.flatMap((document) => [
-          document.fileName,
-          document.description,
-          document.category,
-          document.fileType,
-        ]),
-      ]);
-    });
-
-    // If category is selected, we should also filter the documents list INSIDE the matched cases
-    // to only show those that match the category.
-    const resultItems = matches.map(item => {
-      return {
-        ...item,
-        documents: (item.documents || []).filter((document) => {
-          const categoryMatch = !category || normalizeSearchText(document.category) === category;
-          const dateMatch = isDateWithinRange(document.createdAt || item.createdAt, effectiveFilters.fromDate, effectiveFilters.toDate);
-          return categoryMatch && dateMatch;
-        })
-      };
-    });
-
-    return paginateItems(resultItems, page, pageSize);
-  },
-  getDocuments: async () => getMappedCases(),
-  getCalendarEvents: async () => {
-    const context = await internalGetWorkspaceContext();
-    if (!context?.organizationId) return [];
-    return list(
-      requireSupabase()
-        .from("calendar_events")
-        .select("*")
-        .eq("organization_id", context.organizationId)
-        .order("event_date", { ascending: true })
-    );
-  },
-  saveCalendarEvent: async (eventData, eventId) => {
-    const context = await internalGetWorkspaceContext();
-    if (!context?.organizationId) throw new Error("No organization workspace is available.");
-
-    const record = {
-      organization_id: context.organizationId,
-      created_by: context.userId,
-      title: eventData.title,
-      description: eventData.description || "",
-      event_date: eventData.eventDate,
-      event_type: eventData.eventType,
-      color: eventData.color,
-    };
-
-    if (eventId) {
-      const { error } = await requireSupabase()
-        .from("calendar_events")
-        .update(record)
-        .eq("id", eventId)
-        .eq("organization_id", context.organizationId);
-      if (error) throw error;
-    } else {
-      const { error } = await requireSupabase()
-        .from("calendar_events")
-        .insert(record);
-      if (error) throw error;
-    }
-  },
-  getFollowUps: async () => getMappedCases(),
-  searchFollowUps: async ({ filters = {}, page = 1, pageSize = DEFAULT_PAGE_SIZE, showAll = false } = {}) => {
-    const effectiveFilters = getEffectiveFilters(filters, showAll);
-    const tokens = getSearchTokens(effectiveFilters.searchTerm, effectiveFilters.caseNumber, effectiveFilters.clientName);
-    const eventType = normalizeSearchText(effectiveFilters.type);
-    const eventStatus = normalizeSearchText(effectiveFilters.status);
-    const cases = await getMappedCases();
-    const matches = cases.filter((item) => {
-      const matchingEvents = (item.followUps || []).filter((event) => {
-        const dateMatch = isDateWithinRange(event.scheduledAt, effectiveFilters.fromDate, effectiveFilters.toDate);
-        const typeMatch = !eventType || normalizeSearchText(event.type) === eventType;
-        const statusMatch = !eventStatus || normalizeSearchText(event.status) === eventStatus;
-        return dateMatch && typeMatch && statusMatch;
-      });
-
-      if (matchingEvents.length === 0) return false;
-
-      return matchesSearchTokens(tokens, [
-        item.caseNumber,
-        item.caseType,
-        item.courtName,
-        item.client?.name,
-        item.client?.phone,
-        item.client?.email,
-        matchingEvents.flatMap((event) => [
-          event.type,
-          event.title,
-          event.status,
-          event.notes,
-          event.scheduledAt,
-          event.postponedTo,
-        ]),
-      ]);
-    }).map((item) => ({
-      ...item,
-      followUps: (item.followUps || []).filter((event) => {
-        const dateMatch = isDateWithinRange(event.scheduledAt, effectiveFilters.fromDate, effectiveFilters.toDate);
-        const typeMatch = !eventType || normalizeSearchText(event.type) === eventType;
-        const statusMatch = !eventStatus || normalizeSearchText(event.status) === eventStatus;
-        return dateMatch && typeMatch && statusMatch;
-      }),
-    }));
-    return paginateItems(matches, page, pageSize);
-  },
-  addFollowUp: async (caseId, payload) => {
-    const actionKey = `addFollowUp:${caseId}`;
-    return ((_k, _f) => _f())(actionKey, async () => {
-      const context = await internalGetWorkspaceContext();
-      await supabasePlatformApi.getCase(caseId);
-      assertFollowUpPayload(payload);
-      const { error } = await requireSupabase().from("followups").insert({
-        organization_id: context.organizationId,
-        case_id: caseId,
-        type: payload.type,
-        title: payload.title,
-        date: toIsoDate(payload.scheduledAt) || new Date().toISOString(),
-        status: payload.status,
-        notes: payload.notes || "",
-        postponed_to: toIsoDate(payload.postponedTo),
-        created_by: context.email,
-      });
-
-      if (error) throw error;
-      resetWorkspaceDataCache();
-      return supabasePlatformApi.getCase(caseId);
-    });
-  },
-  updateFollowUp: async (caseId, followUpId, payload) => {
-    const actionKey = `updateFollowUp:${followUpId}`;
-    return ((_k, _f) => _f())(actionKey, async () => {
-      const context = await internalGetWorkspaceContext();
-      await supabasePlatformApi.getCase(caseId);
-      assertFollowUpPayload(payload);
-      const { error } = await requireSupabase()
-        .from("followups")
-        .update({
-          type: payload.type,
-          title: payload.title,
-          date: toIsoDate(payload.scheduledAt) || new Date().toISOString(),
-          status: payload.status,
-          notes: payload.notes || "",
-          postponed_to: toIsoDate(payload.postponedTo),
-          updated_by: context.email,
-        })
-        .eq("id", followUpId)
-        .eq("organization_id", context.organizationId);
-
-      if (error) throw error;
-      resetWorkspaceDataCache();
-      return supabasePlatformApi.getCase(caseId);
-    });
-  },
-  deleteFollowUp: async (caseId, followUpId) => {
-    const context = await internalGetWorkspaceContext();
-    const { error } = await requireSupabase()
-      .from("followups")
-      .update({ deleted_at: new Date().toISOString(), updated_by: context.email })
-      .eq("id", followUpId)
-      .eq("organization_id", context.organizationId);
-    if (error) throw error;
-    resetWorkspaceDataCache();
-    return supabasePlatformApi.getCase(caseId);
-  },
+  ...clientRepository,
+  ...caseRepository,
 
   // Wizard operations
   saveWizardStep: async (payload, clientId) => {
@@ -1749,30 +1040,30 @@ const supabasePlatformApi = {
           await syncPaymentTotals(payment.id, context.organizationId);
         }
         
-        if (payload.followUps && payload.followUps.length > 0) {
-          for (const followUpPayload of payload.followUps) {
-            const followUpRecord = {
+        if (payload.hearings && payload.hearings.length > 0) {
+          for (const hearingPayload of payload.hearings) {
+            const hearingRecord = {
               organization_id: context.organizationId,
               case_id: savedCaseId,
-              type: followUpPayload.type,
-              title: followUpPayload.title,
-              date: toIsoDate(followUpPayload.scheduledAt) || new Date().toISOString(),
-              status: followUpPayload.status || "PENDING",
-              notes: followUpPayload.notes || "",
-              postponed_to: toIsoDate(followUpPayload.postponedTo),
+              type: hearingPayload.type,
+              title: hearingPayload.title,
+              date: toIsoDate(hearingPayload.scheduledAt) || new Date().toISOString(),
+              status: hearingPayload.status || "PENDING",
+              notes: hearingPayload.notes || "",
+              postponed_to: toIsoDate(hearingPayload.postponedTo),
               updated_by: context.email,
             };
-            if (followUpPayload.id) {
+            if (hearingPayload.id) {
               await requireSupabase()
-                .from("followups")
-                .update(followUpRecord)
-                .eq("id", followUpPayload.id)
+                .from("hearings")
+                .update(hearingRecord)
+                .eq("id", hearingPayload.id)
                 .eq("organization_id", context.organizationId);
             } else {
-              followUpRecord.created_by = context.email;
+              hearingRecord.created_by = context.email;
               await requireSupabase()
-                .from("followups")
-                .insert(followUpRecord);
+                .from("hearings")
+                .insert(hearingRecord);
             }
           }
         }
@@ -1800,12 +1091,12 @@ const supabasePlatformApi = {
     );
     const dashboard = buildDashboardSummary(cases);
 
-    // Timeline Events (Follow-ups/Hearings) derived from cases
-    const timelineEvents = cases.flatMap(c => (c.followUps || []).map(f => ({ ...f, legalCase: c })));
+    // Timeline Events (Hearings) derived from cases
+    const timelineEvents = cases.flatMap(c => (c.hearings || []).map(f => ({ ...f, legalCase: c })));
 
     // Team Action Items (Actual Tasks) - mapped from the dataset
     const actionItems = (dataset.tasks || []).map(_mapTask).map(t => {
-      const linkedCase = cases.find(c => String(c.id) === String(t.case_id || t.caseId));
+      const linkedCase = cases.find(c => String(c.id) === String(t.caseId));
       return { ...t, legalCase: linkedCase };
     });
 
@@ -1814,54 +1105,11 @@ const supabasePlatformApi = {
       cases,
       clients,
       tasks: actionItems,
-      putUpDates: timelineEvents
+      hearings: timelineEvents
     };
   },
-  getPutUpDates: async () => {
-    const { cases } = await supabasePlatformApi.getDashboardPayload();
-    return cases.flatMap(c => (c.followUps || []).map(f => ({ ...f, legalCase: c })));
-  },
-  getCalendarEvents: async () => {
-    const context = await internalGetWorkspaceContext();
-    if (!context?.organizationId) return [];
-    
-    const { data, error } = await requireSupabase()
-      .from("calendar_events")
-      .select("*")
-      .eq("organization_id", context.organizationId);
-      
-    if (error) throw error;
-    return data || [];
-  },
-  saveCalendarEvent: async (payload, eventId) => {
-    const context = await internalGetWorkspaceContext();
-    if (!context?.organizationId) throw new Error("No organization workspace is available.");
-    
-    const record = {
-      organization_id: context.organizationId,
-      title: payload.title?.trim() || "",
-      description: payload.description || "",
-      event_date: payload.eventDate,
-      event_type: payload.eventType || "note",
-      color: payload.color || "#3A5BA0",
-    };
-    
-    if (eventId) {
-      const { error } = await requireSupabase()
-        .from("calendar_events")
-        .update(record)
-        .eq("id", eventId)
-        .eq("organization_id", context.organizationId);
-      if (error) throw error;
-    } else {
-      const { error } = await requireSupabase()
-        .from("calendar_events")
-        .insert(record);
-      if (error) throw error;
-    }
-
-    await logObservabilityEvent(context, "calendar", eventId ? "UPDATE_NOTE" : "CREATE_NOTE", { title: record.title });
-  },
+  // Duplicates removed (already defined above)
+  // Duplicate removed
   deleteCalendarEvent: async (eventId) => {
     const context = await internalGetWorkspaceContext();
     if (!context?.organizationId) throw new Error("No organization workspace is available.");
@@ -2069,9 +1317,6 @@ Object.keys(supabasePlatformApi).forEach((key) => {
   if (typeof original === "function") {
     platformProxy[key] = async (...args) => {
       try {
-        if (isWriteOperation(key)) {
-          try { await checkServerRateLimit(key); } catch { /* RPC absent — skip */ }
-        }
         return await withRetry(async () => {
           return await original(...args);
         });
@@ -2083,6 +1328,31 @@ Object.keys(supabasePlatformApi).forEach((key) => {
 });
 
 const proxiedGetWorkspaceContext = platformProxy.getWorkspaceContext;
+
+export const __internal = {
+  internalGetWorkspaceContext,
+  getMappedCases,
+  getMappedClients,
+  getEffectiveFilters,
+  getSearchTokens,
+  normalizeSearchText,
+  matchesSearchTokens,
+  isDateWithinRange,
+  paginateItems,
+  single,
+  list,
+  requireSupabase,
+  isLawyerContext,
+  mapCaseRecord,
+  getWorkspaceData,
+  resetWorkspaceDataCache,
+  assertClientBelongsToWorkspace,
+  assertChargeBelongsToCase,
+  ensurePaymentShell,
+  logObservabilityEvent,
+  validateCaseScopedPath,
+  syncPaymentTotals
+};
 
 export { 
   platformProxy as supabasePlatformApi,

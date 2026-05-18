@@ -1,14 +1,14 @@
 import { useState, useEffect, useCallback } from "react"; // Refreshed to resolve dev server glitch
 import { createPortal } from "react-dom";
 import { Link, useSearchParams, useNavigate } from "react-router-dom";
-import AppShell from "../components/AppShell";
+import AppShell from "../components/layout/AppShell";
 import ProfileCard from "../components/ui/ProfileCard/ProfileCard";
 import MultiStepClientWizard from "../components/MultiStepClientWizard";
 import HeaderFilters from "../components/HeaderFilters";
 import ControlledSearchPanel, { EmptyState, ErrorState, LoadingState, PaginationControls } from "../components/ControlledSearchPanel";
 import { supabasePlatformApi as platformApi } from "../repositories/supabaseRepository";
 import { getPersistentAssetUrl } from "../services/storageService";
-import ExportModal from "../components/ExportModal";
+import { openExport } from "../store/exportStore";
 import logger from "../services/loggerService";
 import "./Clients.css";
 import "./formStyles.css";
@@ -20,7 +20,6 @@ function Clients() {
   const [clients, setClients] = useState([]);
   const [activeClient, setActiveClient] = useState(null);
   const [showWizard, setShowWizard] = useState(false);
-  const [showExportModal, setShowExportModal] = useState(false);
   const [previewImage, setPreviewImage] = useState(null);
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -82,7 +81,7 @@ function Clients() {
 
   const deleteClientPermanently = async (client) => {
     const approved = window.confirm(
-      `Permanently delete ${client.name}? This removes the client and linked cases, payments, documents, and follow-ups from the database. This cannot be undone.`
+      `Permanently delete ${client.name}? This removes the client and linked cases, payments, documents, and hearings from the database. This cannot be undone.`
     );
     if (!approved) return;
 
@@ -131,6 +130,7 @@ function Clients() {
       setHasLoaded(false);
       setError("");
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters.searchTerm, filters.fromDate, filters.toDate, filters.phone, filters.email, initialSearchName, initialSearchTriggered, handleSearch, hasLoaded, showAllMode]);
 
   useEffect(() => {
@@ -149,7 +149,12 @@ function Clients() {
       subtitle="Search clients by name, phone, email, city, notes, or ID proof."
       actions={
         <div style={{ display: "flex", gap: "12px", alignItems: "center", flexWrap: "wrap" }}>
-          <button type="button" className="btn-gold" onClick={() => setShowExportModal(true)}>
+          <button type="button" className="btn-gold" onClick={() => openExport({
+            type: "clients",
+            availableData: clients,
+            currentFilters: filters,
+            defaultDateRange: { start: filters.fromDate, end: filters.toDate }
+          })}>
             📥 Export
           </button>
           <button type="button" className="primary-button" onClick={openCreate}>
@@ -293,16 +298,7 @@ function Clients() {
         </div>
       )}
 
-      {showExportModal && (
-        <ExportModal
-          isOpen={showExportModal}
-          onClose={() => setShowExportModal(false)}
-          type="clients"
-          availableData={clients}
-          currentFilters={filters}
-          defaultDateRange={{ start: filters.fromDate, end: filters.toDate }}
-        />
-      )}
+
     </AppShell>
   );
 }

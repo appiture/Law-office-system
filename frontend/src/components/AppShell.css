@@ -283,7 +283,10 @@
 
 .nav-link-copy small {
   font-size: 0.7rem;
-  opacity: 0.6;
+  opacity: 0.7;
+}
+.dark .nav-link-copy small {
+  opacity: 0.85;
 }
 
 /* Pending task count badge in the sidebar */
@@ -346,12 +349,14 @@
 }
 
 .dark .nav-sub-link {
-  color: var(--color-text-secondary);
+  color: var(--color-text);
+  opacity: 0.7;
 }
 
 .dark .nav-sub-link:hover {
   color: var(--color-secondary);
-  background: rgba(255, 255, 255, 0.03);
+  background: rgba(255, 255, 255, 0.05);
+  opacity: 1;
 }
 
 .profile-panel {
@@ -391,6 +396,31 @@
   place-items: center;
   font-weight: 700;
   font-size: 0.9rem;
+}
+
+.app-content {
+  position: relative;
+  overflow: hidden;
+  min-height: calc(100vh - var(--header-height));
+}
+
+.app-shell-inner {
+  position: relative;
+  z-index: 2;
+}
+
+.dot-grid-background {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  opacity: var(--grid-opacity, 0.08);
+}
+
+.border-glow-wrapper {
+  position: relative;
+  border-radius: 24px;
+  overflow: hidden;
 }
 
 

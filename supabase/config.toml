@@ -69,10 +69,10 @@ sql_paths = ["./seed.sql"]
 enabled = true
 # List of IPv4 CIDR blocks allowed to connect to the database.
 # Defaults to allow all IPv4 connections. Set empty array to block all IPs.
-allowed_cidrs = ["0.0.0.0/0"]
+allowed_cidrs = ["127.0.0.1/32"] # TODO: Update with Production Server IP
 # List of IPv6 CIDR blocks allowed to connect to the database.
 # Defaults to allow all IPv6 connections. Set empty array to block all IPs.
-allowed_cidrs_v6 = ["::/0"]
+allowed_cidrs_v6 = ["::1/128"]
 
 # Uncomment to reject non-secure connections to the database.
 [db.ssl_enforcement]
@@ -367,7 +367,7 @@ allow_dynamic_registration = false
 # Function-specific overrides — disable gateway JWT so OPTIONS preflight
 # requests are never rejected before CORS headers can be returned.
 # Each function validates the JWT manually via getActorContext().
-[functions.send-report]
+[functions.export-report]
 verify_jwt = false
 
 [functions.invite-user]
@@ -379,8 +379,6 @@ verify_jwt = false
 [functions.send-email]
 verify_jwt = false
 
-[functions.monthly-report]
-verify_jwt = false
 
 [edge_runtime]
 enabled = true

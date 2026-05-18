@@ -5,8 +5,11 @@ import { clearAuthData, syncSupabaseSession } from "./services/authService";
 import { isPlatformAdmin } from "./services/adminService";
 import ProtectedRoute from "./components/ProtectedRoute";
 import ErrorBoundary from "./components/ErrorBoundary";
+import ExportModal from "./components/ExportModal";
+import "./styles/designSystem.css";
 import "./App.css";
 import { setUser, clearUser } from "./store/sessionStore";
+import { ROUTES } from "./constants/routes";
 
 const routePreloaders = [
   () => import("./pages/Login"),
@@ -15,7 +18,7 @@ const routePreloaders = [
   () => import("./pages/Cases"),
   () => import("./pages/Payments"),
   () => import("./pages/Documents"),
-  () => import("./pages/FollowUps"),
+  () => import("./pages/Hearings"),
   () => import("./pages/CaseDetails"),
   () => import("./pages/ClientDetails"),
   () => import("./pages/Settings"),
@@ -34,7 +37,7 @@ const Clients = lazy(routePreloaders[2]);
 const Cases = lazy(routePreloaders[3]);
 const Payments = lazy(routePreloaders[4]);
 const Documents = lazy(routePreloaders[5]);
-const FollowUps = lazy(routePreloaders[6]);
+const Hearings = lazy(routePreloaders[6]);
 const CaseDetails = lazy(routePreloaders[7]);
 const ClientDetails = lazy(routePreloaders[8]);
 const Settings = lazy(routePreloaders[9]);
@@ -74,7 +77,8 @@ function App() {
         const wasPlatformAdmin = isPlatformAdmin();
         clearUser();
         clearAuthData();
-        const redirectTo = wasPlatformAdmin ? "/super-admin-login" : "/login";
+        const redirectTo = wasPlatformAdmin ? ROUTES.SUPER_ADMIN_LOGIN : ROUTES.LOGIN;
+        window.isLoggingOut = true;
         // Avoid full window reload if already on that page, otherwise use standard react-router flows (though onStateChange is global)
         if (window.location.pathname !== redirectTo) {
           window.location.href = redirectTo;
@@ -91,9 +95,9 @@ function App() {
   useEffect(() => {
     const preloadRoutes = () => {
       const criticalRoutes = [
+        routePreloaders[0], // Login
         routePreloaders[1], // Dashboard
-        routePreloaders[3], // Cases
-        routePreloaders[6], // FollowUps/Hearings
+        routePreloaders[2], // Clients
       ];
       criticalRoutes.forEach((preload) => {
         preload().catch(() => {});
@@ -123,12 +127,12 @@ function App() {
           }
         >
           <Routes>
-            <Route path="/" element={<Navigate to={isPlatformAdmin() ? "/platform-admin" : "/dashboard"} replace />} />
-            <Route path="/login" element={<Login />} />
+            <Route path="/" element={<Navigate to={isPlatformAdmin() ? ROUTES.SUPER_ADMIN_DASHBOARD : ROUTES.DASHBOARD} replace />} />
+            <Route path={ROUTES.LOGIN} element={<Login />} />
             {/* ── Super Admin dedicated entry point (no case/workspace context) ── */}
-            <Route path="/super-admin-login" element={<SuperAdminLogin />} />
+            <Route path={ROUTES.SUPER_ADMIN_LOGIN} element={<SuperAdminLogin />} />
             <Route
-              path="/dashboard"
+              path={ROUTES.DASHBOARD}
               element={
                 <ProtectedRoute section="dashboard">
                   <Dashboard />
@@ -136,7 +140,7 @@ function App() {
               }
             />
             <Route
-              path="/clients"
+              path={ROUTES.CLIENTS}
               element={
                 <ProtectedRoute section="clients">
                   <Clients />
@@ -144,7 +148,7 @@ function App() {
               }
             />
             <Route
-              path="/cases"
+              path={ROUTES.CASES}
               element={
                 <ProtectedRoute section="cases">
                   <Cases />
@@ -152,7 +156,7 @@ function App() {
               }
             />
             <Route
-              path="/clients/:clientId"
+              path={ROUTES.CLIENT_DETAILS}
               element={
                 <ProtectedRoute section="clients">
                   <ClientDetails />
@@ -160,7 +164,7 @@ function App() {
               }
             />
             <Route
-              path="/payments"
+              path={ROUTES.PAYMENTS}
               element={
                 <ProtectedRoute section="payments">
                   <Payments />
@@ -168,7 +172,7 @@ function App() {
               }
             />
             <Route
-              path="/documents"
+              path={ROUTES.DOCUMENTS}
               element={
                 <ProtectedRoute section="documents">
                   <Documents />
@@ -176,32 +180,32 @@ function App() {
               }
             />
             <Route
-              path="/followups"
+              path={ROUTES.HEARINGS}
               element={
-                <ProtectedRoute section="followups">
-                  <FollowUps />
+                <ProtectedRoute section="hearings">
+                  <Hearings />
                 </ProtectedRoute>
               }
             />
             <Route
-              path="/followups/:followupId"
+              path={ROUTES.HEARING_DETAILS}
               element={
-                <ProtectedRoute section="followups">
-                  <FollowUps />
+                <ProtectedRoute section="hearings">
+                  <Hearings />
                 </ProtectedRoute>
               }
             />
             <Route
-              path="/tasks"
+              path={ROUTES.TASKS}
               element={
                 <ProtectedRoute section="tasks">
                   <Tasks />
                 </ProtectedRoute>
               }
             />
-            <Route path="/put-up-dates" element={<Navigate to="/followups" replace />} />
+            <Route path="/put-up-dates" element={<Navigate to={ROUTES.HEARINGS} replace />} />
             <Route
-              path="/cases/:caseId"
+              path={ROUTES.CASE_DETAILS}
               element={
                 <ProtectedRoute section="cases">
                   <CaseDetails />
@@ -209,7 +213,7 @@ function App() {
               }
             />
             <Route
-              path="/settings"
+              path={ROUTES.SETTINGS}
               element={
                 <ProtectedRoute section="settings">
                   <Settings />
@@ -217,7 +221,7 @@ function App() {
               }
             />
             <Route
-              path="/platform-admin"
+              path={ROUTES.SUPER_ADMIN_DASHBOARD}
               element={
                 <ProtectedRoute requirePlatformAdmin={true}>
                   <SuperAdminDashboard />
@@ -225,7 +229,7 @@ function App() {
               }
             />
             <Route
-              path="/system-audit"
+              path={ROUTES.SYSTEM_AUDIT}
               element={
                 <ProtectedRoute requirePlatformAdmin={true}>
                   <SystemAuditLogs />
@@ -233,17 +237,18 @@ function App() {
               }
             />
             <Route
-              path="/team"
+              path={ROUTES.TEAM}
               element={
                 <ProtectedRoute section="team">
                   <TeamManagement />
                 </ProtectedRoute>
               }
             />
-            <Route path="/reset-password" element={<ResetPassword />} />
-            <Route path="*" element={<Navigate to={isPlatformAdmin() ? "/platform-admin" : "/dashboard"} replace />} />
+            <Route path={ROUTES.RESET_PASSWORD} element={<ResetPassword />} />
+            <Route path="*" element={<Navigate to={isPlatformAdmin() ? ROUTES.SUPER_ADMIN_DASHBOARD : ROUTES.DASHBOARD} replace />} />
           </Routes>
         </Suspense>
+        <ExportModal />
       </BrowserRouter>
     </ErrorBoundary>
   );
