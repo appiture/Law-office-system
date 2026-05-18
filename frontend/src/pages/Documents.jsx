@@ -231,12 +231,13 @@ function Documents() {
     if (modalCases.length > 0) return;
     setModalLoading(true);
     try {
-      const response = await platformApi.searchDocuments({ showAll: true, page: 1, pageSize: 500 });
+      const response = await platformApi.searchCases({ showAll: true, page: 1, pageSize: 500 });
       setModalCases(Array.isArray(response.items) ? response.items : []);
     } finally {
       setModalLoading(false);
     }
   };
+
 
   const openUploadModal = async (initialCaseId = null) => {
     await ensureModalCases();
@@ -253,7 +254,24 @@ function Documents() {
         page: nextPage,
         pageSize: PAGE_SIZE,
       });
-      setCases(Array.isArray(response.items) ? response.items : []);
+      // Group flat document items back into case-shaped objects for the render
+      const flat = Array.isArray(response.items) ? response.items : [];
+      const caseMap = new Map();
+      for (const doc of flat) {
+        const cId = doc.caseId || doc.case_id;
+        if (!caseMap.has(cId)) {
+          caseMap.set(cId, {
+            id: cId,
+            caseNumber: doc.caseNumber,
+            caseType: doc.caseType,
+            clientName: doc.clientName,
+            client: doc.client || { name: doc.clientName },
+            documents: [],
+          });
+        }
+        caseMap.get(cId).documents.push(doc);
+      }
+      setCases([...caseMap.values()]);
       setTotal(Number(response.total || 0));
       setPage(Number(response.page || nextPage));
       setHasLoaded(true);
@@ -268,6 +286,7 @@ function Documents() {
       setLoading(false);
     }
   }, [filters, page, showAllMode]);
+
 
   const handleSearch = useCallback((nextFilters = filters) => {
     setShowAllMode(false);
@@ -302,20 +321,15 @@ function Documents() {
       setInitialSearchTriggered(true);
       handleSearch({ ...emptyFilters, searchTerm: initialSearchCase });
     } else if (hasActiveFilters || focusDocId) {
-      // If we have a focusDocId, we should probably load everything or the relevant case
-      // For now, handleSearch(filters) is fine if filters are empty it might not load much
-      // but usually deep links will include searchCase or similar if possible.
-      // If no filters, and focusDocId exists, let's trigger a load if not loaded
       if (!hasLoaded) handleShowAll();
       else handleSearch(filters);
-    } else if (hasLoaded && !showAllMode) {
-      setCases([]);
-      setTotal(0);
-      setHasLoaded(false);
-      setError("");
+    } else if (!hasLoaded && !showAllMode) {
+      // Auto-load all records on first visit when no filters are set
+      void loadDocuments({ nextPage: 1, showAll: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters.searchTerm, filters.category, filters.fromDate, filters.toDate, initialSearchCase, initialSearchTriggered, handleSearch, handleShowAll, hasLoaded, showAllMode, focusDocId]);
+
 
   const deleteDocument = async (caseId, doc) => {
     if (!window.confirm(`Delete "${doc.fileName}"?`)) return;

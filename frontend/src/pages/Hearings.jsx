@@ -277,7 +277,24 @@ function Hearings() {
         page: nextPage,
         pageSize: PAGE_SIZE,
       });
-      setCases(Array.isArray(response.items) ? response.items : []);
+      // Group flat hearing items back into case-shaped objects for the render
+      const flat = Array.isArray(response.items) ? response.items : [];
+      const caseMap = new Map();
+      for (const h of flat) {
+        const cId = h.caseId || h.case_id;
+        if (!caseMap.has(cId)) {
+          caseMap.set(cId, {
+            id: cId,
+            caseNumber: h.caseNumber,
+            caseType: h.caseType,
+            clientName: h.clientName,
+            client: h.client || { name: h.clientName },
+            hearings: [],
+          });
+        }
+        caseMap.get(cId).hearings.push(h);
+      }
+      setCases([...caseMap.values()]);
       setTotal(Number(response.total || 0));
       setPage(Number(response.page || nextPage));
       setHasLoaded(true);
@@ -292,6 +309,7 @@ function Hearings() {
       setLoading(false);
     }
   }, [filters, page, showAllMode]);
+
 
   const ensureModalCases = async () => {
     if (modalCases.length > 0) return true;
@@ -384,14 +402,13 @@ function Hearings() {
       handleSearch({ ...emptyFilters, searchTerm: initialSearchCase });
     } else if (hasActiveFilters) {
       handleSearch(filters);
-    } else if (hasLoaded && !showAllMode) {
-      setCases([]);
-      setTotal(0);
-      setHasLoaded(false);
-      setError("");
+    } else if (!hasLoaded && !showAllMode) {
+      // Auto-load all records on first visit when no filters are set
+      void loadData({ nextPage: 1, showAll: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [filters.searchTerm, filters.type, filters.status, filters.fromDate, filters.toDate, initialSearchCase, initialSearchTriggered, handleSearch, hasLoaded, showAllMode]);
+
 
   const handleShowAll = () => {
     setShowAllMode(true);

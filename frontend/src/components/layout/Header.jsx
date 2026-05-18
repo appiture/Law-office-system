@@ -49,7 +49,7 @@ function Header({
       </div>
 
       <div className="page-actions">
-        {isDashboard && !superAdmin && <NotificationBell count={pendingTaskCount} />}
+        {isDashboard && !superAdmin && <NotificationBell pendingTaskCount={pendingTaskCount} />}
         {actions}
       </div>
     </header>

@@ -1,0 +1,145 @@
+import { useEffect, useState, useCallback } from "react";
+import { supabase } from "../services/supabaseClient";
+import { getOrganizationId } from "../services/authService";
+import { ROUTES } from "../constants/routes";
+import { getCache, setCache } from "../lib/cache";
+
+const CACHE_TTL = 2 * 60 * 1000; // 2 minutes
+
+/**
+ * Derive an alert level and link for a hearing row.
+ */
+function classifyHearing(h) {
+  const now = new Date();
+  const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0);
+  const todayEnd   = new Date(now); todayEnd.setHours(23, 59, 59, 999);
+  const d = h.date ? new Date(h.date) : null;
+  if (!d || isNaN(d)) return null;
+
+  const isPending = h.status !== "COMPLETED" && h.status !== "CANCELLED";
+  if (!isPending) return null;
+
+  if (d < todayStart) {
+    return { level: "missed", emoji: "⚠️", label: "Missed", color: "var(--color-error)" };
+  }
+  if (d >= todayStart && d <= todayEnd) {
+    return { level: "today", emoji: "📅", label: "Today", color: "var(--color-primary)" };
+  }
+  // Upcoming = within 7 days
+  const sevenDays = new Date(todayEnd);
+  sevenDays.setDate(sevenDays.getDate() + 6);
+  if (d <= sevenDays) {
+    return { level: "upcoming", emoji: "🔔", label: "Upcoming", color: "var(--color-warning)" };
+  }
+  return null; // beyond 7 days — not urgent
+}
+
+/**
+ * Returns all actionable notifications:
+ *   - Missed / today / upcoming hearings
+ *   - Overdue payment charges (balance > 0 && due_date < today)
+ */
+export function useNotifications() {
+  const [items, setItems]       = useState([]);
+  const [loading, setLoading]   = useState(false);
+  const [lastFetched, setLastFetched] = useState(null);
+
+  const refresh = useCallback(async (force = false) => {
+    const orgId = getOrganizationId();
+    if (!orgId) { setItems([]); return; }
+
+    const cacheKey = `notifications:${orgId}`;
+    if (!force) {
+      const cached = getCache(cacheKey);
+      if (cached) { setItems(cached); return; }
+    }
+
+    setLoading(true);
+    try {
+      const now    = new Date();
+      const today  = now.toISOString().split("T")[0];
+      // Fetch hearings: not completed/cancelled, within next 7 days OR already past
+      const sevenAhead = new Date(now);
+      sevenAhead.setDate(sevenAhead.getDate() + 7);
+
+      const [hearingRes, chargeRes] = await Promise.all([
+        supabase
+          .from("hearings")
+          .select("id, case_id, type, title, date, status")
+          .eq("organization_id", orgId)
+          .is("deleted_at", null)
+          .not("status", "in", '("COMPLETED","CANCELLED")')
+          .lte("date", sevenAhead.toISOString())
+          .order("date", { ascending: true })
+          .limit(50),
+
+        supabase
+          .from("payment_charges")
+          .select("id, case_id, name, total, paid, balance, due_date, status")
+          .eq("organization_id", orgId)
+          .is("deleted_at", null)
+          .lt("due_date", today)
+          .gt("balance", 0)
+          .order("due_date", { ascending: true })
+          .limit(30),
+      ]);
+
+      const notifications = [];
+
+      // ── Hearing alerts ──────────────────────────────────────────
+      for (const h of (hearingRes.data || [])) {
+        const cls = classifyHearing(h);
+        if (!cls) continue;
+        const dateStr = h.date
+          ? new Date(h.date).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })
+          : "—";
+        notifications.push({
+          id:      `hearing-${h.id}`,
+          type:    "hearing",
+          level:   cls.level,
+          emoji:   cls.emoji,
+          label:   cls.label,
+          color:   cls.color,
+          title:   h.title || h.type || "Court Event",
+          body:    dateStr,
+          link:    `${ROUTES.HEARINGS}?highlightCase=${h.case_id}`,
+        });
+      }
+
+      // ── Payment overdue alerts ──────────────────────────────────
+      for (const c of (chargeRes.data || [])) {
+        const dueStr = c.due_date
+          ? new Date(c.due_date).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
+          : "—";
+        const balance = Number(c.balance || (Number(c.total || 0) - Number(c.paid || 0)));
+        notifications.push({
+          id:      `charge-${c.id}`,
+          type:    "payment",
+          level:   "overdue",
+          emoji:   "💸",
+          label:   "Payment Due",
+          color:   "var(--color-error)",
+          title:   c.name || "Overdue Fee",
+          body:    `Due: ${dueStr} · ₹${balance.toLocaleString("en-IN")} pending`,
+          link:    ROUTES.PAYMENTS,
+        });
+      }
+
+      setItems(notifications);
+      setCache(cacheKey, notifications, CACHE_TTL);
+      setLastFetched(new Date());
+    } catch (err) {
+      console.error("[useNotifications]", err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    refresh();
+    const id = setInterval(() => refresh(true), CACHE_TTL);
+    return () => clearInterval(id);
+  }, [refresh]);
+
+  return { items, loading, lastFetched, refresh };
+}
