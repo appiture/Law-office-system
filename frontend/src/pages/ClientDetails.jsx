@@ -17,10 +17,12 @@ function DetailSection({ id, title, label, actions, children, className = "", st
   return (
     <ParticleCard 
       id={id}
-      className={`magic-bento-card magic-bento-card--border-glow ${className}`}
+      className={`magic-bento-card ${className}`}
       style={style}
-      enableTilt={true}
-      clickEffect={true}
+      disableAnimations={true}
+      enableTilt={false}
+      clickEffect={false}
+      enableMagnetism={false}
     >
       <div className="case-card-header">
         <div className="case-tag">{label || title}</div>
@@ -275,7 +277,7 @@ function ClientDetails() {
       <DetailNav items={detailNavItems} />
 
       <div className="case-details-container">
-        <MagicBento className="case-details-grid" enableTilt={true}>
+        <MagicBento className="case-details-grid" enableTilt={false} enableStars={false} enableSpotlight={false} enableBorderGlow={false}>
           <DetailSection 
             id="client-profile" 
             title="Identity Summary" 
@@ -287,7 +289,8 @@ function ClientDetails() {
                 name={client?.name}
                 title={client?.occupation || "Client"}
                 avatarUrl={photoUrl}
-                behindGlowEnabled={true}
+                behindGlowEnabled={false}
+                enableTilt={false}
                 onImageClick={() => photoUrl && setPreviewImage({ src: photoUrl, alt: client?.name })}
               />
               <div className="profile-hero-meta">

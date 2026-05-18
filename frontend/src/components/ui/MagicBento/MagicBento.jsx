@@ -44,11 +44,11 @@ const updateCardGlowProperties = (card, mouseX, mouseY, glow, radius) => {
 export const ParticleCard = ({
   children,
   className = '',
-  disableAnimations = false,
+  disableAnimations = true,
   style,
-  particleCount = DEFAULT_PARTICLE_COUNT,
+  particleCount = 0,
   glowColor = DEFAULT_GLOW_COLOR,
-  enableTilt = true,
+  enableTilt = false,
   clickEffect = false,
   enableMagnetism = false,
   id
@@ -438,16 +438,16 @@ const MagicBento = ({
   children,
   className = '',
   textAutoHide = true,
-  enableStars = true,
-  enableSpotlight = true,
-  enableBorderGlow = true,
-  disableAnimations = false,
+  enableStars = false,
+  enableSpotlight = false,
+  enableBorderGlow = false,
+  disableAnimations = true,
   spotlightRadius = DEFAULT_SPOTLIGHT_RADIUS,
-  particleCount = DEFAULT_PARTICLE_COUNT,
+  particleCount = 0,
   enableTilt = false,
   glowColor = DEFAULT_GLOW_COLOR,
-  clickEffect = true,
-  enableMagnetism = true
+  clickEffect = false,
+  enableMagnetism = false
 }) => {
   const gridRef = useRef(null);
   const isMobile = useMobileDetection();

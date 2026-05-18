@@ -18,26 +18,13 @@
   overflow: visible;
   height: 100%;
   width: 100%;
+  border: 1px solid var(--color-border);
 }
 
 .border-glow-card::before,
 .border-glow-card::after,
 .border-glow-card > .edge-light {
-  content: "";
-  position: absolute;
-  inset: 0;
-  border-radius: inherit;
-  transition: opacity 0.25s ease-out;
-  z-index: -1;
-  will-change: transform, opacity;
-  transform: translateZ(0);
-}
-
-.border-glow-card:not(:hover):not(.sweep-active)::before,
-.border-glow-card:not(:hover):not(.sweep-active)::after,
-.border-glow-card:not(:hover):not(.sweep-active) > .edge-light {
-  opacity: 0;
-  transition: opacity 0.75s ease-in-out;
+  display: none !important;
 }
 
 /* colored mesh-gradient border */

@@ -118,29 +118,7 @@
 
 /* Border glow effect */
 .magic-bento-card--border-glow::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  padding: 1.5px; /* Thinner border for law office */
-  background: radial-gradient(
-    var(--glow-radius) circle at var(--glow-x) var(--glow-y),
-    rgba(var(--glow-color), calc(var(--glow-intensity) * 1)) 0%,
-    rgba(var(--glow-color), calc(var(--glow-intensity) * 0.4)) 40%,
-    transparent 80%
-  );
-  border-radius: inherit;
-  -webkit-mask:
-    linear-gradient(#fff 0 0) content-box,
-    linear-gradient(#fff 0 0);
-  -webkit-mask-composite: xor;
-  mask:
-    linear-gradient(#fff 0 0) content-box,
-    linear-gradient(#fff 0 0);
-  mask-composite: exclude;
-  pointer-events: none;
-  opacity: 1;
-  transition: opacity 0.3s ease;
-  z-index: 1;
+  display: none !important;
 }
 
 .particle::before {

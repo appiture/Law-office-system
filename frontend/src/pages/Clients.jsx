@@ -241,10 +241,10 @@ function Clients() {
                 email={client.email}
                 phone={client.phone}
                 contactText="View Profile"
-                behindGlowEnabled={true}
+                behindGlowEnabled={false}
                 behindGlowColor="var(--color-primary)"
                 showUserInfo={true}
-                enableTilt={true}
+                enableTilt={false}
                 onContactClick={() => navigate(`/clients/${client.id}`)}
               />
             </div>
