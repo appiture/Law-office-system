@@ -368,13 +368,21 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+DROP TRIGGER IF EXISTS trg_organizations_updated_at ON public.organizations;
 CREATE TRIGGER trg_organizations_updated_at BEFORE UPDATE ON public.organizations FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
+
+DROP TRIGGER IF EXISTS trg_users_updated_at ON public.users;
 CREATE TRIGGER trg_users_updated_at BEFORE UPDATE ON public.users FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
+
+DROP TRIGGER IF EXISTS trg_clients_updated_at ON public.clients;
 CREATE TRIGGER trg_clients_updated_at BEFORE UPDATE ON public.clients FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
+
 DROP TRIGGER IF EXISTS hearings_enforce_org ON public.hearings;
 CREATE TRIGGER hearings_enforce_org
 BEFORE INSERT ON public.hearings
 FOR EACH ROW EXECUTE FUNCTION public.enforce_organization_context();
+
+DROP TRIGGER IF EXISTS trg_tasks_updated_at ON public.tasks;
 CREATE TRIGGER trg_tasks_updated_at BEFORE UPDATE ON public.tasks FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
 
 -- =====================================================
@@ -400,6 +408,7 @@ CREATE OR REPLACE FUNCTION public.is_platform_admin() RETURNS BOOLEAN AS $$
   SELECT EXISTS(SELECT 1 FROM public.platform_admins WHERE user_id = auth.uid())
 $$ LANGUAGE sql STABLE SECURITY DEFINER;
 
+DROP POLICY IF EXISTS hearings_tenant_all ON public.hearings;
 CREATE POLICY hearings_tenant_all ON public.hearings
     FOR ALL USING (organization_id = (SELECT organization_id FROM public.users WHERE id = auth.uid()));
 
@@ -412,15 +421,19 @@ CREATE OR REPLACE FUNCTION public.current_user_role() RETURNS TEXT AS $$
 $$ LANGUAGE sql STABLE SECURITY DEFINER;
 
 -- Organizations
+DROP POLICY IF EXISTS org_read ON public.organizations;
 CREATE POLICY org_read ON public.organizations FOR SELECT USING (id = public.current_organization_id() OR public.is_platform_admin());
 
 -- Users
+DROP POLICY IF EXISTS users_tenant_all ON public.users;
 CREATE POLICY users_tenant_all ON public.users FOR ALL USING (organization_id = public.current_organization_id() OR public.is_platform_admin());
 
 -- Clients
+DROP POLICY IF EXISTS clients_tenant_all ON public.clients;
 CREATE POLICY clients_tenant_all ON public.clients FOR ALL USING (organization_id = public.current_organization_id() OR public.is_platform_admin());
 
 -- Cases
+DROP POLICY IF EXISTS cases_tenant_read ON public.cases;
 CREATE POLICY cases_tenant_read ON public.cases FOR SELECT USING (
   public.is_platform_admin() OR (
     organization_id = public.current_organization_id() AND (
@@ -429,22 +442,31 @@ CREATE POLICY cases_tenant_read ON public.cases FOR SELECT USING (
     )
   )
 );
+DROP POLICY IF EXISTS cases_tenant_write ON public.cases;
 CREATE POLICY cases_tenant_write ON public.cases FOR ALL USING (organization_id = public.current_organization_id() AND public.current_user_role() IN ('ADMIN', 'STAFF', 'LAWYER'));
 
 -- Tasks
+DROP POLICY IF EXISTS tasks_tenant_all ON public.tasks;
 CREATE POLICY tasks_tenant_all ON public.tasks FOR ALL USING (organization_id = public.current_organization_id() OR public.is_platform_admin());
 
 -- Payments & Finance
+DROP POLICY IF EXISTS payments_tenant_all ON public.payments;
 CREATE POLICY payments_tenant_all ON public.payments FOR ALL USING (organization_id = public.current_organization_id() OR public.is_platform_admin());
+DROP POLICY IF EXISTS payment_charges_tenant_all ON public.payment_charges;
 CREATE POLICY payment_charges_tenant_all ON public.payment_charges FOR ALL USING (organization_id = public.current_organization_id() OR public.is_platform_admin());
+DROP POLICY IF EXISTS payment_history_tenant_all ON public.payment_history;
 CREATE POLICY payment_history_tenant_all ON public.payment_history FOR ALL USING (organization_id = public.current_organization_id() OR public.is_platform_admin());
 
 -- Documents
+DROP POLICY IF EXISTS docs_tenant_all ON public.documents;
 CREATE POLICY docs_tenant_all ON public.documents FOR ALL USING (organization_id = public.current_organization_id() OR public.is_platform_admin());
 
 -- System & Audit
+DROP POLICY IF EXISTS audit_tenant_read ON public.system_audit_logs;
 CREATE POLICY audit_tenant_read ON public.system_audit_logs FOR SELECT USING (organization_id = public.current_organization_id() OR public.is_platform_admin());
+DROP POLICY IF EXISTS export_logs_tenant_all ON public.export_logs;
 CREATE POLICY export_logs_tenant_all ON public.export_logs FOR ALL USING (organization_id = public.current_organization_id() OR public.is_platform_admin());
+DROP POLICY IF EXISTS notifications_tenant_all ON public.notifications;
 CREATE POLICY notifications_tenant_all ON public.notifications FOR ALL USING (organization_id = public.current_organization_id() OR public.is_platform_admin());
 
 -- =====================================================
