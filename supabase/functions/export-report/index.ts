@@ -51,15 +51,14 @@ Deno.serve(async (req) => {
     const body: ExportRequest = await req.json();
     const { format, type, dateRange } = body;
 
-    // Allow SUPER_ADMIN to run platform reports without organization restriction
-    const isPlatformReport = type === "platform" && actor.profile?.role === "SUPER_ADMIN";
+    // Platform admins can run platform reports without organization restriction.
+    const isPlatformReport = type === "platform" && actor.isPlatformAdmin;
     
     if (!isPlatformReport) {
       assertOrganizationAdmin(actor);
     }
     
-    const orgId = actor.profile!.organization_id as string;
-    const actorName = actor.profile!.full_name || actor.profile!.email;
+    const orgId = (actor.profile?.organization_id || "") as string;
 
     let orgName = "Law Office";
     let orgBranding = null;
@@ -98,9 +97,18 @@ Deno.serve(async (req) => {
     // 2. High volume expected (based on simple query count)
     // 3. Complex multi-sheet dashboard report
     
-    const { count } = await db.from(type === "dashboard" ? "cases" : (type === "hearings" ? "hearings" : type))
-      .select("*", { count: "exact", head: true })
-      .eq(isPlatformReport ? "" : "organization_id", isPlatformReport ? "" : orgId);
+    const countTable =
+      type === "dashboard" ? "cases" :
+      type === "payments" ? "payment_history" :
+      type === "team" ? "users" :
+      type === "platform" ? "organizations" :
+      type;
+
+    let countQuery = db.from(countTable).select("id", { count: "exact", head: true });
+    if (!isPlatformReport) {
+      countQuery = countQuery.eq("organization_id", orgId);
+    }
+    const { count } = await countQuery;
 
     if (body.useQueue || (count && count > 500) || type === "dashboard") {
       await db.from("export_logs").insert({

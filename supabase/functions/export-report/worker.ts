@@ -94,14 +94,18 @@ export async function processQueuedExports() {
 
       if (uploadError) throw uploadError;
 
-      // 7. Get Public URL (or signed URL)
-      const { data: { publicUrl } } = db.storage.from("exports").getPublicUrl(filePath);
+      // 7. Get a signed URL for the private exports bucket.
+      const { data: signedUrl, error: signedUrlError } = await db.storage
+        .from("exports")
+        .createSignedUrl(filePath, 60 * 60 * 24 * 7);
+      if (signedUrlError) throw signedUrlError;
+      const downloadUrl = signedUrl?.signedUrl || "";
 
       // 8. Update log
       await db.from("export_logs").update({
         status: "COMPLETED",
         file_name: fileName,
-        metadata: { ...log.metadata, downloadUrl: publicUrl },
+        metadata: { ...log.metadata, downloadUrl },
         updated_at: new Date()
       }).eq("id", log.id);
 
@@ -116,7 +120,7 @@ export async function processQueuedExports() {
             <p>The ${log.export_type} report you requested has been generated successfully.</p>
             <p><strong>Format:</strong> ${log.format.toUpperCase()}</p>
             <p>You can download it using the link below:</p>
-            <p><a href="${publicUrl}" style="padding: 10px 20px; background: #C9A34E; color: white; text-decoration: none; border-radius: 5px;">Download Report</a></p>
+            <p><a href="${downloadUrl}" style="padding: 10px 20px; background: #C9A34E; color: white; text-decoration: none; border-radius: 5px;">Download Report</a></p>
             <p>Or visit your dashboard notifications.</p>
           `
         }),
@@ -130,7 +134,7 @@ export async function processQueuedExports() {
         organization_id: log.organization_id,
         type: "EXPORT_READY",
         message: `Your ${log.export_type} report is ready for download.`,
-        payload: { downloadUrl: publicUrl, logId: log.id }
+        payload: { downloadUrl, logId: log.id }
       });
 
       console.log(`[Worker] Completed ${log.id}`);

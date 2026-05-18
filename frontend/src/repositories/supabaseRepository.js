@@ -118,7 +118,7 @@ const resetWorkspaceContextCache = () => {
   _pendingMappedCasesPromise = null;
   _pendingMappedClientsPromise = null;
   // Ensure we don't return stale data if someone immediately calls a repo method
-  logger.info("Workspace context cache reset complete.");
+  console.info("[supabaseRepository] Workspace context cache reset complete.");
 };
 
 let _pendingContextPromise = null;

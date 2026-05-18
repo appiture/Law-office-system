@@ -12,7 +12,7 @@ Deno.serve(async (request: Request): Promise<Response> => {
 
     const { data: profile } = await adminClient
       .from("users")
-      .select("must_reset_password, organization_id")
+      .select("must_reset_password, organization_id, full_name, avatar_url, avatar_path")
       .eq("id", actor.user.id)
       .maybeSingle();
 
@@ -20,7 +20,7 @@ Deno.serve(async (request: Request): Promise<Response> => {
     if (profile?.organization_id) {
       const { data: orgData } = await adminClient
         .from("organizations")
-        .select("is_demo, demo_expires_at, subscription_status")
+        .select("name, logo_url, logo_path, address, phone, email, website, is_demo, demo_expires_at, subscription_status")
         .eq("id", profile.organization_id)
         .maybeSingle();
       organization = orgData;
@@ -30,8 +30,18 @@ Deno.serve(async (request: Request): Promise<Response> => {
       authenticated: true,
       userId: actor.user.id,
       email: actor.profile?.email || actor.user.email || "",
+      fullName: actor.profile?.full_name || profile?.full_name || "",
+      avatarUrl: actor.profile?.avatar_url || profile?.avatar_url || "",
+      avatarPath: actor.profile?.avatar_path || profile?.avatar_path || "",
       role: actor.profile?.role || null,
       organizationId: actor.profile?.organization_id || null,
+      organizationName: organization?.name || "",
+      organizationLogoUrl: organization?.logo_url || "",
+      organizationLogoPath: organization?.logo_path || "",
+      organizationAddress: organization?.address || "",
+      organizationPhone: organization?.phone || "",
+      organizationEmail: organization?.email || "",
+      organizationWebsite: organization?.website || "",
       isPlatformAdmin: actor.isPlatformAdmin,
       mustResetPassword: Boolean(profile?.must_reset_password),
       isDemo: Boolean(organization?.is_demo),
@@ -45,4 +55,3 @@ Deno.serve(async (request: Request): Promise<Response> => {
     }, 401);
   }
 });
-

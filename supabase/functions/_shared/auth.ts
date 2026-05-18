@@ -8,6 +8,9 @@ export type ActorContext = {
   profile: {
     id: string;
     email: string;
+    full_name?: string | null;
+    avatar_url?: string | null;
+    avatar_path?: string | null;
     role: string;
     organization_id: string | null;
     status: string;
@@ -42,7 +45,7 @@ export const getActorContext = async (request: Request): Promise<ActorContext> =
 
   const { data: profile, error: profileError } = await adminClient
     .from("users")
-    .select("id,email,role,organization_id,status")
+    .select("id,email,full_name,avatar_url,avatar_path,role,organization_id,status")
     .eq("id", user.id)
     .maybeSingle();
 
@@ -171,4 +174,3 @@ export const recordAuditEvent = async (params: {
     console.warn("[recordAuditEvent] Exception (non-critical):", e instanceof Error ? e.message : e);
   }
 };
-

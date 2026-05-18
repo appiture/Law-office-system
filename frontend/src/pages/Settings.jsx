@@ -44,8 +44,32 @@ function Settings() {
     const loadPaths = async () => {
       try {
         const context = await supabasePlatformApi.getWorkspaceContext();
+        if (context?.organizationName) {
+          setOrgName(context.organizationName);
+        }
+        if (context?.organizationLogoUrl) {
+          setOrgLogoUrl(context.organizationLogoUrl);
+        }
         if (context?.organizationLogoPath) {
           setOrgLogoPath(context.organizationLogoPath);
+        }
+        if (context?.organizationAddress) {
+          setOrgAddress(context.organizationAddress);
+        }
+        if (context?.organizationPhone) {
+          setOrgPhone(context.organizationPhone);
+        }
+        if (context?.organizationEmail) {
+          setOrgEmail(context.organizationEmail);
+        }
+        if (context?.organizationWebsite) {
+          setOrgWebsite(context.organizationWebsite);
+        }
+        if (context?.fullName) {
+          setFullName(context.fullName);
+        }
+        if (context?.avatarUrl) {
+          setAvatarUrl(context.avatarUrl);
         }
         if (context?.avatarPath) {
           setAvatarPath(context.avatarPath);

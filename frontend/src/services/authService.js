@@ -107,25 +107,52 @@ export const syncSupabaseSession = async (providedSession = null, options = {}) 
         !previousCache.canAccessWorkspace;
 
       try {
-        // Source of truth for role/org comes from the auth-utils edge function
-        // which reads the DB directly, bypassing stale JWT claims.
+        // Source of truth for role/org comes from auth-utils, which reads the
+        // DB directly. Branding/profile details still come from the workspace
+        // RPC because it signs private storage paths for logos and avatars.
         const { data: authUtils, error: authUtilsError } = await supabase.functions.invoke("auth-utils");
-        
+
+        const loadWorkspaceDetails = async () => withTimeout(
+          getWorkspaceContext({ force: shouldRefreshWorkspace, providedUser: session?.user }),
+          WORKSPACE_TIMEOUT_MS,
+          "Supabase signed you in, but the workspace profile check timed out. Confirm public.users and public.organizations are readable and active."
+        );
+
         if (!authUtilsError && authUtils?.authenticated) {
+          let workspaceDetails = null;
+          if (authUtils.organizationId || !authUtils.isPlatformAdmin) {
+            try {
+              workspaceDetails = await loadWorkspaceDetails();
+            } catch (detailsError) {
+              workspaceAccessMessage =
+                detailsError?.message || "Supabase signed you in, but the workspace profile could not be loaded.";
+            }
+          }
+
           workspace = {
-            userId: authUtils.userId,
-            email: authUtils.email,
-            role: authUtils.role,
-            organizationId: authUtils.organizationId,
-            canAccessWorkspace: Boolean(authUtils.organizationId),
+            ...(workspaceDetails || {}),
+            userId: authUtils.userId || workspaceDetails?.userId,
+            email: authUtils.email || workspaceDetails?.email,
+            fullName: workspaceDetails?.fullName || authUtils.fullName || "",
+            avatarUrl: workspaceDetails?.avatarUrl || authUtils.avatarUrl || "",
+            avatarPath: workspaceDetails?.avatarPath || authUtils.avatarPath || "",
+            role: authUtils.role || workspaceDetails?.role,
+            organizationId: authUtils.organizationId || workspaceDetails?.organizationId,
+            organizationName: workspaceDetails?.organizationName || authUtils.organizationName || "Law Office",
+            organizationLogoUrl: workspaceDetails?.organizationLogoUrl || authUtils.organizationLogoUrl || "",
+            organizationLogoPath: workspaceDetails?.organizationLogoPath || authUtils.organizationLogoPath || "",
+            organizationAddress: workspaceDetails?.organizationAddress || authUtils.organizationAddress || "",
+            organizationPhone: workspaceDetails?.organizationPhone || authUtils.organizationPhone || "",
+            organizationEmail: workspaceDetails?.organizationEmail || authUtils.organizationEmail || "",
+            organizationWebsite: workspaceDetails?.organizationWebsite || authUtils.organizationWebsite || "",
+            canAccessWorkspace: Boolean(authUtils.organizationId || workspaceDetails?.organizationId),
             mustResetPassword: Boolean(authUtils.mustResetPassword),
+            isDemoWorkspace: Boolean(authUtils.isDemo),
+            demoExpiresAt: authUtils.demoExpiresAt || workspaceDetails?.demoExpiresAt || null,
+            subscriptionStatus: authUtils.subscriptionStatus || workspaceDetails?.subscriptionStatus || "ACTIVE",
           };
         } else {
-          workspace = await withTimeout(
-            getWorkspaceContext({ force: shouldRefreshWorkspace, providedUser: session?.user }),
-            WORKSPACE_TIMEOUT_MS,
-            "Supabase signed you in, but the workspace profile check timed out. Confirm public.users and public.organizations are readable and active."
-          );
+          workspace = await loadWorkspaceDetails();
         }
       } catch (error) {
         workspaceAccessMessage =

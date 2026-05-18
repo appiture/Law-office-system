@@ -25,6 +25,8 @@ const withTimeout = (promise, timeoutMs, message) =>
     }),
   ]);
 
+const unwrapSession = (result) => result?.data || result || {};
+
 function Login() {
   const navigate = useNavigate();
   const [email, setEmail] = useState(getRememberedEmail());
@@ -39,7 +41,7 @@ function Login() {
     let cancelled = false;
     const hydrate = async () => {
       try {
-        const session = await syncSupabaseSession();
+        const session = unwrapSession(await syncSupabaseSession());
         if (cancelled) return;
         if (isAuthenticated()) {
           if (session?.canAccessWorkspace) {
@@ -66,7 +68,7 @@ function Login() {
   };
 
   const goToWorkspace = async () => {
-    const session = await syncSupabaseSession();
+    const session = unwrapSession(await syncSupabaseSession());
     persistRememberedFields();
 
     if (session?.canAccessWorkspace) {

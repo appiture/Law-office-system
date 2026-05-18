@@ -30,6 +30,15 @@ const esc = (v: unknown) =>
     .replace(/>/g, "&gt;")
     .replace(/"/g, "&quot;");
 
+const detailValue = (row: any, ...keys: string[]) => {
+  const details = row?.details || {};
+  for (const key of keys) {
+    const value = details?.[key] ?? details?.[key.replace(/[A-Z]/g, (m) => `_${m.toLowerCase()}`)];
+    if (value !== undefined && value !== null && value !== "") return value;
+  }
+  return "";
+};
+
 // ---------------------------------------------------------------------------
 // Data Collectors
 // ---------------------------------------------------------------------------
@@ -40,6 +49,10 @@ export async function fetchData(db: any, orgId: string, req: ExportRequest) {
   const end = dateRange?.end;
 
   let query: any;
+  const dateFieldForType = (value: string) =>
+    value === "payments" ? "payment_date" :
+    value === "hearings" ? "date" :
+    "created_at";
 
   // Use selected IDs if provided, otherwise apply filters
   const applyFilters = (q: any) => {
@@ -48,12 +61,10 @@ export async function fetchData(db: any, orgId: string, req: ExportRequest) {
     }
     let res = q.eq("organization_id", orgId);
     if (start) {
-      const field = type === "payments" ? "payment_date" : (type === "hearings" ? "date" : (type === "documents" ? "uploaded_at" : "created_at"));
-      res = res.gte(field, start);
+      res = res.gte(dateFieldForType(type), start);
     }
     if (end) {
-      const field = type === "payments" ? "payment_date" : (type === "hearings" ? "date" : (type === "documents" ? "uploaded_at" : "created_at"));
-      res = res.lte(field, end);
+      res = res.lte(dateFieldForType(type), end);
     }
     return res;
   };
@@ -61,7 +72,7 @@ export async function fetchData(db: any, orgId: string, req: ExportRequest) {
   switch (type) {
     case "clients":
       query = db.from("clients").select(`
-        id, name, phone, email, address, city, occupation, status, created_at, created_by
+        id, name, phone, email, address, notes, details, created_at, created_by
       `).is("deleted_at", null);
       query = applyFilters(query);
       if (filters?.searchTerm) query = query.ilike("name", `%${filters.searchTerm}%`);
@@ -70,35 +81,35 @@ export async function fetchData(db: any, orgId: string, req: ExportRequest) {
 
     case "cases":
       query = db.from("cases").select(`
-        id, case_number, title, case_type, status, court_name, judge_name,
-        lawyer_name, next_hearing_date, filing_date, created_at, updated_at, case_description,
-        opponent_name, opponent_lawyer,
+        id, case_number, case_type, status, court_name,
+        lawyer_name, details, created_at, updated_at,
         client:clients(id, name, phone, email)
       `).is("deleted_at", null);
       query = applyFilters(query);
       if (filters?.status) query = query.eq("status", filters.status);
       if (filters?.caseType) query = query.eq("case_type", filters.caseType);
-      if (filters?.searchTerm) query = query.or(`case_number.ilike.%${filters.searchTerm}%,title.ilike.%${filters.searchTerm}%`);
+      if (filters?.searchTerm) query = query.or(`case_number.ilike.%${filters.searchTerm}%,case_type.ilike.%${filters.searchTerm}%,court_name.ilike.%${filters.searchTerm}%`);
       const { data: cases } = await query.order("created_at", { ascending: false });
       return { cases: cases || [] };
 
     case "payments":
       query = db.from("payment_history").select(`
-        id, amount_paid, payment_date, payment_mode, payment_reference, status, created_at, recorded_by,
-        charge_item:charge_items(
-          id, label,
+        id, organization_id, amount_paid, payment_date, timestamp, payment_mode, payment_reference, charge_name, created_by,
+        payment_charge:payment_charges(
+          id, name,
           case:cases(id, case_number, client:clients(id, name))
         )
-      `);
+      `).eq("organization_id", orgId);
       {
         const { data: payments } = await query
           .order("payment_date", { ascending: false })
           .limit(2000);
         const normalized = (payments || []).map((p: any) => ({
           ...p,
-          charge_name: p.charge_item?.label || "",
-          case: p.charge_item?.case || null,
-          client: p.charge_item?.case?.client || null,
+          charge_name: p.charge_name || p.payment_charge?.name || "",
+          payment_date: p.payment_date || p.timestamp,
+          case: p.payment_charge?.case || null,
+          client: p.payment_charge?.case?.client || null,
         })).filter((p: any) => p.case != null);
         return { payments: normalized };
       }
@@ -117,13 +128,13 @@ export async function fetchData(db: any, orgId: string, req: ExportRequest) {
 
     case "documents":
       query = db.from("documents").select(`
-        id, file_name, category, description, uploaded_at, uploaded_by, created_at,
+        id, file_name, category, description, uploaded_by, created_at,
         case:cases(id, case_number, client:clients(id, name))
       `).is("deleted_at", null);
       query = applyFilters(query);
       if (filters?.category) query = query.eq("category", filters.category);
       if (filters?.searchTerm) query = query.ilike("file_name", `%${filters.searchTerm}%`);
-      const { data: documents } = await query.order("uploaded_at", { ascending: false });
+      const { data: documents } = await query.order("created_at", { ascending: false });
       return { documents: documents || [] };
 
     case "tasks":
@@ -156,20 +167,21 @@ export async function fetchData(db: any, orgId: string, req: ExportRequest) {
     case "dashboard":
     default:
       const [c, cs, p, f, d, t, m, i] = await Promise.all([
-        db.from("clients").select("id, name, phone, email, status, city, occupation, created_at").eq("organization_id", orgId).is("deleted_at", null).gte("created_at", start || "2000-01-01").lte("created_at", end || "2100-01-01"),
-        db.from("cases").select("id, case_number, title, case_type, status, court_name, lawyer_name, next_hearing_date, created_at, client:clients(id, name)").eq("organization_id", orgId).is("deleted_at", null).gte("created_at", start || "2000-01-01").lte("created_at", end || "2100-01-01"),
-        db.from("payment_history").select("id, amount_paid, payment_date, payment_mode, payment_reference, status, charge_item:charge_items(id, label, case:cases(id, case_number, client:clients(id, name)))").gte("payment_date", start || "2000-01-01").lte("payment_date", end || "2100-01-01").limit(500),
-        db.from("hearings").select("id, type, title, status, notes, scheduled_at, created_at, case:cases(id, case_number, client:clients(id, name))").eq("organization_id", orgId).gte("scheduled_at", start || "2000-01-01").lte("scheduled_at", end || "2100-01-01"),
-        db.from("documents").select("id, file_name, category, description, uploaded_at, uploaded_by, case:cases(id, case_number)").eq("organization_id", orgId).is("deleted_at", null).gte("uploaded_at", start || "2000-01-01").lte("uploaded_at", end || "2100-01-01"),
+        db.from("clients").select("id, name, phone, email, address, details, created_at").eq("organization_id", orgId).is("deleted_at", null).gte("created_at", start || "2000-01-01").lte("created_at", end || "2100-01-01"),
+        db.from("cases").select("id, case_number, case_type, status, court_name, lawyer_name, details, created_at, client:clients(id, name)").eq("organization_id", orgId).is("deleted_at", null).gte("created_at", start || "2000-01-01").lte("created_at", end || "2100-01-01"),
+        db.from("payment_history").select("id, amount_paid, payment_date, timestamp, payment_mode, payment_reference, charge_name, payment_charge:payment_charges(id, name, case:cases(id, case_number, client:clients(id, name)))").eq("organization_id", orgId).gte("payment_date", start || "2000-01-01").lte("payment_date", end || "2100-01-01").limit(500),
+        db.from("hearings").select("id, type, title, status, notes, date, scheduled_at, created_at, case:cases(id, case_number, client:clients(id, name))").eq("organization_id", orgId).gte("date", start || "2000-01-01").lte("date", end || "2100-01-01"),
+        db.from("documents").select("id, file_name, category, description, uploaded_by, created_at, case:cases(id, case_number)").eq("organization_id", orgId).is("deleted_at", null).gte("created_at", start || "2000-01-01").lte("created_at", end || "2100-01-01"),
         db.from("tasks").select("id, title, priority, status, due_date, assigned_to, created_by, created_at").eq("organization_id", orgId).is("deleted_at", null).gte("created_at", start || "2000-01-01").lte("created_at", end || "2100-01-01"),
         db.from("users").select("id, email, full_name, role, status, created_at").eq("organization_id", orgId).is("deleted_at", null),
         db.from("organization_invites").select("id, email, role, status, created_at").eq("organization_id", orgId),
       ]);
       const rawPayments = (p.data || []).map((pay: any) => ({
         ...pay,
-        charge_name: pay.charge_item?.label || "",
-        case: pay.charge_item?.case || null,
-        client: pay.charge_item?.case?.client || null,
+        charge_name: pay.charge_name || pay.payment_charge?.name || "",
+        payment_date: pay.payment_date || pay.timestamp,
+        case: pay.payment_charge?.case || null,
+        client: pay.payment_charge?.case?.client || null,
       }));
       return {
         clients: c.data || [],
@@ -193,20 +205,20 @@ export function formatData(type: string, data: any): Sheet[] {
     case "clients":
       return [{
         name: "Clients",
-        headers: ["ID", "Name", "Phone", "Email", "Address", "City", "Occupation", "Status", "Joined At"],
-        rows: (data.clients || []).map((c: any) => [c.id, c.name, c.phone, c.email, c.address, c.city, c.occupation, c.status, c.created_at])
+        headers: ["ID", "Name", "Phone", "Email", "Address", "City", "Occupation", "Joined At"],
+        rows: (data.clients || []).map((c: any) => [c.id, c.name, c.phone, c.email, c.address, detailValue(c, "city"), detailValue(c, "occupation"), c.created_at])
       }];
     case "cases":
       return [{
         name: "Cases",
         headers: ["Case No", "Title", "Type", "Status", "Client", "Court", "Lawyer", "Next Hearing", "Created At"],
-        rows: (data.cases || []).map((c: any) => [c.case_number, c.title, c.case_type, c.status, c.client?.name, c.court_name, c.lawyer_name, c.next_hearing_date, c.created_at])
+        rows: (data.cases || []).map((c: any) => [c.case_number, detailValue(c, "title", "caseTitle"), c.case_type, c.status, c.client?.name, c.court_name, c.lawyer_name, detailValue(c, "nextHearingDate", "next_hearing_date"), c.created_at])
       }];
     case "payments":
       return [{
         name: "Payments",
         headers: ["ID", "Amount", "Date", "Mode", "Reference", "Status", "Charge", "Case No", "Client"],
-        rows: (data.payments || []).map((p: any) => [p.id, p.amount_paid, p.payment_date, p.payment_mode, p.payment_reference, p.status, p.charge_name, p.case?.case_number, p.client?.name])
+        rows: (data.payments || []).map((p: any) => [p.id, p.amount_paid, p.payment_date || p.timestamp, p.payment_mode, p.payment_reference, "", p.charge_name, p.case?.case_number, p.client?.name])
       }];
     case "hearings":
       return [{
@@ -218,7 +230,7 @@ export function formatData(type: string, data: any): Sheet[] {
       return [{
         name: "Documents",
         headers: ["ID", "File Name", "Category", "Description", "Uploaded At", "Case No"],
-        rows: (data.documents || []).map((d: any) => [d.id, d.file_name, d.category, d.description, d.uploaded_at, d.case?.case_number])
+        rows: (data.documents || []).map((d: any) => [d.id, d.file_name, d.category, d.description, d.created_at, d.case?.case_number])
       }];
     case "tasks":
       return [{
@@ -252,18 +264,18 @@ export function formatData(type: string, data: any): Sheet[] {
       return [
         {
           name: "Clients",
-          headers: ["Name", "Email", "Phone", "Status", "City"],
-          rows: (data.clients || []).map((c: any) => [c.name, c.email, c.phone, c.status, c.city])
+          headers: ["Name", "Email", "Phone", "Address", "City"],
+          rows: (data.clients || []).map((c: any) => [c.name, c.email, c.phone, c.address, detailValue(c, "city")])
         },
         {
           name: "Cases",
           headers: ["Case No", "Title", "Type", "Status", "Next Hearing"],
-          rows: (data.cases || []).map((c: any) => [c.case_number, c.title, c.case_type, c.status, c.next_hearing_date])
+          rows: (data.cases || []).map((c: any) => [c.case_number, detailValue(c, "title", "caseTitle"), c.case_type, c.status, detailValue(c, "nextHearingDate", "next_hearing_date")])
         },
         {
           name: "Payments",
           headers: ["Amount", "Date", "Mode", "Status", "Case"],
-          rows: (data.payments || []).map((p: any) => [p.amount_paid, p.payment_date, p.payment_mode, p.status, p.case?.case_number])
+          rows: (data.payments || []).map((p: any) => [p.amount_paid, p.payment_date || p.timestamp, p.payment_mode, "", p.case?.case_number])
         },
         {
           name: "Hearings",

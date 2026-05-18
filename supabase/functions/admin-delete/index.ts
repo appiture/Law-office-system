@@ -235,7 +235,7 @@ const deleteUser = async (
     .from("users")
     .update({
       deleted_at: new Date().toISOString(),
-      status: 'DELETED',
+      status: 'INACTIVE',
       invite_status: 'DELETED'
     })
     .eq("id", userId);
