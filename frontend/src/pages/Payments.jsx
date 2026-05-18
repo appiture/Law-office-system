@@ -499,17 +499,52 @@ function Payments() {
         <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "nowrap", overflowX: "auto" }}>
           <button type="button" className="btn-gold" style={{ fontSize: "12px", padding: "6px 12px", whiteSpace: "nowrap" }} onClick={() => openExport({
             type: "payments",
-            availableData: cases.flatMap(c => (c.paymentHistory || []).map(p => ({
-              ...p,
-              caseNumber: c.caseNumber || c.case_number,
-              clientName: c.client?.name || c.clientName,
-              charge_name: p.chargeLabel || p.charge_name,
-              amount_paid: p.amount || p.amount_paid,
-              payment_mode: p.paymentMode || p.payment_mode,
-              payment_reference: p.paymentReference || p.payment_reference,
-              payment_date: p.paymentDate || p.payment_date,
-              case: { caseNumber: c.caseNumber || c.case_number },
-            }))),
+            availableData: {
+              // Full cases array — each has chargeItems[] + paymentHistory[] + KPI totals
+              paymentCases: cases.map(c => ({
+                caseId:       c.id,
+                caseNumber:   c.caseNumber || c.case_number,
+                caseTitle:    c.title || c.caseTitle,
+                caseType:     c.caseType || c.case_type,
+                caseStatus:   c.status,
+                courtName:    c.courtName || c.court_name,
+                lawyerName:   c.lawyerName || c.lawyer_name,
+                // KPI totals for the case
+                totalBilled:  c.totalAmount,
+                totalPaid:    c.paidAmount,
+                totalPending: c.balanceAmount,
+                // Full client info
+                clientId:     c.client?.id   || c.clientId,
+                clientName:   c.client?.name || c.clientName,
+                clientPhone:  c.client?.phone || c.clientPhone,
+                clientEmail:  c.client?.email || c.clientEmail,
+                // Fee categories (billed/paid/balance per category)
+                chargeItems: (c.chargeItems || []).map(i => ({
+                  id:           i.id,
+                  label:        i.label,
+                  isLawyerFee:  i.isLawyerFee,
+                  totalAmount:  i.totalAmount,
+                  paidAmount:   i.paidAmount,
+                  balanceAmount:i.balanceAmount,
+                  status:       i.status,
+                  dueDate:      i.dueDate,
+                  description:  i.description,
+                  notes:        i.notes,
+                })),
+                // Individual payment transactions
+                paymentHistory: (c.paymentHistory || []).map(p => ({
+                  id:               p.id,
+                  chargeLabel:      p.chargeLabel,
+                  amount:           p.amount,
+                  paymentDate:      p.paymentDate,
+                  paymentMode:      p.paymentMode,
+                  paymentReference: p.paymentReference,
+                  recordedBy:       p.recordedBy,
+                  createdAt:        p.createdAt,
+                  remarks:          p.remarks,
+                })),
+              })),
+            },
             currentFilters: filters,
             defaultDateRange: { start: filters.fromDate, end: filters.toDate }
           })}>

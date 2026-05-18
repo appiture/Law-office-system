@@ -201,141 +201,519 @@ export async function fetchData(db: any, orgId: string, req: ExportRequest) {
 // ---------------------------------------------------------------------------
 
 export function formatData(type: string, data: any): Sheet[] {
+
+  // Format date to readable Indian locale
+  const fmtDate = (d: any): string => {
+    if (!d) return "";
+    try { return new Date(d).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" }); }
+    catch { return String(d ?? ""); }
+  };
+
+  // Truncate for cell safety
+  const trunc = (s: any, len = 80): string => String(s ?? "").slice(0, len);
+
+  // Format INR currency
+  const fmtMoney = (v: any): string => v != null ? `Rs.${Number(v).toLocaleString("en-IN")}` : "";
+
+  // Get nested detail field (snake_case + camelCase)
+  const dv = (row: any, ...keys: string[]): string => detailValue(row, ...keys);
+
+  // Normalize case number from any field name
+  const caseNo = (r: any): string =>
+    r?.case_number || r?.caseNumber || r?.case_no || "";
+
+  // Get client name from nested or flat fields
+  const cName = (r: any): string =>
+    r?.client?.name || r?.clientName || "";
+
   switch (type) {
+
+    // ── CLIENTS ─────────────────────────────────────────────────────────────
     case "clients":
       return [{
-        name: "Clients",
-        headers: ["ID", "Name", "Phone", "Email", "Address", "City", "Occupation", "Joined At"],
-        rows: (data.clients || []).map((c: any) => [c.id, c.name, c.phone, c.email, c.address, detailValue(c, "city"), detailValue(c, "occupation"), c.created_at])
+        name: "Client Register",
+        headers: [
+          "Client ID", "Full Name", "Phone", "Alternate Phone",
+          "Email", "Occupation", "Date of Birth",
+          "Address", "City", "State", "Pincode",
+          "ID Proof Type", "ID Proof Number",
+          "Notes", "Registered On"
+        ],
+        rows: (data.clients || []).map((c: any) => [
+          c.id,
+          c.name,
+          c.phone,
+          dv(c, "alternatePhone", "alternate_phone"),
+          c.email,
+          dv(c, "occupation"),
+          fmtDate(dv(c, "dateOfBirth", "dob", "date_of_birth")),
+          c.address,
+          dv(c, "city"),
+          dv(c, "state"),
+          dv(c, "pincode", "zipCode", "zip"),
+          dv(c, "idProofType", "id_proof_type", "idType"),
+          dv(c, "idProofNumber", "id_proof_number", "idNumber"),
+          trunc(c.notes, 120),
+          fmtDate(c.created_at),
+        ])
       }];
+
+    // ── CASES ────────────────────────────────────────────────────────────────
     case "cases":
       return [{
-        name: "Cases",
-        headers: ["Case No", "Title", "Type", "Status", "Client", "Court", "Lawyer", "Next Hearing", "Created At"],
-        rows: (data.cases || []).map((c: any) => [c.case_number, detailValue(c, "title", "caseTitle"), c.case_type, c.status, c.client?.name, c.court_name, c.lawyer_name, detailValue(c, "nextHearingDate", "next_hearing_date"), c.created_at])
+        name: "Case Register",
+        headers: [
+          "Case No", "Case Title", "Case Type", "Status",
+          "Client Name", "Client Phone",
+          "Court Name", "Court Room", "Bench / Judge",
+          "Assigned Lawyer", "Opposing Party", "Opposing Counsel",
+          "Petition No", "FIR / Complaint No",
+          "Filing Date", "Next Hearing Date", "Last Hearing Date",
+          "Case Stage", "Priority",
+          "Notes / Summary", "Created At"
+        ],
+        rows: (data.cases || []).map((c: any) => [
+          caseNo(c),
+          dv(c, "title", "caseTitle", "case_title") || caseNo(c),
+          c.case_type,
+          c.status,
+          c.client?.name || cName(c),
+          c.client?.phone || dv(c, "clientPhone", "client_phone"),
+          c.court_name,
+          dv(c, "courtRoom", "court_room"),
+          dv(c, "bench", "judge", "benchName"),
+          c.lawyer_name || dv(c, "lawyerName", "lawyer"),
+          dv(c, "opposingParty", "opposing_party", "opponent"),
+          dv(c, "opposingCounsel", "opposing_counsel", "opponentLawyer"),
+          dv(c, "petitionNumber", "petition_number", "petitionNo"),
+          dv(c, "firNumber", "fir_number", "complaintNo"),
+          fmtDate(dv(c, "filingDate", "filing_date")),
+          fmtDate(dv(c, "nextHearingDate", "next_hearing_date")),
+          fmtDate(dv(c, "lastHearingDate", "last_hearing_date")),
+          dv(c, "caseStage", "stage", "case_stage"),
+          dv(c, "priority"),
+          trunc(dv(c, "notes", "summary", "description"), 150),
+          fmtDate(c.created_at),
+        ])
       }];
-    case "payments":
-      return [{
-        name: "Payments",
-        headers: ["ID", "Amount", "Date", "Mode", "Reference", "Status", "Charge", "Case No", "Client"],
-        rows: (data.payments || []).map((p: any) => [p.id, p.amount_paid, p.payment_date || p.timestamp, p.payment_mode, p.payment_reference, "", p.charge_name, p.case?.case_number, p.client?.name])
-      }];
+
+    // ── PAYMENTS ─────────────────────────────────────────────────────────────
+    // Accepts rich structure: data.paymentCases[] (from Payments page)
+    // Falls back to data.payments[] flat array for other callers
+    case "payments": {
+      const paymentCases: any[] = data.paymentCases || [];
+      const flatPayments: any[] = data.payments || [];
+
+      // ── Build working sets ────────────────────────────────────────────────
+
+      // If rich structure available, derive everything from it
+      const allChargeItems: any[] = paymentCases.flatMap(c =>
+        (c.chargeItems || []).map((i: any) => ({ ...i, _case: c }))
+      );
+      const allPaymentHistory: any[] = paymentCases.flatMap(c =>
+        (c.paymentHistory || []).map((p: any) => ({ ...p, _case: c }))
+      );
+
+      // Fall back to flat payments for legacy callers
+      const hasRich = paymentCases.length > 0;
+      const ledgerRows = hasRich ? allPaymentHistory : flatPayments;
+
+      // ── Revenue KPIs ──────────────────────────────────────────────────────
+      const totalBilled  = hasRich
+        ? paymentCases.reduce((s: number, c: any) => s + Number(c.totalBilled  || 0), 0)
+        : 0;
+      const totalPaid    = hasRich
+        ? paymentCases.reduce((s: number, c: any) => s + Number(c.totalPaid    || 0), 0)
+        : ledgerRows.reduce((s: number, p: any) => s + Number(p.amount_paid || p.amount || 0), 0);
+      const totalPending = hasRich
+        ? paymentCases.reduce((s: number, c: any) => s + Number(c.totalPending || 0), 0)
+        : Math.max(0, totalBilled - totalPaid);
+
+      // Category breakdown
+      const categoryMap: Record<string, { total: number; paid: number }> = {};
+      for (const ci of allChargeItems) {
+        if (!categoryMap[ci.label]) categoryMap[ci.label] = { total: 0, paid: 0 };
+        categoryMap[ci.label].total += Number(ci.totalAmount || 0);
+        categoryMap[ci.label].paid  += Number(ci.paidAmount  || 0);
+      }
+
+      // Mode breakdown from payment history
+      const modeMap: Record<string, number> = {};
+      for (const p of ledgerRows) {
+        const mode = p.paymentMode || p.payment_mode || "Unspecified";
+        modeMap[mode] = (modeMap[mode] || 0) + Number(p.amount || p.amount_paid || 0);
+      }
+
+      return [
+        // ── Sheet 1: Case Financial Summary (one row per case) ────────────
+        {
+          name: "Case Financial Summary",
+          headers: [
+            "Case No", "Case Title", "Case Type", "Status",
+            "Client Name", "Client Phone", "Client Email",
+            "Assigned Lawyer",
+            "Total Billed (Rs.)", "Total Paid (Rs.)", "Outstanding (Rs.)",
+            "No. of Fee Categories", "No. of Payments"
+          ],
+          rows: hasRich
+            ? paymentCases.map((c: any) => [
+                c.caseNumber,
+                c.caseTitle || c.caseNumber,
+                c.caseType,
+                c.caseStatus,
+                c.clientName,
+                c.clientPhone,
+                c.clientEmail,
+                c.lawyerName,
+                fmtMoney(c.totalBilled),
+                fmtMoney(c.totalPaid),
+                fmtMoney(c.totalPending),
+                (c.chargeItems || []).length,
+                (c.paymentHistory || []).length,
+              ])
+            : [["-", "No case-level data available", "", "", "", "", "", "", "", "", "", "", ""]]
+        },
+
+        // ── Sheet 2: Fee Categories (one row per charge item) ─────────────
+        {
+          name: "Fee Categories",
+          headers: [
+            "Category Label", "Type",
+            "Total Billed (Rs.)", "Total Paid (Rs.)", "Balance (Rs.)",
+            "Status", "Due Date",
+            "Case No", "Client Name",
+            "Description / Notes"
+          ],
+          rows: hasRich
+            ? allChargeItems.map((i: any) => [
+                i.label,
+                i.isLawyerFee ? "Lawyer Fee" : "Other Fee",
+                fmtMoney(i.totalAmount),
+                fmtMoney(i.paidAmount),
+                fmtMoney(i.balanceAmount),
+                i.status,
+                fmtDate(i.dueDate),
+                i._case?.caseNumber,
+                i._case?.clientName,
+                trunc((i.description || i.notes || ""), 100),
+              ])
+            : [["-", "No fee category data available", "", "", "", "", "", "", "", ""]]
+        },
+
+        // ── Sheet 3: Payment Transaction Ledger ───────────────────────────
+        {
+          name: "Payment Ledger",
+          headers: [
+            "Payment Date", "Amount Paid (Rs.)",
+            "Fee Category", "Payment Mode", "Reference / UTR",
+            "Case No", "Client Name", "Client Phone",
+            "Recorded By", "Remarks"
+          ],
+          rows: ledgerRows.map((p: any) => [
+            fmtDate(p.paymentDate || p.payment_date || p.createdAt || p.timestamp),
+            fmtMoney(p.amount || p.amount_paid),
+            p.chargeLabel || p.charge_name || p.chargeCategory,
+            p.paymentMode || p.payment_mode,
+            p.paymentReference || p.payment_reference,
+            p._case?.caseNumber || p.caseNumber || caseNo(p),
+            p._case?.clientName || p.clientName || cName(p),
+            p._case?.clientPhone || p.clientPhone || p.client?.phone,
+            p.recordedBy || p.recorded_by || p.created_by,
+            trunc(p.remarks || p.notes, 80),
+          ])
+        },
+
+        // ── Sheet 4: Revenue & Analytics KPIs ────────────────────────────
+        {
+          name: "Revenue Summary",
+          headers: ["Metric", "Value"],
+          rows: [
+            ["--- OVERALL FINANCIALS ---", ""],
+            ["Total Cases in Report",       paymentCases.length || "-"],
+            ["Total Fee Categories",         allChargeItems.length || "-"],
+            ["Total Payment Transactions",   ledgerRows.length],
+            ["Total Amount Billed",          fmtMoney(totalBilled) || "N/A"],
+            ["Total Amount Paid / Received", fmtMoney(totalPaid)],
+            ["Total Outstanding / Pending",  fmtMoney(totalPending) || "N/A"],
+            ...(totalBilled > 0 ? [
+              ["Collection Rate (%)",
+                `${((totalPaid / totalBilled) * 100).toFixed(1)}%`]
+            ] : []),
+            ["", ""],
+            ["--- PAYMENT MODES ---", ""],
+            ...Object.entries(modeMap).map(([mode, amt]) => [
+              `Collected via ${mode}`, fmtMoney(amt)
+            ]),
+            ["", ""],
+            ["--- CATEGORY BREAKDOWN ---", ""],
+            ...Object.entries(categoryMap).map(([cat, v]) => [
+              cat,
+              `Billed: ${fmtMoney(v.total)} | Paid: ${fmtMoney(v.paid)} | Pending: ${fmtMoney(v.total - v.paid)}`
+            ]),
+            ["", ""],
+            ["--- CASE STATUS ---", ""],
+            ["Cases with Fully Paid Fees",
+              paymentCases.filter((c: any) => Number(c.totalPending) === 0 && Number(c.totalBilled) > 0).length || "-"],
+            ["Cases with Outstanding Balance",
+              paymentCases.filter((c: any) => Number(c.totalPending) > 0).length || "-"],
+          ]
+        },
+      ];
+    }
+
+
+    // ── HEARINGS ──────────────────────────────────────────────────────────────
     case "hearings":
       return [{
-        name: "Hearings",
-        headers: ["ID", "Type", "Title", "Status", "Date", "Case No", "Client"],
-        rows: (data.hearings || []).map((h: any) => [h.id, h.type, h.title, h.status, h.date || h.scheduled_at, h.case?.case_number, h.case?.client?.name])
+        name: "Court Hearings & Timeline",
+        headers: [
+          "Hearing ID", "Event Type", "Title / Description",
+          "Status", "Scheduled Date", "Postponed To",
+          "Case No", "Client Name", "Court Name",
+          "Assigned Lawyer", "Notes / Outcome", "Created At"
+        ],
+        rows: (data.hearings || []).map((h: any) => [
+          h.id,
+          h.type,
+          h.title || dv(h, "description"),
+          h.status,
+          fmtDate(h.date || h.scheduled_at || h.scheduledAt),
+          fmtDate(h.postponed_to || h.postponedTo),
+          h.case?.case_number || caseNo(h) || h.caseNumber,
+          h.case?.client?.name || h.clientName || cName(h),
+          h.case?.court_name || h.courtName,
+          h.case?.lawyer_name || h.lawyerName,
+          trunc(h.notes || h.outcome, 120),
+          fmtDate(h.created_at),
+        ])
       }];
+
+    // ── DOCUMENTS ────────────────────────────────────────────────────────────
     case "documents":
       return [{
-        name: "Documents",
-        headers: ["ID", "File Name", "Category", "Description", "Uploaded At", "Case No"],
-        rows: (data.documents || []).map((d: any) => [d.id, d.file_name, d.category, d.description, d.created_at, d.case?.case_number])
+        name: "Document Repository",
+        headers: [
+          "Document ID", "Title / File Name", "Category",
+          "Description", "File Type", "File Size (KB)",
+          "Case No", "Client Name",
+          "Uploaded By", "Uploaded At"
+        ],
+        rows: (data.documents || []).map((d: any) => [
+          d.id,
+          d.file_name || d.fileName || d.title,
+          d.category,
+          trunc(d.description, 100),
+          d.file_type || d.fileType || d.mime_type,
+          d.file_size != null ? (Number(d.file_size) / 1024).toFixed(1) : "",
+          d.case?.case_number || caseNo(d) || d.caseNumber,
+          d.case?.client?.name || d.clientName || cName(d),
+          d.uploaded_by || d.uploadedBy || d.created_by,
+          fmtDate(d.created_at || d.uploaded_at),
+        ])
       }];
-    case "tasks":
-      return [{
-        name: "Tasks",
-        headers: ["ID", "Title", "Priority", "Status", "Due Date", "Created At"],
-        rows: (data.tasks || []).map((t: any) => [t.id, t.title, t.priority, t.status, t.due_date, t.created_at])
-      }];
+
+    // ── TASKS ────────────────────────────────────────────────────────────────
+    case "tasks": {
+      const tasks = data.tasks || [];
+      const now = new Date();
+      const isOvr = (t: any) =>
+        t.due_date && new Date(t.due_date) < now &&
+        t.status !== "COMPLETED" && t.status !== "CANCELLED";
+      return [
+        {
+          name: "Task List",
+          headers: [
+            "Task ID", "Title", "Description", "Priority", "Status",
+            "Overdue?", "Due Date", "Assigned To",
+            "Created By", "Created At", "Completed At"
+          ],
+          rows: tasks.map((t: any) => [
+            t.id,
+            t.title,
+            trunc(t.description || t.notes, 100),
+            t.priority,
+            t.status,
+            isOvr(t) ? "YES" : "No",
+            fmtDate(t.due_date || t.dueDate),
+            t.assigned_to || t.assignedTo,
+            t.created_by,
+            fmtDate(t.created_at),
+            fmtDate(t.completed_at),
+          ])
+        },
+        {
+          name: "Task Summary",
+          headers: ["Metric", "Value"],
+          rows: [
+            ["Total Tasks", tasks.length],
+            ["Pending", tasks.filter((t: any) => t.status === "PENDING").length],
+            ["In Progress", tasks.filter((t: any) => t.status === "IN_PROGRESS").length],
+            ["Completed", tasks.filter((t: any) => t.status === "COMPLETED").length],
+            ["Cancelled", tasks.filter((t: any) => t.status === "CANCELLED").length],
+            ["Overdue", tasks.filter((t: any) => isOvr(t)).length],
+            ["Urgent Priority", tasks.filter((t: any) => t.priority === "URGENT").length],
+            ["High Priority", tasks.filter((t: any) => t.priority === "HIGH").length],
+          ]
+        }
+      ];
+    }
+
+    // ── TEAM ─────────────────────────────────────────────────────────────────
     case "team":
       return [
         {
-          name: "Members",
-          headers: ["ID", "Email", "Full Name", "Role", "Status", "Created At"],
-          rows: (data.members || []).map((m: any) => [m.id, m.email, m.full_name, m.role, m.status, m.created_at])
+          name: "Active Team Members",
+          headers: [
+            "User ID", "Full Name", "Email", "Role",
+            "Account Status", "Password Reset Pending?",
+            "Last Login", "Joined On"
+          ],
+          rows: (data.members || []).map((m: any) => [
+            m.id,
+            m.full_name || m.name,
+            m.email,
+            m.role,
+            m.status,
+            m.must_reset_password ? "YES" : "No",
+            fmtDate(m.last_sign_in_at || m.last_login),
+            fmtDate(m.created_at),
+          ])
         },
         {
-          name: "Invites",
-          headers: ["ID", "Email", "Role", "Status", "Sent At"],
-          rows: (data.invites || []).map((v: any) => [v.id, v.email, v.role, v.status, v.sent_at])
+          name: "Pending Invites",
+          headers: [
+            "Invite ID", "Invited Email", "Role",
+            "Invite Status", "Invite Type", "Sent At", "Expires At"
+          ],
+          rows: (data.invites || []).map((v: any) => [
+            v.id,
+            v.email,
+            v.role,
+            v.status,
+            v.invite_type || v.inviteType,
+            fmtDate(v.sent_at || v.created_at),
+            fmtDate(v.expires_at),
+          ])
+        },
+        {
+          name: "Team Summary",
+          headers: ["Metric", "Value"],
+          rows: [
+            ["Total Members", (data.members || []).length],
+            ["Active Members", (data.members || []).filter((m: any) => m.status === "ACTIVE").length],
+            ["Inactive Members", (data.members || []).filter((m: any) => m.status !== "ACTIVE").length],
+            ["Admins", (data.members || []).filter((m: any) => m.role === "ADMIN").length],
+            ["Lawyers", (data.members || []).filter((m: any) => m.role === "LAWYER").length],
+            ["Staff", (data.members || []).filter((m: any) => m.role === "STAFF").length],
+            ["Pending Password Reset", (data.members || []).filter((m: any) => m.must_reset_password).length],
+            ["Pending Invites", (data.invites || []).filter((v: any) => v.status === "PENDING").length],
+          ]
         }
       ];
+
+    // ── PLATFORM (Super Admin) ────────────────────────────────────────────────
     case "platform":
       return [
         {
-          name: "Security Alerts",
-          headers: ["ID", "Severity", "Action", "Date", "Details"],
-          rows: (data.security_alerts || []).map((a: any) => [a.id, a.severity, a.action, a.created_at, JSON.stringify(a.metadata)])
-        }
-      ];
-    case "dashboard":
-    default:
-      return [
-        {
-          name: "Summary",
+          name: "Platform Overview",
           headers: ["Metric", "Value"],
           rows: [
-            ["Total Clients", data.clients?.length ?? 0],
-            ["Total Cases", data.cases?.length ?? 0],
-            ["Total Payments", data.payments?.length ?? 0],
-            ["Total Hearings", data.hearings?.length ?? 0],
-            ["Total Documents", data.documents?.length ?? 0],
-            ["Total Tasks", data.tasks?.length ?? 0],
-            ["Team Members", data.members?.length ?? 0],
-            ["Pending Invites", data.invites?.length ?? 0],
-            ["Total Revenue (₹)", (data.payments || []).reduce((sum: number, p: any) => sum + Number(p.amount_paid || 0), 0)],
+            ["Active Organizations", data.active_organizations ?? 0],
+            ["Active Users (All Orgs)", data.active_users ?? 0],
+            ["New Registrations (Period)", data.new_registrations ?? 0],
+            ["Security Alerts (Period)", (data.security_alerts || []).length],
+          ]
+        },
+        {
+          name: "Security Alerts",
+          headers: ["Alert ID", "Severity", "Action / Event", "Triggered At", "Details"],
+          rows: (data.security_alerts || []).map((a: any) => [
+            a.id,
+            a.severity,
+            a.action,
+            fmtDate(a.created_at),
+            trunc(JSON.stringify(a.metadata || {}), 200),
+          ])
+        }
+      ];
+
+    // ── DASHBOARD — Full Practice Report ─────────────────────────────────────
+    case "dashboard":
+    default: {
+      const clients  = data.clients  || [];
+      const cases    = data.cases    || [];
+      const payments = data.payments || [];
+      const hearings = data.hearings || [];
+      const docs     = data.documents || [];
+      const tasks    = data.tasks    || [];
+      const members  = data.members  || [];
+      const invites  = data.invites  || [];
+      const totalRevenue = payments.reduce((s: number, p: any) => s + Number(p.amount_paid || 0), 0);
+      const now = new Date();
+      const pendingTasks = tasks.filter((t: any) => t.status === "PENDING" || t.status === "IN_PROGRESS").length;
+      const upcomingHearings = hearings.filter((h: any) => { const d = new Date(h.date || h.scheduled_at || ""); return !isNaN(d.getTime()) && d >= now; }).length;
+
+      return [
+        {
+          name: "Practice Summary",
+          headers: ["Category", "Metric", "Value"],
+          rows: [
+            ["Clients",   "Total Registered Clients",    clients.length],
+            ["Cases",     "Total Cases",                 cases.length],
+            ["Cases",     "Active / Open Cases",         cases.filter((c: any) => c.status === "ACTIVE" || c.status === "OPEN").length],
+            ["Cases",     "Closed / Disposed Cases",     cases.filter((c: any) => c.status === "CLOSED" || c.status === "DISPOSED").length],
+            ["Payments",  "Total Revenue Collected",     fmtMoney(totalRevenue)],
+            ["Payments",  "Total Payment Transactions",  payments.length],
+            ["Hearings",  "Total Hearings / Events",     hearings.length],
+            ["Hearings",  "Upcoming Hearings",           upcomingHearings],
+            ["Documents", "Total Documents Stored",      docs.length],
+            ["Tasks",     "Total Tasks",                 tasks.length],
+            ["Tasks",     "Pending / In-Progress",       pendingTasks],
+            ["Team",      "Team Members",                members.length],
+            ["Team",      "Active Members",              members.filter((m: any) => m.status === "ACTIVE").length],
+            ["Team",      "Pending Invites",             invites.filter((i: any) => i.status === "PENDING").length],
           ]
         },
         {
           name: "Clients",
-          headers: ["ID", "Name", "Phone", "Email", "Address", "City", "Occupation", "Registered"],
-          rows: (data.clients || []).map((c: any) => [
-            c.id, c.name, c.phone, c.email, c.address,
-            detailValue(c, "city"), detailValue(c, "occupation"), c.created_at
-          ])
+          headers: ["Client ID", "Full Name", "Phone", "Email", "Occupation", "City", "State", "ID Proof Type", "Notes", "Registered On"],
+          rows: clients.map((c: any) => [c.id, c.name, c.phone, c.email, dv(c, "occupation"), dv(c, "city"), dv(c, "state"), dv(c, "idProofType", "id_proof_type"), trunc(c.notes, 80), fmtDate(c.created_at)])
         },
         {
           name: "Cases",
-          headers: ["Case No", "Client", "Type", "Status", "Court", "Lawyer", "Next Hearing", "Created At"],
-          rows: (data.cases || []).map((c: any) => [
-            c.case_number, c.client?.name,
-            c.case_type, c.status, c.court_name, c.lawyer_name,
-            detailValue(c, "nextHearingDate", "next_hearing_date"), c.created_at
-          ])
+          headers: ["Case No", "Case Title", "Type", "Status", "Client Name", "Court Name", "Assigned Lawyer", "Opposing Party", "Filing Date", "Next Hearing", "Created At"],
+          rows: cases.map((c: any) => [caseNo(c), dv(c, "title", "caseTitle") || caseNo(c), c.case_type, c.status, c.client?.name || cName(c), c.court_name, c.lawyer_name || dv(c, "lawyerName"), dv(c, "opposingParty", "opposing_party"), fmtDate(dv(c, "filingDate", "filing_date")), fmtDate(dv(c, "nextHearingDate", "next_hearing_date")), fmtDate(c.created_at)])
         },
         {
           name: "Payments",
-          headers: ["Amount (₹)", "Date", "Mode", "Reference", "Charge", "Case No", "Client"],
-          rows: (data.payments || []).map((p: any) => [
-            p.amount_paid, p.payment_date || p.timestamp,
-            p.payment_mode, p.payment_reference,
-            p.charge_name, p.case?.case_number, p.client?.name
-          ])
+          headers: ["Payment Date", "Amount (Rs.)", "Payment Mode", "Reference", "Fee Category", "Case No", "Client Name"],
+          rows: payments.map((p: any) => [fmtDate(p.payment_date || p.timestamp), fmtMoney(p.amount_paid), p.payment_mode, p.payment_reference, p.charge_name, p.case?.case_number || caseNo(p), p.client?.name || cName(p)])
         },
         {
           name: "Hearings",
-          headers: ["Date", "Type", "Title", "Status", "Notes", "Case No", "Client"],
-          rows: (data.hearings || []).map((h: any) => [
-            h.date || h.scheduled_at, h.type, h.title,
-            h.status, (h.notes || "").slice(0, 60),
-            h.case?.case_number, h.case?.client?.name
-          ])
+          headers: ["Scheduled Date", "Event Type", "Title", "Status", "Postponed To", "Case No", "Client Name", "Notes"],
+          rows: hearings.map((h: any) => [fmtDate(h.date || h.scheduled_at), h.type, h.title, h.status, fmtDate(h.postponed_to), h.case?.case_number || caseNo(h) || h.caseNumber, h.case?.client?.name || h.clientName || cName(h), trunc(h.notes, 80)])
         },
         {
           name: "Documents",
-          headers: ["File Name", "Category", "Description", "Uploaded", "Case No"],
-          rows: (data.documents || []).map((d: any) => [
-            d.file_name, d.category, d.description, d.created_at, d.case?.case_number
-          ])
+          headers: ["File Name", "Category", "Description", "File Type", "Size (KB)", "Case No", "Uploaded At"],
+          rows: docs.map((d: any) => [d.file_name || d.fileName, d.category, trunc(d.description, 80), d.file_type || d.fileType, d.file_size != null ? (Number(d.file_size) / 1024).toFixed(1) : "", d.case?.case_number || caseNo(d) || d.caseNumber, fmtDate(d.created_at)])
         },
         {
           name: "Tasks",
-          headers: ["Title", "Priority", "Status", "Due Date", "Created At"],
-          rows: (data.tasks || []).map((t: any) => [
-            t.title, t.priority, t.status, t.due_date, t.created_at
-          ])
+          headers: ["Title", "Priority", "Status", "Due Date", "Assigned To", "Description"],
+          rows: tasks.map((t: any) => [t.title, t.priority, t.status, fmtDate(t.due_date || t.dueDate), t.assigned_to || t.assignedTo, trunc(t.description || t.notes, 80)])
         },
         {
           name: "Team",
-          headers: ["Name", "Email", "Role", "Status", "Joined"],
-          rows: (data.members || []).map((m: any) => [
-            m.full_name, m.email, m.role, m.status, m.created_at
-          ])
+          headers: ["Full Name", "Email", "Role", "Status", "Joined On"],
+          rows: members.map((m: any) => [m.full_name || m.name, m.email, m.role, m.status, fmtDate(m.created_at)])
         },
       ];
+    }
   }
 }
+
 
 // ---------------------------------------------------------------------------
 // File Generators
@@ -360,38 +738,57 @@ export async function generateXLSX(sheets: Sheet[]): Promise<Uint8Array> {
   zip.file("xl/workbook.xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${sheets.map((s, i) => `<sheet name="${esc(s.name)}" sheetId="${i + 1}" r:id="rId${i + 1}"/>`).join("")}</sheets></workbook>`);
   zip.file("xl/styles.xml", `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts><fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills><borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders><cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs><cellXfs count="2"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/><xf numFmtId="0" fontId="1" fillId="0" borderId="0" xfId="0" applyFont="1"/></cellXfs></styleSheet>`);
 
+  // Excel column letter helper (supports AA, AB... beyond Z)
+  const colLetter = (n: number): string => {
+    let s = "";
+    n += 1; // 1-indexed
+    while (n > 0) {
+      const rem = (n - 1) % 26;
+      s = String.fromCharCode(65 + rem) + s;
+      n = Math.floor((n - 1) / 26);
+    }
+    return s;
+  };
+
   sheets.forEach((s, i) => {
     let sheetXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>`;
     // Header row
-    sheetXml += `<row r="1">` + s.headers.map((h, hi) => `<c r="${String.fromCharCode(65 + hi)}1" s="1" t="inlineStr"><is><t>${esc(h)}</t></is></c>`).join("") + `</row>`;
+    sheetXml += `<row r="1">` + s.headers.map((h, hi) => `<c r="${colLetter(hi)}1" s="1" t="inlineStr"><is><t>${esc(h)}</t></is></c>`).join("") + `</row>`;
     // Data rows
     s.rows.forEach((r, ri) => {
-      sheetXml += `<row r="${ri + 2}">` + r.map((v, ci) => `<c r="${String.fromCharCode(65 + ci)}${ri + 2}" t="inlineStr"><is><t>${esc(v)}</t></is></c>`).join("") + `</row>`;
+      sheetXml += `<row r="${ri + 2}">` + r.map((v, ci) => `<c r="${colLetter(ci)}${ri + 2}" t="inlineStr"><is><t>${esc(String(v ?? "").slice(0, 200))}</t></is></c>`).join("") + `</row>`;
     });
     sheetXml += `</sheetData></worksheet>`;
     zip.file(`xl/worksheets/sheet${i + 1}.xml`, sheetXml);
   });
 
+
   return await zip.generateAsync({ type: "uint8array" });
 }
 
 export function generatePDF(sheets: Sheet[], title: string): Uint8Array {
-  const doc = new jsPDF() as any;
+  // Determine if any sheet is wide (>9 columns) — if so, start in landscape
+  const hasWideSheet = sheets.some(s => s.headers.length > 9);
+  const doc = new jsPDF({ orientation: hasWideSheet ? "landscape" : "portrait" }) as any;
   const dateStr = new Date().toLocaleDateString("en-IN", { day: "2-digit", month: "long", year: "numeric" });
+  // Page dimensions
+  const pageW = hasWideSheet ? 297 : 210;
 
   sheets.forEach((s, i) => {
     if (i > 0) doc.addPage();
 
+    const isWide = s.headers.length > 9;
+
     // Header bar
     doc.setFillColor(26, 35, 126);
-    doc.rect(0, 0, 210, 22, "F");
+    doc.rect(0, 0, pageW, 22, "F");
     doc.setFontSize(14);
     doc.setTextColor(255, 255, 255);
     doc.setFont("helvetica", "bold");
     doc.text(title, 14, 14);
     doc.setFontSize(9);
     doc.setFont("helvetica", "normal");
-    doc.text(dateStr, 196, 14, { align: "right" });
+    doc.text(dateStr, pageW - 14, 14, { align: "right" });
 
     // Section title
     doc.setTextColor(26, 35, 126);
@@ -405,24 +802,26 @@ export function generatePDF(sheets: Sheet[], title: string): Uint8Array {
       body: s.rows.map(r => r.map(v => String(v ?? ""))),
       startY: 37,
       theme: "grid",
-      styles: { fontSize: 7.5, cellPadding: 3 },
-      headStyles: { fillColor: [26, 35, 126], textColor: 255, fontStyle: "bold" },
+      styles: { fontSize: isWide ? 6.0 : 7.5, cellPadding: isWide ? 2 : 3, overflow: "linebreak" },
+      headStyles: { fillColor: [26, 35, 126], textColor: 255, fontStyle: "bold", fontSize: isWide ? 6.5 : 8 },
       alternateRowStyles: { fillColor: [245, 247, 255] },
-      margin: { left: 14, right: 14 },
+      margin: { left: 10, right: 10 },
+      tableWidth: "auto",
     });
 
     // Footer
-    const pageCount = doc.internal.getNumberOfPages();
     doc.setFontSize(7);
     doc.setTextColor(150, 150, 150);
-    doc.text(`Page ${i + 1} of ${sheets.length} sections`, 14, 290);
-    doc.text("Law Office Management System — Confidential", 196, 290, { align: "right" });
+    const footerY = hasWideSheet ? 200 : 290;
+    doc.text(`Page ${i + 1} of ${sheets.length} sections`, 14, footerY);
+    doc.text("Law Office Management System — Confidential", pageW - 14, footerY, { align: "right" });
   });
 
   // Must return Uint8Array (not ArrayBuffer) for consistent Response building
   const arrBuf = doc.output("arraybuffer") as ArrayBuffer;
   return new Uint8Array(arrBuf);
 }
+
 
 export async function generateDOCX(sheets: Sheet[], title: string): Promise<Uint8Array> {
   const zip = new JSZip();
