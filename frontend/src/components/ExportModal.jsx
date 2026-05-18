@@ -46,7 +46,13 @@ function getPreviewColumns(type) {
   switch (type) {
     case "cases":     return CASE_COLUMNS;
     case "clients":   return CLIENT_COLUMNS;
-    case "payments":  return PAYMENT_COLUMNS;
+    case "payments":  return [
+      { header: "Case No",      accessor: (r) => r.caseNumber || r._case?.caseNumber || "—" },
+      { header: "Client",       accessor: (r) => r.clientName || r._case?.clientName || "—" },
+      { header: "Amount Paid",  accessor: (r) => r.amount != null ? `Rs. ${Number(r.amount).toLocaleString("en-IN")}` : "—" },
+      { header: "Date",         accessor: (r) => (r.paymentDate || r.payment_date || "").slice(0, 10) || "—" },
+      { header: "Mode",         accessor: (r) => r.paymentMode || r.payment_mode || "—" },
+    ];
     case "hearings":  return HEARING_COLUMNS;
     case "documents": return DOCUMENT_COLUMNS;
     case "tasks":     return TASK_COLUMNS;
@@ -71,6 +77,7 @@ function getPreviewColumns(type) {
       ];
   }
 }
+
 
 export default function ExportModal({ onClose }) {
   const [state, setState] = useState(getExportState());
@@ -112,36 +119,59 @@ export default function ExportModal({ onClose }) {
 
   const columns = getPreviewColumns(type);
   
-  // Priority: selectedRows > filteredRows > allData
+  // ── Normalise allData regardless of shape ──────────────────────────────────
+  // allData can be:
+  //   • an array  (clients, cases, hearings, documents, tasks, team)
+  //   • an object { paymentCases: [...] }  (payments — new rich structure)
+  //   • an array of cross-module rows      (dashboard)
+  const isStructuredObject = allData && !Array.isArray(allData) && typeof allData === "object";
+
+  // Flat preview rows — for payments we flatten paymentHistory across cases
   let exportRows = [];
   if (selectedRows?.length > 0) {
     exportRows = selectedRows;
   } else if (filteredRows?.length > 0) {
     exportRows = filteredRows;
-  } else {
+  } else if (Array.isArray(allData) && allData.length > 0) {
     exportRows = allData;
+  } else if (isStructuredObject) {
+    // Flatten the first meaningful nested array for preview
+    const paymentCases = allData.paymentCases || [];
+    exportRows = paymentCases.flatMap(c =>
+      (c.paymentHistory || []).map(p => ({ ...p, _case: c, caseNumber: c.caseNumber, clientName: c.clientName }))
+    );
   }
 
-  // For dashboard: compute record count across all sections
-  const isDashboard = type === "dashboard";
-  const totalRecords = isDashboard
-    ? exportRows.length
-    : exportRows.length;
+  // Total record count shown in preview header
+  let totalRecords;
+  if (isStructuredObject) {
+    const pc = allData.paymentCases || [];
+    const txns = pc.reduce((s, c) => s + (c.paymentHistory?.length || 0), 0);
+    // Show "X cases · Y transactions" for payments
+    totalRecords = txns > 0 ? `${pc.length} cases · ${txns} transactions` : (exportRows.length || 0);
+  } else {
+    totalRecords = exportRows.length;
+  }
+
 
   const handleOpenPreview = () => {
+    // Check data presence — allData can be array OR object (payments)
+    const hasArrayData  = Array.isArray(allData) && allData.length > 0;
+    const hasObjectData = allData && !Array.isArray(allData) && typeof allData === "object"
+      && Object.values(allData).some(v => Array.isArray(v) && v.length > 0);
     const hasSelectedRows = selectedRows?.length > 0;
     const hasFilteredRows = filteredRows?.length > 0;
-    const hasDateRange = currentFilters?.startDate && currentFilters?.endDate;
-    const hasData = allData?.length > 0;
+    const hasDateRange    = currentFilters?.startDate && currentFilters?.endDate;
 
-    if (!hasSelectedRows && !hasFilteredRows && !hasDateRange && !hasData) {
-      setError("No data available for export");
+    if (!hasSelectedRows && !hasFilteredRows && !hasDateRange && !hasArrayData && !hasObjectData) {
+      setError("No data available for export. Please ensure records are loaded on the page first.");
       return;
     }
 
     setError("");
     setShowPreview(true);
   };
+
 
   const handleFinalExport = async () => {
     setShowPreview(false);
@@ -204,8 +234,11 @@ export default function ExportModal({ onClose }) {
               <p style={{ textTransform: "capitalize" }}>
                 {type === "dashboard"
                   ? `Full Practice Report — all modules (fetched from server)`
-                  : `${type} — ${exportRows.length} record${exportRows.length !== 1 ? "s" : ""} selected`}
+                  : typeof totalRecords === "string"
+                    ? `${type} — ${totalRecords} ready for export`
+                    : `${type} — ${totalRecords} record${totalRecords !== 1 ? "s" : ""} selected`}
               </p>
+
             </div>
             <button type="button" className="flow-modal-close" onClick={onCloseModal}>✕</button>
           </div>
@@ -296,10 +329,11 @@ export default function ExportModal({ onClose }) {
         type={type}
         columns={columns}
         rows={exportRows}
-        exportRowsCount={exportRows.length}
+        exportRowsCount={totalRecords}
         formatLabel={selectedFmt?.label}
         isSendingEmail={sendToEmail}
       />
+
     </>
   );
 }

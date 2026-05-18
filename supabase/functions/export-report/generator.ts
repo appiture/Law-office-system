@@ -92,27 +92,82 @@ export async function fetchData(db: any, orgId: string, req: ExportRequest) {
       const { data: cases } = await query.order("created_at", { ascending: false });
       return { cases: cases || [] };
 
-    case "payments":
-      query = db.from("payment_history").select(`
-        id, organization_id, amount_paid, payment_date, timestamp, payment_mode, payment_reference, charge_name, created_by,
-        payment_charge:payment_charges(
-          id, name,
-          case:cases(id, case_number, client:clients(id, name))
+    case "payments": {
+      // ── Step 1: Fetch cases that have at least one payment charge ─────────
+      let casesQ = db.from("cases").select(`
+        id, case_number, case_type, status, court_name, lawyer_name, details,
+        client:clients(id, name, phone, email),
+        payment_charges(
+          id, name, is_lawyer_fee, total_amount, paid_amount, balance_amount,
+          status, due_date, description, notes,
+          payment_history(
+            id, amount_paid, payment_date, timestamp, payment_mode,
+            payment_reference, charge_name, created_by, notes
+          )
         )
-      `).eq("organization_id", orgId);
-      {
-        const { data: payments } = await query
-          .order("payment_date", { ascending: false })
-          .limit(2000);
-        const normalized = (payments || []).map((p: any) => ({
-          ...p,
-          charge_name: p.charge_name || p.payment_charge?.name || "",
-          payment_date: p.payment_date || p.timestamp,
-          case: p.payment_charge?.case || null,
-          client: p.payment_charge?.case?.client || null,
-        })).filter((p: any) => p.case != null);
-        return { payments: normalized };
-      }
+      `).is("deleted_at", null).eq("organization_id", orgId);
+
+      // Date filter on cases' payment dates is tricky across nested; filter by case created_at
+      if (filters?.status) casesQ = casesQ.eq("status", filters.status);
+      if (filters?.searchTerm) casesQ = casesQ.or(`case_number.ilike.%${filters.searchTerm}%,court_name.ilike.%${filters.searchTerm}%`);
+
+      const { data: rawCases } = await casesQ.order("created_at", { ascending: false }).limit(500);
+
+      // ── Step 2: Map into paymentCases[] shape the generator expects ───────
+      const paymentCases = (rawCases || [])
+        .filter((c: any) => (c.payment_charges || []).length > 0)
+        .map((c: any) => {
+          const charges = c.payment_charges || [];
+          const totalBilled  = charges.reduce((s: number, ch: any) => s + Number(ch.total_amount   || 0), 0);
+          const totalPaid    = charges.reduce((s: number, ch: any) => s + Number(ch.paid_amount    || 0), 0);
+          const totalPending = charges.reduce((s: number, ch: any) => s + Number(ch.balance_amount || 0), 0);
+
+          return {
+            caseId:      c.id,
+            caseNumber:  c.case_number,
+            caseTitle:   c.details?.title || c.details?.caseTitle || c.case_number,
+            caseType:    c.case_type,
+            caseStatus:  c.status,
+            courtName:   c.court_name,
+            lawyerName:  c.lawyer_name || c.details?.lawyerName,
+            clientId:    c.client?.id,
+            clientName:  c.client?.name,
+            clientPhone: c.client?.phone,
+            clientEmail: c.client?.email,
+            totalBilled,
+            totalPaid,
+            totalPending,
+            chargeItems: charges.map((ch: any) => ({
+              id:            ch.id,
+              label:         ch.name,
+              isLawyerFee:   ch.is_lawyer_fee,
+              totalAmount:   ch.total_amount,
+              paidAmount:    ch.paid_amount,
+              balanceAmount: ch.balance_amount,
+              status:        ch.status,
+              dueDate:       ch.due_date,
+              description:   ch.description,
+              notes:         ch.notes,
+            })),
+            paymentHistory: charges.flatMap((ch: any) =>
+              (ch.payment_history || []).map((p: any) => ({
+                id:               p.id,
+                chargeLabel:      ch.name,
+                amount:           p.amount_paid,
+                paymentDate:      p.payment_date || p.timestamp,
+                paymentMode:      p.payment_mode,
+                paymentReference: p.payment_reference,
+                recordedBy:       p.created_by,
+                createdAt:        p.timestamp,
+                remarks:          p.notes,
+              }))
+            ),
+          };
+        });
+
+      return { paymentCases };
+    }
+
 
     case "hearings":
       query = db.from("hearings").select(`
