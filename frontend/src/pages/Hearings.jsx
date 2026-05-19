@@ -94,7 +94,9 @@ function EventModal({ caseId, editItem, cases: availableCases = [], onClose, onS
     try {
       const payload = {
         type:         resolveOtherSelection(form.type, form.typeOther, "OTHER"),
+        title:        form.case_title,
         case_title:   form.case_title,
+        scheduledAt:  form.hearing_date,
         hearing_date: form.hearing_date,
         status:       normalizeHearingStatus(form.status),
         notes:        form.notes || "",
@@ -266,8 +268,24 @@ function Hearings() {
   const [total, setTotal] = useState(0);
   const [showAllMode, setShowAllMode] = useState(false);
   const [initialSearchTriggered, setInitialSearchTriggered] = useState(false);
+  const [contextReady, setContextReady] = useState(false);
+
+  // Wait for workspace context to be ready before loading data
+  useEffect(() => {
+    const checkContext = async () => {
+      try {
+        // Wait for workspace context to be available
+        await platformApi.getWorkspaceContext();
+        setContextReady(true);
+      } catch (err) {
+        setError("Workspace context not available. Please refresh the page.");
+      }
+    };
+    checkContext();
+  }, [platformApi]);
 
   const loadData = useCallback(async ({ nextPage = page, showAll = showAllMode, nextFilters = filters } = {}) => {
+    if (!contextReady) return;
     setLoading(true);
     setError("");
     try {
@@ -308,7 +326,7 @@ function Hearings() {
     } finally {
       setLoading(false);
     }
-  }, [filters, page, showAllMode]);
+  }, [contextReady, filters, page, showAllMode]);
 
 
   const ensureModalCases = async () => {
@@ -377,7 +395,11 @@ function Hearings() {
 
   const markCompleted = async (caseId, item) => {
     await platformApi.updateHearing(caseId, item.id, {
-      type: item.type, title: item.title, scheduledAt: item.scheduledAt,
+      type: item.type,
+      title: item.title,
+      case_title: item.title,
+      scheduledAt: item.scheduledAt,
+      hearing_date: item.scheduledAt,
       status: HEARING_STATUS.COMPLETED, notes: item.notes || "", postponedTo: item.postponedTo || null,
     });
     await loadData();
@@ -396,6 +418,7 @@ function Hearings() {
   }, [filters, loadData]);
   
   useEffect(() => {
+    if (!contextReady) return;
     const hasActiveFilters = Object.values(filters).some(Boolean);
     if (initialSearchCase && !initialSearchTriggered) {
       setInitialSearchTriggered(true);
@@ -407,7 +430,7 @@ function Hearings() {
       void loadData({ nextPage: 1, showAll: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters.searchTerm, filters.type, filters.status, filters.fromDate, filters.toDate, initialSearchCase, initialSearchTriggered, handleSearch, hasLoaded, showAllMode]);
+  }, [contextReady, filters.searchTerm, filters.type, filters.status, filters.fromDate, filters.toDate, initialSearchCase, initialSearchTriggered, handleSearch, hasLoaded, showAllMode]);
 
 
   const handleShowAll = () => {

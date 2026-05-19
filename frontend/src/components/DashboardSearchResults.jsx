@@ -2,7 +2,7 @@ import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { currency, formatDate } from "../utils/formatters";
 import { usePermissions } from "../context/PermissionsContext";
-import { ROUTES } from "../constants/routes";
+import { ROUTES, getClientDetailsRoute, getCaseDetailsRoute } from "../constants/routes";
 import "./DashboardSearchResults.css";
 
 function normalizeStatus(status) {
@@ -28,7 +28,7 @@ function getEventDate(item) {
 function getEventLink(item) {
   const caseId = getEventCaseId(item);
   if (!caseId) return ROUTES.HEARINGS;
-  return `${ROUTES.CASE_DETAILS(caseId)}?focus=hearing&hearingId=${encodeURIComponent(item.id)}#hearing-${item.id}`;
+  return `${getCaseDetailsRoute(caseId)}?focus=hearing&hearingId=${encodeURIComponent(item.id)}#hearing-${item.id}`;
 }
 
 function DashboardSearchResults({ query, cases, tasks, timelineEvents, onResultClick }) {
@@ -177,7 +177,7 @@ function DashboardSearchResults({ query, cases, tasks, timelineEvents, onResultC
             <h3 className="section-title">👥 Clients ({matchedClients.length})</h3>
             <div className="results-list">
               {matchedClients.map((client) => (
-                <Link key={client.id} to={ROUTES.CLIENT_DETAILS(client.id)} className="result-card premium-glass" onClick={onResultClick}>
+                <Link key={client.id} to={getClientDetailsRoute(client.id)} className="result-card premium-glass" onClick={onResultClick}>
                   <div className="result-main">
                     <strong>{client.name}</strong>
                     <div className="result-meta">
@@ -200,7 +200,7 @@ function DashboardSearchResults({ query, cases, tasks, timelineEvents, onResultC
             <h3 className="section-title">⚖️ Matters & Cases ({matchedCases.length})</h3>
             <div className="results-list">
               {matchedCases.map((c) => (
-                <Link key={c.id} to={ROUTES.CASE_DETAILS(c.id)} className="result-card premium-glass" onClick={onResultClick}>
+                <Link key={c.id} to={getCaseDetailsRoute(c.id)} className="result-card premium-glass" onClick={onResultClick}>
                   <div className="result-main">
                     <strong>{c.caseNumber || "Unnamed Case"}</strong>
                     <p className="result-sub">{c.client?.name || "Unknown Client"} • {c.caseType}</p>
@@ -261,7 +261,7 @@ function DashboardSearchResults({ query, cases, tasks, timelineEvents, onResultC
             <h3 className="section-title">💰 Payment Records ({matchedPayments.length})</h3>
             <div className="results-list">
               {matchedPayments.map((payment) => (
-                <Link key={payment.id} to={`${ROUTES.CASE_DETAILS(payment.caseId)}#payment-history`} className="result-card premium-glass" onClick={onResultClick}>
+                <Link key={payment.id} to={`${getCaseDetailsRoute(payment.caseId)}#payment-history`} className="result-card premium-glass" onClick={onResultClick}>
                   <div className="result-main">
                     <strong>{payment.chargeLabel}</strong>
                     <p className="result-sub">{payment.caseNumber} • {payment.clientName} • {payment.paymentMode}</p>
@@ -281,7 +281,7 @@ function DashboardSearchResults({ query, cases, tasks, timelineEvents, onResultC
             <h3 className="section-title">⚖️ Fee Categories ({matchedCharges.length})</h3>
             <div className="results-list">
               {matchedCharges.map((charge) => (
-                <Link key={charge.id} to={`${ROUTES.CASE_DETAILS(charge.caseId)}#charge-${charge.id}`} className="result-card premium-glass" onClick={onResultClick}>
+                <Link key={charge.id} to={`${getCaseDetailsRoute(charge.caseId)}#charge-${charge.id}`} className="result-card premium-glass" onClick={onResultClick}>
                   <div className="result-main">
                     <strong>{charge.label}</strong>
                     <p className="result-sub">{charge.caseNumber} • {charge.clientName}</p>

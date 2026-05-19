@@ -323,6 +323,11 @@
   color-scheme: dark;
 }
 
+.dark .filter-item-select option {
+  background: #1E293B !important;
+  color: #F1F5F9 !important;
+}
+
 .filter-item-select:focus,
 .filter-item-input:focus {
   border-color: var(--color-primary);

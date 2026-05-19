@@ -65,7 +65,7 @@ export function useNotifications() {
       const [hearingRes, chargeRes] = await Promise.all([
         supabase
           .from("hearings")
-          .select("id, case_id, type, title, date, status")
+          .select("id, case_id, type, title, date, status, cases(case_number, case_type, clients(name))")
           .eq("organization_id", orgId)
           .is("deleted_at", null)
           .not("status", "in", '("COMPLETED","CANCELLED")')
@@ -75,13 +75,12 @@ export function useNotifications() {
 
         supabase
           .from("payment_charges")
-          .select("id, case_id, name, total, paid, balance, due_date, status")
+          .select("id, case_id, name, total, paid, balance, due_date, status, cases(case_number, case_type, clients(name))")
           .eq("organization_id", orgId)
           .is("deleted_at", null)
-          .lt("due_date", today)
           .gt("balance", 0)
           .order("due_date", { ascending: true })
-          .limit(30),
+          .limit(50),
       ]);
 
       const notifications = [];
@@ -94,34 +93,50 @@ export function useNotifications() {
           ? new Date(h.date).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })
           : "—";
         notifications.push({
-          id:      `hearing-${h.id}`,
-          type:    "hearing",
-          level:   cls.level,
-          emoji:   cls.emoji,
-          label:   cls.label,
-          color:   cls.color,
-          title:   h.title || h.type || "Court Event",
-          body:    dateStr,
-          link:    `${ROUTES.HEARINGS}?highlightCase=${h.case_id}`,
+          id:          `hearing-${h.id}`,
+          type:        "hearing",
+          level:       cls.level,
+          emoji:       cls.emoji,
+          label:       cls.label,
+          color:       cls.color,
+          title:       h.title || h.type || "Court Event",
+          body:        dateStr,
+          link:        `${ROUTES.HEARINGS}?highlightCase=${h.case_id}`,
+          // RICH DETAILS:
+          caseNumber:  h.cases?.case_number || "—",
+          caseType:    h.cases?.case_type || "—",
+          clientName:  h.cases?.clients?.name || "—",
+          hearingType: h.type || "—",
+          hearingDate: dateStr,
         });
       }
 
-      // ── Payment overdue alerts ──────────────────────────────────
+      // ── Payment overdue & upcoming alerts ───────────────────────
       for (const c of (chargeRes.data || [])) {
         const dueStr = c.due_date
           ? new Date(c.due_date).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
           : "—";
         const balance = Number(c.balance || (Number(c.total || 0) - Number(c.paid || 0)));
+        const isOverdue = c.due_date && c.due_date < today;
         notifications.push({
-          id:      `charge-${c.id}`,
-          type:    "payment",
-          level:   "overdue",
-          emoji:   "💸",
-          label:   "Payment Due",
-          color:   "var(--color-error)",
-          title:   c.name || "Overdue Fee",
-          body:    `Due: ${dueStr} · ₹${balance.toLocaleString("en-IN")} pending`,
-          link:    ROUTES.PAYMENTS,
+          id:            `charge-${c.id}`,
+          type:          "payment",
+          level:         isOverdue ? "overdue" : "upcoming",
+          emoji:         "💸",
+          label:         isOverdue ? "Payment Overdue" : "Upcoming Payment",
+          color:         isOverdue ? "var(--color-error)" : "var(--color-warning)",
+          title:         c.name || "Fee Charge",
+          body:          `Due: ${dueStr} · ₹${balance.toLocaleString("en-IN")} pending`,
+          link:          ROUTES.PAYMENTS,
+          // RICH DETAILS:
+          caseNumber:    c.cases?.case_number || "—",
+          caseType:      c.cases?.case_type || "—",
+          clientName:    c.cases?.clients?.name || "—",
+          feeName:       c.name || "—",
+          totalAmount:   Number(c.total || 0),
+          paidAmount:    Number(c.paid || 0),
+          balanceAmount: balance,
+          dueDate:       dueStr,
         });
       }
 

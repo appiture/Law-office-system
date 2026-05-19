@@ -456,6 +456,12 @@
   }
 }
 
+.page-header {
+  position: relative;
+  z-index: 10000;
+  transform: translate3d(0, 0, 10px);
+}
+
 .page-header,
 section,
 .app-content > div {

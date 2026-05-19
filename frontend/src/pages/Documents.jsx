@@ -228,11 +228,16 @@ function Documents() {
   const [initialSearchTriggered, setInitialSearchTriggered] = useState(false);
 
   const ensureModalCases = async () => {
-    if (modalCases.length > 0) return;
+    if (modalCases.length > 0) return true;
     setModalLoading(true);
     try {
       const response = await platformApi.searchCases({ showAll: true, page: 1, pageSize: 500 });
       setModalCases(Array.isArray(response.items) ? response.items : []);
+      return true;
+    } catch (err) {
+      logger.error("Failed to load cases for document upload", err);
+      setError(err.message || "Failed to load cases for document upload.");
+      return false;
     } finally {
       setModalLoading(false);
     }
@@ -240,7 +245,8 @@ function Documents() {
 
 
   const openUploadModal = async (initialCaseId = null) => {
-    await ensureModalCases();
+    const ready = await ensureModalCases();
+    if (!ready) return;
     setUploadFor({ initialCaseId });
   };
 
@@ -407,13 +413,12 @@ function Documents() {
       />
 
       {loading && !hasLoaded ? (
-        <LoadingState message="Loading documents..." />
+        <LoadingState label="Loading documents..." />
       ) : error ? (
-        <ErrorState message={error} onRetry={() => loadDocuments()} />
+        <ErrorState message={error} />
       ) : cases.length === 0 ? (
         <EmptyState 
-          title={showAllMode ? "No documents found" : "No matching documents"} 
-          message="Try adjusting your search filters or upload a new document."
+          label={showAllMode ? "No documents found." : "No matching documents."}
         />
       ) : (
         <>

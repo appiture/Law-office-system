@@ -70,6 +70,22 @@
   outline: none;
 }
 
+.dashboard-quick-filter-select option {
+  background: var(--color-card, #FFFFFF);
+  color: var(--color-text, #1A1A1A);
+}
+
+.dark .dashboard-quick-filter-select {
+  background: #1E293B !important;
+  border-color: rgba(255, 255, 255, 0.1) !important;
+  color: #F1F5F9 !important;
+}
+
+.dark .dashboard-quick-filter-select option {
+  background: #0F172A !important;
+  color: #F1F5F9 !important;
+}
+
 .dashboard-quick-filter-select:focus {
   border-color: var(--color-primary);
   box-shadow: 0 0 0 3px var(--color-bg-tertiary);

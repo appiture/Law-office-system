@@ -153,13 +153,15 @@ export const assertDocumentPayload = (payload) => {
 };
 
 export const assertHearingPayload = (payload) => {
+  const title = payload?.case_title ?? payload?.title;
+  const scheduledAt = payload?.hearing_date ?? payload?.scheduledAt;
   if (!requiredText(payload.type)) {
     throw new Error("Event type is required.");
   }
-  if (!requiredText(payload.case_title)) {
+  if (!requiredText(title)) {
     throw new Error("Event title is required.");
   }
-  if (!requiredText(payload.hearing_date)) {
+  if (!requiredText(scheduledAt)) {
     throw new Error("Scheduled date and time is required.");
   }
   if (normalizeHearingStatus(payload.status) === "POSTPONED" && !requiredText(payload.postponedTo)) {

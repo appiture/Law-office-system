@@ -4,6 +4,15 @@ import { toIsoDate } from "../utils/caseDomain";
 
 const DEFAULT_PAGE_SIZE = 25;
 
+const normalizeHearingPayload = (payload = {}) => ({
+  type: payload.type || "REGULAR",
+  title: (payload.title ?? payload.case_title ?? "").trim(),
+  scheduledAt: payload.scheduledAt ?? payload.hearing_date ?? null,
+  notes: payload.notes || "",
+  status: payload.status || "PENDING",
+  postponedTo: payload.postponedTo || null,
+});
+
 export const caseRepository = {
   getCases: async () => {
     return __internal.getMappedCases();
@@ -432,15 +441,16 @@ export const caseRepository = {
       const context = await __internal.internalGetWorkspaceContext();
       await caseRepository.getCase(caseId);
       assertHearingPayload(payload);
+      const hearing = normalizeHearingPayload(payload);
 
       const record = {
         organization_id: context.organizationId,
         case_id: caseId,
-        type: payload.type || "REGULAR",
-        title: payload.title?.trim() || "",
-        date: payload.scheduledAt || null,
-        notes: payload.notes || "",
-        status: payload.status || "SCHEDULED",
+        type: hearing.type,
+        title: hearing.title,
+        date: hearing.scheduledAt,
+        notes: hearing.notes,
+        status: hearing.status,
         created_by: context.email,
       };
 
@@ -458,14 +468,15 @@ export const caseRepository = {
       const context = await __internal.internalGetWorkspaceContext();
       await caseRepository.getCase(caseId);
       assertHearingPayload(payload);
+      const hearing = normalizeHearingPayload(payload);
 
       const updates = {
-        type: payload.type || "REGULAR",
-        title: payload.title?.trim() || "",
-        date: payload.scheduledAt || null,
-        notes: payload.notes || "",
-        status: payload.status || "SCHEDULED",
-        postponed_to: payload.postponedTo || null,
+        type: hearing.type,
+        title: hearing.title,
+        date: hearing.scheduledAt,
+        notes: hearing.notes,
+        status: hearing.status,
+        postponed_to: hearing.postponedTo,
       };
 
       const { error } = await __internal.requireSupabase()

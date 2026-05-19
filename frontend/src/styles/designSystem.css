@@ -154,6 +154,15 @@ body {
   color: var(--color-primary);
 }
 
+.dark .metric-card {
+  background: #1E293B !important;
+  border-color: rgba(255, 255, 255, 0.08) !important;
+}
+
+.dark .metric-card strong {
+  color: #6C8EDC !important;
+}
+
 .metric-card span {
   font-size: 0.7rem;
   font-weight: 800;

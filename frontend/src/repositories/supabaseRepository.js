@@ -397,13 +397,14 @@ const mapClientRecord = async (client, { includeAssets = true } = {}) => {
 const mapDocumentRecord = async (document, { includeSignedUrl = true } = {}) => {
   const signedUrl = includeSignedUrl && document?.file_path
     ? await createSignedAssetUrl({ bucket: supabaseBuckets.documents, path: document.file_path })
-    : document?.file_url || "";
+    : "";
+  const fileUrl = signedUrl || document?.file_url || "";
 
   return {
     id: document.id,
     category: document.category,
     fileName: document.file_name,
-    fileUrl: signedUrl,
+    fileUrl,
     filePath: document.file_path,
     fileType: document.file_type,
     fileSize: document.file_size,
