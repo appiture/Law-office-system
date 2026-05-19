@@ -259,9 +259,9 @@ function ClientDetails() {
          </div>
       }
       actions={
-        <div style={{ display: 'flex', gap: '10px' }}>
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
           <div className="download-dropdown-wrap">
-            <button className="btn-gold">📥 Export Report</button>
+            <button className="btn-gold header-action-btn">📥 Export Report</button>
             <div className="download-options">
               <button onClick={() => downloadReport('print')}>📄 PDF / Print</button>
               <button onClick={() => downloadReport(EXPORT_FORMATS.CSV)}>📊 CSV Data</button>
@@ -269,7 +269,7 @@ function ClientDetails() {
             </div>
           </div>
           {canEditClient && (
-            <button onClick={() => openWizard(client, 0)} className="btn-gold">✏️ Edit Client</button>
+            <button onClick={() => openWizard(client, 0)} className="btn-gold header-action-btn">✏️ Edit Client</button>
           )}
         </div>
       }

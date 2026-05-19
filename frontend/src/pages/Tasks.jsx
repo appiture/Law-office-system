@@ -422,8 +422,8 @@ export default function Tasks() {
       title="Tasks"
       subtitle="Manage your team's action items, deadlines, and deliverables."
       actions={
-        <div style={{ display: "flex", gap: "12px", alignItems: "center" }}>
-          <button type="button" className="btn-gold" onClick={() => openExport({
+        <div style={{ display: "flex", gap: "12px", alignItems: "center", flexWrap: "wrap" }}>
+          <button type="button" className="btn-gold header-action-btn" onClick={() => openExport({
             type: "tasks",
             availableData: sortedTasks,
             currentFilters: { status: filterStatus, priority: filterPriority, searchTerm: searchQuery },
@@ -431,7 +431,7 @@ export default function Tasks() {
           })} style={{ background: "rgba(196, 154, 108, 0.1)", color: "var(--color-gold)", border: "1px solid var(--color-gold)" }}>
             📥 Export
           </button>
-          <button type="button" className="btn-gold" onClick={() => { setEditingTask(null); setShowModal(true); }}>
+          <button type="button" className="btn-gold header-action-btn" onClick={() => { setEditingTask(null); setShowModal(true); }}>
             + New Task
           </button>
         </div>

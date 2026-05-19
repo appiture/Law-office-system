@@ -149,7 +149,7 @@ function Clients() {
       subtitle="Search clients by name, phone, email, city, notes, or ID proof."
       actions={
         <div style={{ display: "flex", gap: "12px", alignItems: "center", flexWrap: "wrap" }}>
-          <button type="button" className="btn-gold" onClick={() => openExport({
+          <button type="button" className="btn-gold header-action-btn" onClick={() => openExport({
             type: "clients",
             availableData: clients,
             currentFilters: filters,
@@ -157,7 +157,7 @@ function Clients() {
           })}>
             📥 Export
           </button>
-          <button type="button" className="primary-button" onClick={openCreate}>
+          <button type="button" className="primary-button header-action-btn" onClick={openCreate}>
             + Add Client
           </button>
         </div>

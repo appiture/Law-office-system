@@ -354,7 +354,7 @@ function Documents() {
       subtitle="Standardized document management across all cases."
       actions={
         <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
-          <button type="button" className="btn-gold" onClick={() => openExport({
+          <button type="button" className="btn-gold header-action-btn" onClick={() => openExport({
             type: "documents",
             availableData: cases.flatMap(c => (c.documents || []).map(d => ({
               ...d,
@@ -375,7 +375,7 @@ function Documents() {
           })}>
             📥 Export
           </button>
-          <button type="button" className="primary-button" onClick={() => openUploadModal(null)} disabled={modalLoading}>
+          <button type="button" className="primary-button header-action-btn" onClick={() => openUploadModal(null)} disabled={modalLoading}>
             {modalLoading ? "Loading..." : "+ Upload Document"}
           </button>
         </div>

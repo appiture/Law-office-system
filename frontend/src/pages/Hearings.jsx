@@ -446,7 +446,7 @@ function Hearings() {
         <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
           <button 
             type="button" 
-            className="btn-gold" 
+            className="btn-gold header-action-btn" 
             onClick={() => openExport({
               type: "hearings",
               availableData: cases.flatMap(c =>
@@ -469,7 +469,7 @@ function Hearings() {
           >
             📥 Export
           </button>
-          <button type="button" className="primary-button" onClick={() => void openEventModal({})} disabled={modalLoading} style={{ whiteSpace: 'nowrap' }}>
+          <button type="button" className="primary-button header-action-btn" onClick={() => void openEventModal({})} disabled={modalLoading}>
             {modalLoading ? "Loading..." : "+ Add Event"}
           </button>
         </div>

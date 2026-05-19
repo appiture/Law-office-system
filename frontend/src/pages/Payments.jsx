@@ -497,7 +497,7 @@ function Payments() {
       subtitle="Search fees and payments by case, client, fee category, mode, or reference."
       actions={
         <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "nowrap", overflowX: "auto" }}>
-          <button type="button" className="btn-gold" style={{ fontSize: "12px", padding: "6px 12px", whiteSpace: "nowrap" }} onClick={() => openExport({
+          <button type="button" className="btn-gold header-action-btn" onClick={() => openExport({
             type: "payments",
             availableData: {
               // Full cases array — each has chargeItems[] + paymentHistory[] + KPI totals
@@ -550,10 +550,10 @@ function Payments() {
           })}>
             📥 Export
           </button>
-          <button type="button" className="primary-button" style={{ fontSize: "12px", padding: "6px 12px", whiteSpace: "nowrap" }} onClick={() => void openPaymentModal(null)} disabled={modalLoading}>
+          <button type="button" className="primary-button header-action-btn" onClick={() => void openPaymentModal(null)} disabled={modalLoading}>
             💳 Record Payment
           </button>
-          <button type="button" className="btn-neutral" style={{ fontSize: "12px", padding: "6px 12px", whiteSpace: "nowrap" }} onClick={() => void openFeeModal(null)} disabled={modalLoading}>
+          <button type="button" className="btn-neutral header-action-btn" onClick={() => void openFeeModal(null)} disabled={modalLoading}>
             ➕ New Fee
           </button>
         </div>

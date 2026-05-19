@@ -194,10 +194,10 @@ function CaseDetails() {
          </div>
       }
       actions={
-        <div style={{ display: 'flex', gap: '10px' }}>
-          <button onClick={() => navigate(ROUTES.CASES)} className="btn-neutral">Back</button>
+        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+          <button onClick={() => navigate(ROUTES.CASES)} className="btn-neutral header-action-btn">Back</button>
           {canViewCases && (
-            <button onClick={() => openWizard(client, 1, legalCase)} className="btn-gold">✏️ Edit Case</button>
+            <button onClick={() => openWizard(client, 1, legalCase)} className="btn-gold header-action-btn">✏️ Edit Case</button>
           )}
         </div>
       }

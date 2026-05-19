@@ -281,6 +281,12 @@ button:disabled {
   transform: none !important;
 }
 
+.header-action-btn {
+  font-size: 12px;
+  padding: 6px 12px;
+  white-space: nowrap;
+}
+
 .btn-edit-section {
   font-size: 11px;
   font-weight: 800;

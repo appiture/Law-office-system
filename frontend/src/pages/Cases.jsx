@@ -379,8 +379,8 @@ function Cases() {
       title="Cases"
       subtitle="Search cases by case number, client, court, lawyer, opponent, or notes."
       actions={
-        <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          <button type="button" className="btn-gold" onClick={() => openExport({
+        <div style={{ display: "flex", alignItems: "center", gap: "12px", flexWrap: "wrap" }}>
+          <button type="button" className="btn-gold header-action-btn" onClick={() => openExport({
             type: "cases",
             availableData: cases,
             currentFilters: filters,
@@ -389,7 +389,7 @@ function Cases() {
             📥 Export
           </button>
           {userRole !== "LAWYER" && (
-            <button type="button" className="primary-button" onClick={() => void openCreate()} disabled={modalLoading} style={{ whiteSpace: 'nowrap' }}>
+            <button type="button" className="primary-button header-action-btn" onClick={() => void openCreate()} disabled={modalLoading}>
               {modalLoading ? "Loading..." : "+ Add Case"}
             </button>
           )}

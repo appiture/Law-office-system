@@ -121,9 +121,9 @@ function Dashboard() {
   const isDemoMode = isDemo();
 
   const dashboardActions = (
-    <div className="dashboard-header-actions-wrapper" style={{ display: "flex", gap: "10px", alignItems: "center" }}>
+    <div className="dashboard-header-actions-wrapper" style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
       <div className="task-btn-wrap" style={{ position: "relative" }}>
-        <Link to={ROUTES.TASKS} className="btn-gold dashboard-task-link">
+        <Link to={ROUTES.TASKS} className="btn-gold dashboard-task-link header-action-btn">
           📋 Tasks
         </Link>
         {pendingTaskCount > 0 && (
