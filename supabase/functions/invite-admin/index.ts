@@ -13,6 +13,118 @@ import {
 } from "../_shared/validation.ts";
 import { inviteEmail, passwordSetupRedirectUrl, sendEmail } from "../_shared/email.ts";
 
+type AdminClient = ReturnType<typeof createAdminClient>;
+
+async function sendAdminSetupEmail({
+  adminClient,
+  actor,
+  organizationId,
+  organizationName,
+  adminEmail,
+  adminUserId,
+  temporaryPassword,
+  passwordExpiresAt,
+  reusedExistingAccount = false,
+}: {
+  adminClient: AdminClient;
+  actor: Awaited<ReturnType<typeof getActorContext>>;
+  organizationId: string;
+  organizationName: string;
+  adminEmail: string;
+  adminUserId: string;
+  temporaryPassword: string;
+  passwordExpiresAt: string;
+  reusedExistingAccount?: boolean;
+}) {
+  const { data: invite, error: inviteError } = await adminClient
+    .from("organization_invites")
+    .upsert({
+      organization_id: organizationId,
+      email: adminEmail,
+      role: "ADMIN",
+      status: "PENDING",
+      invited_by: actor.user.id,
+      auth_user_id: adminUserId,
+      invite_type: "ADMIN",
+      temporary_password_expires_at: passwordExpiresAt,
+      metadata: { source: "edge:invite-admin", reusedExistingAccount },
+    }, { onConflict: "organization_id,email" })
+    .select("id")
+    .single();
+  if (inviteError) throw inviteError;
+
+  const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({
+    type: "recovery",
+    email: adminEmail,
+    options: { redirectTo: passwordSetupRedirectUrl() },
+  });
+  if (linkError) throw linkError;
+
+  const actionLink = linkData?.properties?.action_link || passwordSetupRedirectUrl();
+  const email = inviteEmail({
+    recipientEmail: adminEmail,
+    invitedByEmail: actor.user.email || actor.profile?.email || "platform administrator",
+    role: "ADMIN",
+    organizationName,
+    temporaryPassword,
+    setupUrl: actionLink,
+    expiresAt: passwordExpiresAt,
+  });
+
+  let emailSent = true;
+  let providerMessageId: string | null = null;
+  try {
+    const delivery = await sendEmail({
+      to: adminEmail,
+      subject: email.subject,
+      html: email.html,
+      organizationId,
+      inviteId: invite.id,
+      templateName: "invite-admin",
+    });
+    providerMessageId = delivery?.id || null;
+    await adminClient
+      .from("organization_invites")
+      .update({
+        delivery_status: "SENT",
+        provider_message_id: providerMessageId,
+        sent_at: new Date().toISOString(),
+        last_sent_at: new Date().toISOString(),
+        send_count: 1,
+      })
+      .eq("id", invite.id);
+  } catch (emailError) {
+    emailSent = false;
+    await adminClient
+      .from("organization_invites")
+      .update({
+        delivery_status: "FAILED",
+        metadata: {
+          source: "edge:invite-admin",
+          reusedExistingAccount,
+          email_error: emailError instanceof Error ? emailError.message : String(emailError),
+        },
+      })
+      .eq("id", invite.id);
+  }
+
+  await recordAuditEvent({
+    organizationId,
+    actorId: actor.user.id,
+    actorEmail: actor.user.email || actor.profile?.email || "",
+    action: reusedExistingAccount ? "ADMIN_INVITE_RESENT" : "ADMIN_INVITED",
+    targetType: "user",
+    targetId: adminUserId,
+    targetEmail: adminEmail,
+    severity: emailSent ? "INFO" : "WARN",
+    ipAddress: actor.ipAddress,
+    userAgent: actor.userAgent,
+    metadata: { emailSent, providerMessageId, reusedExistingAccount },
+  });
+
+  return { emailSent, providerMessageId };
+}
+
 Deno.serve(async (request: Request): Promise<Response> => {
   try {
     console.log("INVITE ADMIN START");
@@ -39,12 +151,79 @@ Deno.serve(async (request: Request): Promise<Response> => {
 
       const { data: existingUser, error: existingUserError } = await adminClient
         .from("users")
-        .select("id,email")
+        .select("id,email,role,organization_id")
         .eq("email", adminEmail)
         .is("deleted_at", null)
         .maybeSingle();
       if (existingUserError) throw existingUserError;
-      if (existingUser) throw new Error("A user with that email already exists.");
+      if (existingUser) {
+        const { data: existingOrganization, error: existingOrganizationError } = await adminClient
+          .from("organizations")
+          .select("id,name,status")
+          .eq("id", existingUser.organization_id)
+          .maybeSingle();
+        if (existingOrganizationError) throw existingOrganizationError;
+
+        const sameOrganization = existingOrganization
+          && existingUser.role === "ADMIN"
+          && existingOrganization.name.trim().toLowerCase() === organizationName.trim().toLowerCase();
+        if (!sameOrganization) throw new Error("A user with that email already exists.");
+
+        const temporaryPassword = generateTemporaryPassword();
+        const passwordExpiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString();
+
+        const { error: updateUserError } = await adminClient.auth.admin.updateUserById(existingUser.id, {
+          email: adminEmail,
+          password: temporaryPassword,
+          email_confirm: true,
+          user_metadata: {
+            role: "ADMIN",
+            organization: existingOrganization.name,
+            must_reset_password: true,
+          },
+          app_metadata: {
+            role: "ADMIN",
+            organization_id: existingOrganization.id,
+          },
+        });
+        if (updateUserError) throw updateUserError;
+
+        const { error: profileError } = await adminClient
+          .from("users")
+          .update({
+            status: "ACTIVE",
+            role: "ADMIN",
+            must_reset_password: true,
+            invite_status: "PENDING",
+            invited_by: actor.user.id,
+          })
+          .eq("id", existingUser.id);
+        if (profileError) throw profileError;
+
+        const delivery = await sendAdminSetupEmail({
+          adminClient,
+          actor,
+          organizationId: existingOrganization.id,
+          organizationName: existingOrganization.name,
+          adminEmail,
+          adminUserId: existingUser.id,
+          temporaryPassword,
+          passwordExpiresAt,
+          reusedExistingAccount: true,
+        });
+
+        return jsonResponse({
+          success: true,
+          emailSent: delivery.emailSent,
+          organizationId: existingOrganization.id,
+          adminUserId: existingUser.id,
+          adminEmail,
+          reusedExistingAccount: true,
+          message: delivery.emailSent
+            ? "Admin account already existed, so a new setup email was sent."
+            : "Admin account already existed, but the setup email failed. Check Resend configuration and email_events.",
+        });
+      }
 
       const { data: organization, error: organizationError } = await adminClient
         .from("organizations")
@@ -100,98 +279,24 @@ Deno.serve(async (request: Request): Promise<Response> => {
         }, { onConflict: "id" });
       if (profileError) throw profileError;
 
-      const { data: invite, error: inviteError } = await adminClient
-        .from("organization_invites")
-        .upsert({
-          organization_id: organizationId,
-          email: adminEmail,
-          role: "ADMIN",
-          status: "PENDING",
-          invited_by: actor.user.id,
-          auth_user_id: createdUserId,
-          invite_type: "ADMIN",
-          temporary_password_expires_at: passwordExpiresAt,
-          metadata: { source: "edge:invite-admin" },
-        }, { onConflict: "organization_id,email" })
-        .select("id")
-        .single();
-      if (inviteError) throw inviteError;
-
-      const { data: linkData, error: linkError } = await adminClient.auth.admin.generateLink({
-        type: "recovery",
-        email: adminEmail,
-        options: { redirectTo: passwordSetupRedirectUrl() },
-      });
-      if (linkError) throw linkError;
-
-      const actionLink = linkData?.properties?.action_link || passwordSetupRedirectUrl();
-      const email = inviteEmail({
-        recipientEmail: adminEmail,
-        invitedByEmail: actor.user.email || actor.profile?.email || "platform administrator",
-        role: "ADMIN",
-        organizationName,
-        temporaryPassword,
-        setupUrl: actionLink,
-        expiresAt: passwordExpiresAt,
-      });
-
-      let emailSent = true;
-      let providerMessageId: string | null = null;
-      try {
-        const delivery = await sendEmail({
-          to: adminEmail,
-          subject: email.subject,
-          html: email.html,
-          organizationId,
-          inviteId: invite.id,
-          templateName: "invite-admin",
-        });
-        providerMessageId = delivery?.id || null;
-        await adminClient
-          .from("organization_invites")
-          .update({
-            delivery_status: "SENT",
-            provider_message_id: providerMessageId,
-            sent_at: new Date().toISOString(),
-            last_sent_at: new Date().toISOString(),
-            send_count: 1,
-          })
-          .eq("id", invite.id);
-      } catch (emailError) {
-        emailSent = false;
-        await adminClient
-          .from("organization_invites")
-          .update({
-            delivery_status: "FAILED",
-            metadata: {
-              source: "edge:invite-admin",
-              email_error: emailError instanceof Error ? emailError.message : String(emailError),
-            },
-          })
-          .eq("id", invite.id);
-      }
-
-      await recordAuditEvent({
+      const delivery = await sendAdminSetupEmail({
+        adminClient,
+        actor,
         organizationId,
-        actorId: actor.user.id,
-        actorEmail: actor.user.email || actor.profile?.email || "",
-        action: "ADMIN_INVITED",
-        targetType: "user",
-        targetId: createdUserId,
-        targetEmail: adminEmail,
-        severity: emailSent ? "INFO" : "WARN",
-        ipAddress: actor.ipAddress,
-        userAgent: actor.userAgent,
-        metadata: { emailSent, providerMessageId },
+        organizationName,
+        adminEmail,
+        adminUserId: createdUserId,
+        temporaryPassword,
+        passwordExpiresAt,
       });
 
       return jsonResponse({
         success: true,
-        emailSent,
+        emailSent: delivery.emailSent,
         organizationId,
         adminUserId: createdUserId,
         adminEmail,
-        message: emailSent
+        message: delivery.emailSent
           ? "Organization and admin account created. The invite email was sent."
           : "Organization and admin account created, but the invite email failed. Check Resend configuration and email_events.",
       });
@@ -222,4 +327,3 @@ Deno.serve(async (request: Request): Promise<Response> => {
     }, 400);
   }
 });
-

@@ -248,21 +248,14 @@ export const removeOrganizationMember = async (userId) => {
  * Temporary credentials are sent by server-side email and are never returned to the browser.
  */
 export const adminCreateOrganization = async ({ orgName, adminEmail, orgPlan = "STANDARD", sendInviteEmail = true }) => {
-  const { data: rpcData, error: rpcError } = await supabase.rpc(
-    "admin_create_organization",
-    { org_name: orgName.trim(), admin_email: adminEmail.trim().toLowerCase(), org_plan: orgPlan }
-  );
-  if (!rpcError) return successResponse(rpcData, "Organization and admin created successfully");
-
-  if (rpcError.code !== "42883" && rpcError.code !== "PGRST202") {
-    return errorResponse(rpcError.message);
-  }
   const { data, error } = await supabase.functions.invoke("invite-admin", {
     body: { organizationName: orgName.trim(), adminEmail: adminEmail.trim().toLowerCase(), plan: orgPlan, sendInviteEmail },
   });
-  if (error) return errorResponse(error.message);
+  if (error) return errorResponse((await fnError(error, data)).message);
   if (data?.error) return errorResponse(data.error);
-  return successResponse(data, "Organization and admin created successfully");
+  if (data?.success === false) return errorResponse(data.message || "Organization could not be created.", data);
+  if (data?.emailSent === false) return errorResponse(data.message || "Organization was created, but the invite email failed.", data);
+  return successResponse(data, data?.message || "Organization and admin created successfully");
 };
 
 /* ------------------------------------------------------------------ */
@@ -297,21 +290,14 @@ export const completePasswordReset = async () => {
  * Temporary credentials are sent by server-side email and are never returned to the browser.
  */
 export const adminInviteTeamMember = async ({ email, role }) => {
-  const { data: rpcData, error: rpcError } = await supabase.rpc(
-    "admin_invite_team_member",
-    { invite_email: email.trim().toLowerCase(), invite_role: role }
-  );
-  if (!rpcError) return successResponse(rpcData, "Team member invited successfully");
-
-  if (rpcError.code !== "42883" && rpcError.code !== "PGRST202") {
-    return errorResponse(rpcError.message);
-  }
   const { data, error } = await supabase.functions.invoke("invite-user", {
     body: { email: email.trim().toLowerCase(), role },
   });
   if (error) return errorResponse((await fnError(error, data)).message);
   if (data?.error) return errorResponse(data.error);
-  return successResponse(data, "Team member invited successfully");
+  if (data?.success === false) return errorResponse(data.message || "Team member could not be invited.", data);
+  if (data?.emailSent === false) return errorResponse(data.message || "Team member was prepared, but the invite email failed.", data);
+  return successResponse(data, data?.message || "Team member invited successfully");
 };
 
 /* ------------------------------------------------------------------ */

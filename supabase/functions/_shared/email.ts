@@ -193,11 +193,12 @@ export async function sendEmail({
     }
 
     // SUCCESS LOG
-    await adminClient.from("email_events").insert({
+    const { error: successLogError } = await adminClient.from("email_events").insert({
       organization_id: organizationId,
       invite_id: inviteId,
+      email: to,
       recipient_email: to,
-      email_type: templateName,
+      template_name: templateName,
       subject,
       status: "SENT",
       provider_message_id: response.data?.id || null,
@@ -205,15 +206,17 @@ export async function sendEmail({
       metadata: { ...response.data, has_attachments: attachments.length > 0 },
       sent_at: new Date().toISOString(),
     });
+    if (successLogError) console.warn("Failed to log sent email event:", successLogError);
 
     return response.data;
   } catch (error) {
     // FAILURE LOG
-    await adminClient.from("email_events").insert({
+    const { error: failureLogError } = await adminClient.from("email_events").insert({
       organization_id: organizationId,
       invite_id: inviteId,
+      email: to,
       recipient_email: to,
-      email_type: templateName,
+      template_name: templateName,
       subject,
       status: "FAILED",
       provider_message_id: null,
@@ -221,6 +224,7 @@ export async function sendEmail({
       metadata: { error, has_attachments: attachments.length > 0 },
       sent_at: null,
     });
+    if (failureLogError) console.warn("Failed to log failed email event:", failureLogError);
 
     throw error;
   }

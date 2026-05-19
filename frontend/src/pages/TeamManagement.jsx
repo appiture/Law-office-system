@@ -38,95 +38,141 @@ const defaultStaffPermissions = {
 function UserPermissionsModal({ user, onClose, showToast }) {
   const [perms, setPerms] = useState({});
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const isAdmin = user.role === "ADMIN";
 
   useEffect(() => {
     supabase.rpc("get_user_permissions", { target_user_id: user.id })
-      .then(({ data }) => setPerms(data || {}))
-      .catch(e => showToast(e.message, "error"))
+      .then(({ data, error }) => {
+        if (error) showToast(error.message, "error");
+        else setPerms(data || {});
+      })
       .finally(() => setLoading(false));
   }, [user.id, showToast]);
 
   const save = async (fullPerms) => {
+    if (isAdmin) return; // admins always have full access
+    setSaving(true);
     try {
       const final = Object.fromEntries(SECTIONS.map(s => [s, s in fullPerms ? fullPerms[s] : true]));
-      const { error } = await supabase.rpc("admin_set_user_permissions", {
+      const { data, error } = await supabase.rpc("admin_set_user_permissions", {
         target_user_id: user.id,
-        sections_json: final
+        sections_json: final,
       });
       if (error) throw error;
+      if (data && !data.success) throw new Error(data.message || "Failed to save");
       showToast("Permissions updated for " + (user.full_name || user.email));
+      // Tell PermissionsContext to re-fetch (takes effect if this user is viewing another tab)
+      window.dispatchEvent(new CustomEvent("permissionsChanged"));
       onClose();
     } catch (e) { showToast(e.message, "error"); }
+    finally { setSaving(false); }
   };
 
-  if (loading) return null;
+  if (loading) return (
+    <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)", display: "grid", placeItems: "center", zIndex: 10000 }}>
+      <div style={{ background: "var(--color-card)", borderRadius: 20, padding: "32px 40px", color: "var(--color-text-secondary)", fontSize: 14 }}>Loading permissions…</div>
+    </div>
+  );
+
+  const SECTION_LABELS = {
+    dashboard: "Dashboard", clients: "Clients", cases: "Cases / Matters",
+    payments: "Payments / Fees", documents: "Documents", hearings: "Hearings",
+    tasks: "Tasks", settings: "Settings", team: "Team",
+  };
 
   return (
     <div style={{
       position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
-      background: "rgba(0,0,0,0.5)", backdropFilter: "blur(4px)",
+      background: "rgba(0,0,0,0.6)", backdropFilter: "blur(6px)",
       display: "grid", placeItems: "center", zIndex: 10000, padding: 20
     }}>
       <div style={{
         background: "var(--color-card)", border: "1px solid var(--color-border)",
-        borderRadius: 24, padding: 32, width: "100%", maxWidth: 480,
-        display: "flex", flexDirection: "column", gap: 24,
-        boxShadow: "0 25px 50px -12px var(--color-shadow)",
+        borderRadius: 24, padding: 32, width: "100%", maxWidth: 500,
+        display: "flex", flexDirection: "column", gap: 20,
+        boxShadow: "0 25px 60px -12px rgba(0,0,0,0.5)",
         color: "var(--color-text)"
       }}>
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <h3 style={{ margin: 0, fontSize: 20, fontWeight: 800, color: "var(--color-text)", letterSpacing: "-0.02em" }}>Manage Permissions</h3>
+        {/* Header */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+          <div>
+            <h3 style={{ margin: "0 0 4px", fontSize: 18, fontWeight: 800, letterSpacing: "-0.02em" }}>🔐 Page Permissions</h3>
+            <p style={{ margin: 0, fontSize: 13, color: "var(--color-text-secondary)" }}>
+              {user.full_name || user.email}
+              <span style={{ marginLeft: 8, fontSize: 11, fontWeight: 700, color:
+                user.role === "ADMIN" ? "#C9A34E" : user.role === "LAWYER" ? "#818CF8" : "#94A3B8"
+              }}>{user.role}</span>
+            </p>
+          </div>
           <button onClick={onClose} style={{
             background: "var(--color-bg-secondary)", border: "1px solid var(--color-border)", width: 32, height: 32,
             borderRadius: 8, display: "flex", alignItems: "center", justifyContent: "center",
-            cursor: "pointer", color: "var(--color-text-secondary)", transition: "all 0.2s"
-          }} onMouseEnter={e => e.currentTarget.style.background = "var(--color-border)"}
-             onMouseLeave={e => e.currentTarget.style.background = "var(--color-bg-secondary)"}>×</button>
+            cursor: "pointer", color: "var(--color-text-secondary)", fontSize: 18, transition: "all 0.2s"
+          }}>×</button>
         </div>
-        
-        <p style={{ margin: 0, fontSize: 14, color: "var(--color-text-secondary)", lineHeight: 1.5 }}>
-          Enable or disable access to specific sections for <strong>{user.full_name || user.email}</strong>.
-          Disabled sections will be hidden from their view.
-        </p>
 
+        {/* Admin lock banner */}
+        {isAdmin && (
+          <div style={{
+            background: "rgba(201,163,78,0.08)", border: "1px solid rgba(201,163,78,0.25)",
+            borderRadius: 12, padding: "12px 16px", fontSize: 13,
+            color: "var(--color-text-secondary)", lineHeight: 1.5,
+          }}>
+            <strong style={{ color: "#C9A34E" }}>Admin role</strong> — Admins always have full access to all sections. Individual page restrictions do not apply.
+          </div>
+        )}
+
+        {/* Permissions grid */}
         <div style={{
-          display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12,
-          background: "var(--color-bg)", padding: 20, borderRadius: 16,
-          border: "1px solid var(--color-border)"
+          display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10,
+          background: "var(--color-bg)", padding: 16, borderRadius: 14,
+          border: "1px solid var(--color-border)",
+          opacity: isAdmin ? 0.5 : 1,
         }}>
           {SECTIONS.map(s => (
             <label key={s} style={{
-              display: "flex", alignItems: "center", gap: 12, fontSize: 14,
-              cursor: "pointer", fontWeight: 600, color: perms[s] ? "var(--color-text)" : "var(--color-text-tertiary)",
-              padding: "8px 10px", borderRadius: 10, transition: "all 0.2s",
-              background: perms[s] ? "var(--color-bg-secondary)" : "transparent"
+              display: "flex", alignItems: "center", gap: 10, fontSize: 13,
+              cursor: isAdmin ? "not-allowed" : "pointer",
+              fontWeight: 600,
+              color: (isAdmin || perms[s]) ? "var(--color-text)" : "var(--color-text-secondary)",
+              padding: "9px 12px", borderRadius: 10, transition: "all 0.2s",
+              background: (isAdmin || perms[s]) ? "var(--color-bg-secondary)" : "transparent",
+              border: (isAdmin || perms[s]) ? "1px solid var(--color-border)" : "1px solid transparent",
             }}>
-              <input 
-                type="checkbox" 
-                checked={Boolean(perms[s])} 
-                onChange={() => setPerms(prev => ({ ...prev, [s]: !prev[s] }))}
-                style={{
-                  width: 18, height: 18, cursor: "pointer",
-                  accentColor: "var(--color-primary)"
-                }}
+              <input
+                type="checkbox"
+                checked={isAdmin ? true : Boolean(perms[s])}
+                disabled={isAdmin}
+                onChange={() => !isAdmin && setPerms(prev => ({ ...prev, [s]: !prev[s] }))}
+                style={{ width: 16, height: 16, cursor: isAdmin ? "not-allowed" : "pointer", accentColor: "var(--color-primary)" }}
               />
-              {s.charAt(0).toUpperCase() + s.slice(1)}
+              {SECTION_LABELS[s] || s}
             </label>
           ))}
         </div>
-        
-        <div style={{ display: "flex", gap: 12, marginTop: 4 }}>
-          <button className="btn-gold" style={{ flex: 2, padding: "14px", fontSize: 14, fontWeight: 700 }} onClick={() => save(perms)}>Save Changes</button>
+
+        {/* Actions */}
+        <div style={{ display: "flex", gap: 10 }}>
+          {!isAdmin && (
+            <button
+              className="btn-gold"
+              disabled={saving}
+              style={{ flex: 2, padding: "12px", fontSize: 14, fontWeight: 700 }}
+              onClick={() => save(perms)}
+            >
+              {saving ? "Saving…" : "Save Permissions"}
+            </button>
+          )}
           <button onClick={onClose} style={{
-            flex: 1, background: "transparent", border: "1px solid var(--color-border)",
+            flex: isAdmin ? 1 : 1,
+            background: "transparent", border: "1px solid var(--color-border)",
             borderRadius: 12, color: "var(--color-text-secondary)", cursor: "pointer",
-            fontWeight: 600, fontSize: 14, transition: "all 0.2s"
-          }} onMouseEnter={e => e.currentTarget.style.borderColor = "var(--color-text-tertiary)"}
-             onMouseLeave={e => e.currentTarget.style.borderColor = "var(--color-border)"}>Cancel</button>
+            fontWeight: 600, fontSize: 14, padding: "12px", transition: "all 0.2s"
+          }}>Close</button>
         </div>
       </div>
     </div>
-
   );
 }
 
