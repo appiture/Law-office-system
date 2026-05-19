@@ -123,7 +123,7 @@ function Dashboard() {
   const dashboardActions = (
     <div className="dashboard-header-actions-wrapper" style={{ display: "flex", gap: "10px", alignItems: "center", flexWrap: "wrap" }}>
       <div className="task-btn-wrap" style={{ position: "relative" }}>
-        <Link to={ROUTES.TASKS} className="btn-gold dashboard-task-link header-action-btn">
+        <Link to={ROUTES.TASKS} className="btn-gold header-action-btn">
           📋 Tasks
         </Link>
         {pendingTaskCount > 0 && (
@@ -156,7 +156,7 @@ function Dashboard() {
                 <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} />
               </div>
             </div>
-            <button type="button" className="btn-primary panel-apply-btn" onClick={() => setFilterPanelOpen(false)}>
+            <button type="button" className="primary-button panel-apply-btn" onClick={() => setFilterPanelOpen(false)}>
               Apply
             </button>
           </div>
@@ -167,7 +167,7 @@ function Dashboard() {
         <div className="dashboard-report-actions">
           <button
             type="button"
-            className="btn-neutral"
+            className="btn-neutral header-action-btn"
             onClick={() => openExport({
               type: "dashboard",
               initialSendToEmail: true,
@@ -231,7 +231,7 @@ function Dashboard() {
           </button>
           <button
             type="button"
-            className="btn-gold"
+            className="btn-gold header-action-btn"
             onClick={() => openExport({
               type: "dashboard",
               currentFilters: { searchTerm: dashboardSearch },

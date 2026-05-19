@@ -57,14 +57,13 @@
 }
 
 .dashboard-quick-filter-select {
-  height: 40px;
-  padding: 0 12px;
+  padding: 6px 12px;
   border-radius: 12px;
   background: var(--color-bg-secondary);
   border: 1.5px solid var(--color-border);
   color: var(--color-text);
   font-weight: 800;
-  font-size: 13px;
+  font-size: 12px;
   cursor: pointer;
   transition: all 0.2s ease;
   outline: none;
@@ -76,14 +75,14 @@
 }
 
 .dark .dashboard-quick-filter-select {
-  background: #1E293B !important;
-  border-color: rgba(255, 255, 255, 0.1) !important;
-  color: #F1F5F9 !important;
+  background: var(--color-bg-secondary) !important;
+  border-color: var(--color-border) !important;
+  color: var(--color-text) !important;
 }
 
 .dark .dashboard-quick-filter-select option {
-  background: #0F172A !important;
-  color: #F1F5F9 !important;
+  background: var(--color-bg) !important;
+  color: var(--color-text) !important;
 }
 
 .dashboard-quick-filter-select:focus {
@@ -229,16 +228,16 @@
 
 .notification-trigger,
 .dashboard-task-link {
-  height: 40px;
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 0 18px;
+  padding: 6px 12px;
   border-radius: 12px;
   border: 1px solid var(--color-border);
   background: var(--color-card);
   color: var(--color-text);
   font-weight: 700;
+  font-size: 12px;
   transition: all 0.2s ease;
   box-shadow: 0 2px 8px var(--color-shadow);
   white-space: nowrap;

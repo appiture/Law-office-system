@@ -228,7 +228,7 @@ function TimelineNode({ item, onEdit, onComplete, onDelete }) {
             <span style={{ fontSize:10, fontWeight:800, textTransform:"uppercase", letterSpacing:"0.08em", color:st.color }}>
               {textOrDash(item.type)}
             </span>
-            <div style={{ fontWeight:800, color:"#0f172a", fontSize:14, marginTop:2 }}>{item.title}</div>
+            <div style={{ fontWeight:800, color:"var(--color-text)", fontSize:14, marginTop:2 }}>{item.title}</div>
           </div>
           <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
             {normalizeHearingStatus(item.status) !== HEARING_STATUS.COMPLETED && (

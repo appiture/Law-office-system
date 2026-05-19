@@ -130,7 +130,7 @@ function Login() {
   };
 
   return (
-    <div className="login-screen" style={{ backgroundColor: "#0B1F3A" }}>
+    <div className="login-screen" style={{ backgroundColor: "var(--color-bg)" }}>
       <div className="glass-panel" style={{ position: "relative", zIndex: 1 }}>
         <div>
           <p className="glass-kicker">Secure Access</p>
@@ -155,7 +155,7 @@ function Login() {
                 onClick={() => setShowPassword(!showPassword)}
                 style={{
                   position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)",
-                  background: "transparent", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.5)",
+                  background: "transparent", border: "none", cursor: "pointer", color: "var(--color-text-tertiary)",
                   padding: 0, display: "flex", alignItems: "center", justifyContent: "center"
                 }}
               >
@@ -184,7 +184,7 @@ function Login() {
         </div>
         <p>for queries contact <a href="https://www.appiture.in" target="_blank" rel="noopener noreferrer">www.appiture.in</a></p>
         <p style={{ marginTop: 12, fontSize: 11, opacity: 0.35 }}>
-          <Link to={ROUTES.SUPER_ADMIN_LOGIN} style={{ color: "#FBBF24", textDecoration: "none" }}>
+          <Link to={ROUTES.SUPER_ADMIN_LOGIN} style={{ color: "var(--color-primary)", textDecoration: "none" }}>
             ⭐ Super Admin Portal
           </Link>
         </p>

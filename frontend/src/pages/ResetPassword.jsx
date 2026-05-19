@@ -138,7 +138,7 @@ export default function ResetPassword() {
     <div
       className="login-screen"
       style={{
-        backgroundColor: "#0B1F3A",
+        backgroundColor: "var(--color-bg)",
       }}
     >
 
@@ -146,30 +146,30 @@ export default function ResetPassword() {
       <div className="glass-panel" style={{ position: "relative", zIndex: 1, maxWidth: 420, width: "100%" }}>
         {/* Header */}
         <div style={{ marginBottom: 8 }}>
-          <p className="glass-kicker" style={{ color: "#C9A34E" }}>🔐 Security Required</p>
-          <h1 style={{ margin: "4px 0 8px", fontSize: 22, fontWeight: 800, color: "#fff" }}>
+          <p className="glass-kicker" style={{ color: "var(--color-primary)" }}>🔐 Security Required</p>
+          <h1 style={{ margin: "4px 0 8px", fontSize: 22, fontWeight: 800, color: "var(--color-text)" }}>
             Set Your Password
           </h1>
-          <p className="glass-subtitle" style={{ color: "rgba(255,255,255,.55)", fontSize: 13 }}>
+          <p className="glass-subtitle" style={{ color: "var(--color-text-secondary)", fontSize: 13 }}>
             This is your first login. Please choose a strong, unique password to secure your account.
           </p>
         </div>
 
         {!authReady ? (
           <div style={{
-            background: "rgba(255,255,255,.08)", border: "1px solid rgba(255,255,255,.14)",
+            background: "var(--color-bg-tertiary)", border: "1px solid var(--color-border)",
             borderRadius: 12, padding: "18px 20px", textAlign: "center",
           }}>
-            <p style={{ margin: 0, color: "rgba(255,255,255,.75)", fontWeight: 700, fontSize: 15 }}>
+            <p style={{ margin: 0, color: "var(--color-text)", fontWeight: 700, fontSize: 15 }}>
               Verifying password setup link...
             </p>
           </div>
         ) : success ? (
           <div style={{
-            background: "rgba(52,211,153,.12)", border: "1px solid rgba(52,211,153,.35)",
+            background: "rgba(52,211,153,.12)", border: "1px solid var(--color-success)",
             borderRadius: 12, padding: "18px 20px", textAlign: "center",
           }}>
-            <p style={{ margin: 0, color: "#34D399", fontWeight: 700, fontSize: 15 }}>
+            <p style={{ margin: 0, color: "var(--color-success)", fontWeight: 700, fontSize: 15 }}>
               ✅ Password updated! Redirecting to dashboard…
             </p>
           </div>
@@ -195,7 +195,7 @@ export default function ResetPassword() {
                   onClick={() => setShowNewPassword(!showNewPassword)}
                   style={{
                     position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)",
-                    background: "transparent", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.5)",
+                    background: "transparent", border: "none", cursor: "pointer", color: "var(--color-text-tertiary)",
                     padding: 0, display: "flex", alignItems: "center", justifyContent: "center"
                   }}
                 >
@@ -243,7 +243,7 @@ export default function ResetPassword() {
                   onClick={() => setShowConfirmPass(!showConfirmPass)}
                   style={{
                     position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)",
-                    background: "transparent", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.5)",
+                    background: "transparent", border: "none", cursor: "pointer", color: "var(--color-text-tertiary)",
                     padding: 0, display: "flex", alignItems: "center", justifyContent: "center"
                   }}
                 >
@@ -255,7 +255,7 @@ export default function ResetPassword() {
             {/* Password rules hint */}
             <ul style={{
               margin: "0", padding: "10px 14px",
-              background: "rgba(201,163,78,.06)", border: "1px solid rgba(201,163,78,.18)",
+              background: "var(--color-bg-tertiary)", border: "1px solid var(--color-border)",
               borderRadius: 10, listStyle: "none", display: "flex", flexDirection: "column", gap: 4,
             }}>
               {[
@@ -264,7 +264,7 @@ export default function ResetPassword() {
                 [`${/[0-9]/.test(newPassword)}`, "One number"],
                 [`${/[^A-Za-z0-9]/.test(newPassword)}`, "One special character"],
               ].map(([met, rule]) => (
-                <li key={rule} style={{ fontSize: 12, color: met === "true" ? "#34D399" : "rgba(255,255,255,.4)", display: "flex", gap: 8 }}>
+                <li key={rule} style={{ fontSize: 12, color: met === "true" ? "var(--color-success)" : "var(--color-text-tertiary)", display: "flex", gap: 8 }}>
                   <span>{met === "true" ? "✓" : "○"}</span> {rule}
                 </li>
               ))}

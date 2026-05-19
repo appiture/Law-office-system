@@ -604,7 +604,7 @@ function Payments() {
       />
 
       {hasLoaded && !loading && (
-        <div style={{ fontSize: 12, fontWeight: 700, color: "#64748b", marginBottom: 12 }}>
+        <div style={{ fontSize: 12, fontWeight: 700, color: "var(--color-text-tertiary)", marginBottom: 12 }}>
           {total} case{total !== 1 ? "s" : ""} found
         </div>
       )}

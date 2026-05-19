@@ -102,7 +102,7 @@ function SuperAdminLogin() {
 
   if (checking) {
     return (
-      <div style={{ minHeight: "100vh", display: "grid", placeItems: "center", background: "#060f1e", color: "#f8fafc" }}>
+      <div style={{ minHeight: "100vh", display: "grid", placeItems: "center", background: "var(--color-bg)", color: "var(--color-text)" }}>
         <p style={{ opacity: 0.5 }}>Checking session…</p>
       </div>
     );
@@ -112,7 +112,7 @@ function SuperAdminLogin() {
     <div
       className="login-screen"
       style={{
-        backgroundColor: "#060f1e",
+        backgroundColor: "var(--color-bg)",
       }}
     >
 
@@ -122,13 +122,13 @@ function SuperAdminLogin() {
         className="glass-panel"
         style={{
           position: "relative", zIndex: 1,
-          border: "1px solid rgba(201,163,78,0.25)",
-          background: "rgba(6, 15, 30, 0.75)",
+          border: "1px solid var(--color-border)",
+          background: "var(--color-bg-secondary)",
         }}
       >
         {/* Branding */}
         <div>
-          <p className="glass-kicker" style={{ color: "#C9A34E", letterSpacing: "0.12em" }}>
+          <p className="glass-kicker" style={{ color: "var(--color-primary)", letterSpacing: "0.12em" }}>
             ⭐ Super Admin Portal
           </p>
           <h1 style={{ fontSize: 28, lineHeight: 1.2, marginTop: 8 }}>
@@ -140,7 +140,7 @@ function SuperAdminLogin() {
         </div>
 
         {/* Divider */}
-        <div style={{ height: 1, background: "rgba(201,163,78,0.15)", margin: "0 -4px" }} />
+        <div style={{ height: 1, background: "var(--color-border)", margin: "0 -4px" }} />
 
         {/* Login form */}
         <form className="glass-form" onSubmit={handleSignIn}>
@@ -175,7 +175,7 @@ function SuperAdminLogin() {
                 onClick={() => setShowPassword(!showPassword)}
                 style={{
                   position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)",
-                  background: "transparent", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.5)",
+                  background: "transparent", border: "none", cursor: "pointer", color: "var(--color-text-tertiary)",
                   padding: 0, display: "flex", alignItems: "center", justifyContent: "center"
                 }}
               >
@@ -188,9 +188,9 @@ function SuperAdminLogin() {
             <div
               className="error-banner"
               style={{
-                background: "rgba(248,113,113,0.12)",
-                border: "1px solid rgba(248,113,113,0.3)",
-                color: "#FCA5A5",
+                background: "var(--color-bg-tertiary)",
+                border: "1px solid var(--color-error)",
+                color: "var(--color-error)",
                 borderRadius: 10,
                 padding: "12px 14px",
                 fontSize: 13,
@@ -205,9 +205,6 @@ function SuperAdminLogin() {
             className="glass-button"
             disabled={loading}
             style={{
-              background: loading
-                ? "rgba(201,163,78,0.5)"
-                : "linear-gradient(135deg, #C9A34E, #a07830)",
               marginTop: 4,
             }}
           >
@@ -220,7 +217,7 @@ function SuperAdminLogin() {
           Regular staff?{" "}
           <a
             href={ROUTES.LOGIN}
-            style={{ color: "#FBBF24", textDecoration: "none", fontWeight: 600 }}
+            style={{ color: "var(--color-primary)", textDecoration: "none", fontWeight: 600 }}
           >
             Go to staff login →
           </a>

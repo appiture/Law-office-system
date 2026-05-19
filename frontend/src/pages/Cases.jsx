@@ -469,7 +469,7 @@ function Cases() {
               <p><strong>👤 Lawyer</strong> {legalCase.assignedLawyer || "—"}</p>
             </div>
 
-            <div style={{ fontSize:10, color:"#94a3b8", textAlign: 'right' }}>
+            <div style={{ fontSize:10, color:"var(--color-text-tertiary)", textAlign: 'right' }}>
               Last Sync: {formatDateTime(legalCase.updatedAt)}
             </div>
           </CaseIdentityCard>

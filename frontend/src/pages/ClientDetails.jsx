@@ -219,7 +219,7 @@ function ClientDetails() {
         <div className="case-details-error">
           <h2>Error Loading Client</h2>
           <p>{error || "No matching client was found."}</p>
-          <Link to={ROUTES.CLIENTS} className="btn-primary">Back to Clients</Link>
+          <Link to={ROUTES.CLIENTS} className="primary-button">Back to Clients</Link>
         </div>
       </AppShell>
     );

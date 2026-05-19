@@ -153,7 +153,7 @@ function CaseDetails() {
         <div className="case-details-error">
           <h2>Error Loading Case</h2>
           <p>{error || "No matching record was found."}</p>
-          <Link to={ROUTES.CASES} className="btn-primary">Back to Cases</Link>
+          <Link to={ROUTES.CASES} className="primary-button">Back to Cases</Link>
         </div>
       </AppShell>
     );

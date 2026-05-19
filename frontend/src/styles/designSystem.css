@@ -4,25 +4,36 @@
 =================================================== */
 
 :root {
-  --color-primary: #3A5BA0;
+  --color-primary: #1E3A8A; /* Navy Blue */
   --color-secondary: #C9A34E;
   --color-bg: #F8FAFC;
   --color-bg-secondary: #FFFFFF;
   --color-bg-tertiary: #F1F5F9;
   --color-card: #FFFFFF;
-  --color-text: #0F172A;
-  --color-text-secondary: #475569;
-  --color-text-tertiary: #94A3B8;
+  --color-text: #1E3A8A; /* Navy Blue */
+  --color-text-secondary: #2E4B9C; /* Light Navy */
+  --color-text-tertiary: #4A67B5;
   --color-border: #E2E8F0;
   --color-border-hover: #CBD5E1;
   --color-accent: #C9A34E;
   --color-gold: #C9A34E;
   --color-gold-light: rgba(201, 163, 78, 0.1);
   --color-gold-dark: #a07830;
-  --color-shadow: rgba(0, 0, 0, 0.05);
+  --color-shadow: rgba(30, 58, 138, 0.1); /* Navy shadow */
   --color-success: #10B981;
   --color-error: #EF4444;
   --color-warning: #F59E0B;
+
+  /* Button Tokens for Light Mode */
+  --btn-primary-bg: #C9A34E; /* Gold bg */
+  --btn-primary-text: #1E3A8A; /* Navy text */
+  --btn-primary-border: #C9A34E;
+  --btn-primary-bg-hover: #a07830;
+  
+  --btn-neutral-bg: #FFFFFF;
+  --btn-neutral-text: #1E3A8A; /* Navy text */
+  --btn-neutral-border: #1E3A8A;
+  --btn-neutral-bg-hover: #F1F5F9;
   
   --compact-gap: 12px;
   --compact-padding: 14px;
@@ -39,18 +50,29 @@
 }
 
 .dark {
-  --color-primary: #6C8EDC;
-  --color-secondary: #C9A34E;
+  --color-primary: #C9A34E; /* Gold is primary in dark */
+  --color-secondary: #6C8EDC;
   --color-bg: #0F172A;
   --color-bg-secondary: #1E293B;
   --color-bg-tertiary: #1E293B;
   --color-card: #1E293B;
-  --color-text: #F1F5F9;
-  --color-text-secondary: #94A3B8;
-  --color-text-tertiary: #64748B;
+  --color-text: #C9A34E; /* Gold text */
+  --color-text-secondary: #D4AF37; /* Metallic gold */
+  --color-text-tertiary: #E3C15D;
   --color-border: #334155;
-  --color-border-hover: #475569;
-  --color-shadow: rgba(0, 0, 0, 0.3);
+  --color-border-hover: #C9A34E;
+  --color-shadow: rgba(201, 163, 78, 0.1); /* Gold shadow */
+
+  /* Button Tokens for Dark Mode */
+  --btn-primary-bg: #1E3A8A; /* Navy bg */
+  --btn-primary-text: #C9A34E; /* Gold text */
+  --btn-primary-border: #1E3A8A;
+  --btn-primary-bg-hover: #2E4B9C;
+  
+  --btn-neutral-bg: #1E293B;
+  --btn-neutral-text: #C9A34E; /* Gold text */
+  --btn-neutral-border: #C9A34E;
+  --btn-neutral-bg-hover: #334155;
 }
 
 /* ===================================================
@@ -252,26 +274,28 @@ button,
 }
 
 .primary-button, .btn-gold {
-  background: var(--color-gold);
-  color: #0F172A;
-  border: none;
+  background: var(--btn-primary-bg);
+  color: var(--btn-primary-text);
+  border: 1px solid var(--btn-primary-border);
 }
 
 .primary-button:hover, .btn-gold:hover {
-  background: var(--color-gold-dark);
+  background: var(--btn-primary-bg-hover);
+  color: var(--btn-primary-text);
   transform: translateY(-2px);
   box-shadow: 0 4px 12px var(--color-shadow);
 }
 
 .ghost-button, .btn-neutral {
-  background: var(--color-bg-tertiary);
-  color: var(--color-text);
-  border: 1px solid var(--color-border);
+  background: var(--btn-neutral-bg);
+  color: var(--btn-neutral-text);
+  border: 1px solid var(--btn-neutral-border);
 }
 
 .ghost-button:hover, .btn-neutral:hover {
-  background: var(--color-bg-secondary);
-  border-color: var(--color-primary);
+  background: var(--btn-neutral-bg-hover);
+  border-color: var(--btn-neutral-text);
+  color: var(--btn-neutral-text);
   transform: translateY(-2px);
 }
 
@@ -281,10 +305,21 @@ button:disabled {
   transform: none !important;
 }
 
-.header-action-btn {
-  font-size: 12px;
-  padding: 6px 12px;
-  white-space: nowrap;
+.header-action-btn,
+.page-back-button,
+.dashboard-quick-filter-select,
+.filter-toggle-btn {
+  height: 34px !important;
+  font-size: 12px !important;
+  padding: 0 14px !important;
+  display: inline-flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  gap: 8px !important;
+  box-sizing: border-box !important;
+  white-space: nowrap !important;
+  font-weight: 800 !important;
+  border-radius: var(--radius-md) !important;
 }
 
 .btn-edit-section {
@@ -731,3 +766,102 @@ input:focus, select:focus, textarea:focus {
 .layer-above { z-index: 10; }
 .layer-modal { z-index: 1000; }
 .layer-toast { z-index: 2000; }
+
+/* ===================================================
+   GLOBAL THEME OVERRIDES FOR TEXT & CONTRAST
+   =================================================== */
+
+/* All standard typography elements default to primary theme text color */
+body, 
+p, 
+span:not(.badge-pending):not(.nav-badge):not(.unread-dot):not(.filter-badge), 
+div:not(.premium-loader):not(.unread-dot):not(.notification-icon), 
+li, 
+a:not(.primary-button):not(.btn-gold):not(.btn-neutral):not(.header-action-btn):not(.page-back-button), 
+h1, 
+h2, 
+h3, 
+h4, 
+h5, 
+h6, 
+label, 
+td, 
+th, 
+input:not([type="button"]):not([type="submit"]):not([type="reset"]), 
+select, 
+textarea {
+  color: var(--color-text);
+}
+
+/* Secondary and muted texts */
+.text-secondary, 
+.text-muted, 
+.subtitle, 
+.muted-text, 
+.meta-text, 
+.card-subtitle, 
+.helper-text, 
+.timestamp,
+.notification-content small,
+.metric-card span {
+  color: var(--color-text-secondary) !important;
+}
+
+/* Elevate primary values and important headers */
+.metric-card strong, 
+.stat-value, 
+.kpi-value {
+  color: var(--color-primary) !important;
+}
+
+/* Strict Button Typography & Colors for outstanding visibility in all themes */
+.primary-button, 
+.btn-gold,
+a.primary-button,
+a.btn-gold,
+button.primary-button,
+button.btn-gold {
+  background: var(--btn-primary-bg) !important;
+  color: var(--btn-primary-text) !important;
+  border: 1.5px solid var(--btn-primary-border) !important;
+  box-shadow: 0 4px 12px var(--color-shadow);
+}
+
+.primary-button:hover, 
+.btn-gold:hover,
+a.primary-button:hover,
+a.btn-gold:hover {
+  background: var(--btn-primary-bg-hover) !important;
+  color: var(--btn-primary-text) !important;
+}
+
+.ghost-button, 
+.btn-neutral,
+a.ghost-button,
+a.btn-neutral,
+button.ghost-button,
+button.btn-neutral {
+  background: var(--btn-neutral-bg) !important;
+  color: var(--btn-neutral-text) !important;
+  border: 1.5px solid var(--btn-neutral-border) !important;
+  box-shadow: 0 2px 6px var(--color-shadow);
+}
+
+.ghost-button:hover, 
+.btn-neutral:hover,
+a.ghost-button:hover,
+a.btn-neutral:hover {
+  background: var(--btn-neutral-bg-hover) !important;
+  border-color: var(--btn-neutral-text) !important;
+  color: var(--btn-neutral-text) !important;
+}
+
+/* Make sure icons inside buttons inherit button text color perfectly */
+.primary-button svg,
+.btn-gold svg,
+.ghost-button svg,
+.btn-neutral svg,
+.header-action-btn svg,
+.page-back-button svg {
+  color: inherit !important;
+}

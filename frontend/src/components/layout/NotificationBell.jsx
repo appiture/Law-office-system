@@ -605,7 +605,7 @@ function NotificationBell({ pendingTaskCount = 0 }) {
               background: "var(--color-surface, var(--color-card))",
             }}>
               <button
-                className="btn-primary" style={{ flex: 1, fontSize: 13, padding: "10px 0", fontWeight: 700, borderRadius: 8 }}
+                className="primary-button" style={{ flex: 1, fontSize: 13, padding: "10px 0", fontWeight: 700, borderRadius: 8 }}
                 onClick={() => { setOpen(false); navigate(ROUTES.HEARINGS); }}
               >
                 📅 Manage Hearings

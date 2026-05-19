@@ -707,7 +707,30 @@ export default function TeamManagement() {
   const pendingCount = members.filter((m) => m.must_reset_password).length;
 
   return (
-    <AppShell title="Team Management" subtitle="Add and manage your organization's members">
+    <AppShell
+      title="Team Management"
+      subtitle="Add and manage your organization's members"
+      actions={
+        <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "nowrap" }}>
+          <button
+            type="button"
+            className="btn-gold header-action-btn"
+            onClick={() => openExport({
+              type: "team",
+              availableData: filtered.map(m => ({
+                name: m.full_name || m.name || m.email,
+                email: m.email,
+                role: m.role,
+                status: m.status,
+                createdAt: m.created_at,
+              }))
+            })}
+          >
+            📊 Export Team
+          </button>
+        </div>
+      }
+    >
 
       {/* Toast */}
       {toast && (
@@ -798,23 +821,6 @@ export default function TeamManagement() {
           setFilterFromDate("");
           setFilterToDate("");
         }}
-        actions={[
-          {
-            label: "Export Team",
-            icon: "📊",
-            variant: "outline",
-            onClick: () => openExport({
-              type: "team",
-              availableData: filtered.map(m => ({
-                name: m.full_name || m.name || m.email,
-                email: m.email,
-                role: m.role,
-                status: m.status,
-                createdAt: m.created_at,
-              }))
-            })
-          }
-        ]}
       />
 
         {/* Members table */}

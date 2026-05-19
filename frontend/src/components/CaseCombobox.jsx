@@ -140,10 +140,10 @@ function CaseCombobox({ value, onChange, cases, placeholder = "Search and select
               }}
               onMouseEnter={() => setHighlightedIndex(index)}
             >
-              <div style={{ fontWeight: "600", color: "#111827" }}>
+              <div style={{ fontWeight: "600", color: "var(--color-text)" }}>
                 {c.caseNumber} - {c.client?.name || "Unknown Client"}
               </div>
-              <div style={{ fontSize: "12px", color: "#6b7280" }}>
+              <div style={{ fontSize: "12px", color: "var(--color-text-tertiary)" }}>
                 {c.caseType}
               </div>
             </div>
