@@ -1,6 +1,7 @@
 import { ROUTES } from "../constants/routes";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Eye, EyeOff } from "lucide-react";
 import { supabase } from "../services/supabaseClient";
 import { completePasswordReset } from "../services/adminService";
 import { syncSupabaseSession } from "../services/authService";
@@ -31,6 +32,8 @@ export default function ResetPassword() {
   const navigate = useNavigate();
   const [newPassword, setNewPassword]     = useState("");
   const [confirmPass, setConfirmPass]     = useState("");
+  const [showNewPassword, setShowNewPassword] = useState(false);
+  const [showConfirmPass, setShowConfirmPass] = useState(false);
   const [loading, setLoading]             = useState(false);
   const [authReady, setAuthReady]         = useState(false);
   const [error, setError]                 = useState("");
@@ -175,16 +178,30 @@ export default function ResetPassword() {
             {/* New password */}
             <label>
               New Password
-              <input
-                type="password"
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                required
-                minLength={MIN_LENGTH}
-                placeholder="At least 8 characters"
-                disabled={loading}
-                autoComplete="new-password"
-              />
+              <div style={{ position: "relative" }}>
+                <input
+                  type={showNewPassword ? "text" : "password"}
+                  value={newPassword}
+                  onChange={(e) => setNewPassword(e.target.value)}
+                  required
+                  minLength={MIN_LENGTH}
+                  placeholder="At least 8 characters"
+                  disabled={loading}
+                  autoComplete="new-password"
+                  style={{ paddingRight: "40px", width: "100%", boxSizing: "border-box" }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowNewPassword(!showNewPassword)}
+                  style={{
+                    position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)",
+                    background: "transparent", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.5)",
+                    padding: 0, display: "flex", alignItems: "center", justifyContent: "center"
+                  }}
+                >
+                  {showNewPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
             </label>
 
             {/* Strength meter */}
@@ -210,15 +227,29 @@ export default function ResetPassword() {
             {/* Confirm password */}
             <label>
               Confirm Password
-              <input
-                type="password"
-                value={confirmPass}
-                onChange={(e) => setConfirmPass(e.target.value)}
-                required
-                placeholder="Repeat your new password"
-                disabled={loading}
-                autoComplete="new-password"
-              />
+              <div style={{ position: "relative" }}>
+                <input
+                  type={showConfirmPass ? "text" : "password"}
+                  value={confirmPass}
+                  onChange={(e) => setConfirmPass(e.target.value)}
+                  required
+                  placeholder="Repeat your new password"
+                  disabled={loading}
+                  autoComplete="new-password"
+                  style={{ paddingRight: "40px", width: "100%", boxSizing: "border-box" }}
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmPass(!showConfirmPass)}
+                  style={{
+                    position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)",
+                    background: "transparent", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.5)",
+                    padding: 0, display: "flex", alignItems: "center", justifyContent: "center"
+                  }}
+                >
+                  {showConfirmPass ? <EyeOff size={18} /> : <Eye size={18} />}
+                </button>
+              </div>
             </label>
 
             {/* Password rules hint */}

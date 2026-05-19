@@ -1,6 +1,7 @@
 import { ROUTES } from "../constants/routes";
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { Eye, EyeOff } from "lucide-react";
 import { supabase } from "../services/supabaseClient";
 import { requiredText } from "../utils/validation";
 import { checkAdminStatus, checkMustResetPassword } from "../services/adminService";
@@ -23,6 +24,7 @@ function SuperAdminLogin() {
   const navigate = useNavigate();
   const [email, setEmail]       = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [error, setError]       = useState("");
   const [loading, setLoading]   = useState(false);
   const [checking, setChecking] = useState(true);
@@ -157,15 +159,29 @@ function SuperAdminLogin() {
 
           <label>
             Password
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              required
-              placeholder="••••••••"
-              autoComplete="current-password"
-              disabled={loading}
-            />
+            <div style={{ position: "relative" }}>
+              <input
+                type={showPassword ? "text" : "password"}
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                required
+                placeholder="••••••••"
+                autoComplete="current-password"
+                disabled={loading}
+                style={{ paddingRight: "40px", width: "100%", boxSizing: "border-box" }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                style={{
+                  position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)",
+                  background: "transparent", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.5)",
+                  padding: 0, display: "flex", alignItems: "center", justifyContent: "center"
+                }}
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
           </label>
 
           {error && (

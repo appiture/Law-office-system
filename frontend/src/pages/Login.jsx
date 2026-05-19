@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { supabase } from "../services/supabaseClient";
+import { Eye, EyeOff } from "lucide-react";
 import { requiredText } from "../utils/validation";
 import {
   getRememberedEmail,
@@ -31,6 +32,7 @@ function Login() {
   const navigate = useNavigate();
   const [email, setEmail] = useState(getRememberedEmail());
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(Boolean(getRememberedEmail()));
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -146,7 +148,20 @@ function Login() {
 
           <label>
             Password
-            <input value={password} type="password" onChange={(event) => setPassword(event.target.value)} required placeholder="••••••••" />
+            <div style={{ position: "relative" }}>
+              <input value={password} type={showPassword ? "text" : "password"} onChange={(event) => setPassword(event.target.value)} required placeholder="••••••••" style={{ paddingRight: "40px", width: "100%", boxSizing: "border-box" }} />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                style={{
+                  position: "absolute", right: "12px", top: "50%", transform: "translateY(-50%)",
+                  background: "transparent", border: "none", cursor: "pointer", color: "rgba(255,255,255,0.5)",
+                  padding: 0, display: "flex", alignItems: "center", justifyContent: "center"
+                }}
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
           </label>
 
           <label className="inline-check">
