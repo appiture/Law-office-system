@@ -321,20 +321,28 @@ function Documents() {
     }
   }, [focusDocId, cases]);
 
+  // Auto-load on mount
   useEffect(() => {
-    const hasActiveFilters = Object.values(filters).some(Boolean);
     if (initialSearchCase && !initialSearchTriggered) {
       setInitialSearchTriggered(true);
-      handleSearch({ ...emptyFilters, searchTerm: initialSearchCase });
-    } else if (hasActiveFilters || focusDocId) {
-      if (!hasLoaded) handleShowAll();
-      else handleSearch(filters);
+      void loadDocuments({ nextPage: 1, showAll: false, nextFilters: { ...emptyFilters, searchTerm: initialSearchCase } });
     } else if (!hasLoaded && !showAllMode) {
-      // Auto-load all records on first visit when no filters are set
       void loadDocuments({ nextPage: 1, showAll: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters.searchTerm, filters.category, filters.fromDate, filters.toDate, initialSearchCase, initialSearchTriggered, handleSearch, handleShowAll, hasLoaded, showAllMode, focusDocId]);
+  }, []);
+
+  // Re-run search when filters change (after initial load)
+  useEffect(() => {
+    if (!hasLoaded) return;
+    const hasActiveFilters = Object.values(filters).some(Boolean);
+    if (hasActiveFilters || focusDocId) {
+      handleSearch(filters);
+    } else {
+      void loadDocuments({ nextPage: 1, showAll: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters.searchTerm, filters.category, filters.fromDate, filters.toDate, focusDocId]);
 
 
   const deleteDocument = async (caseId, doc) => {
@@ -403,11 +411,7 @@ function Documents() {
         onFilterChange={(id, val) => setFilters(p => ({ ...p, [id]: val }))}
         onClearFilters={() => {
           setFilters(emptyFilters);
-          setCases([]);
-          setTotal(0);
-          setHasLoaded(false);
-          setShowAllMode(false);
-          setError("");
+          void loadDocuments({ nextPage: 1, showAll: true, nextFilters: emptyFilters });
         }}
         onShowAll={handleShowAll}
       />

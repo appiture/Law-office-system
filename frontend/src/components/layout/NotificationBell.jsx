@@ -12,7 +12,7 @@ const GROUP_META = {
   overdue:  { label: "💸 Overdue Payments",    color: "var(--color-error)" },
 };
 
-function NotificationBell({ pendingTaskCount = 0 }) {
+function NotificationBell() {
   const navigate = useNavigate();
   const { items, loading, refresh } = useNotifications();
   const [open, setOpen] = useState(false);

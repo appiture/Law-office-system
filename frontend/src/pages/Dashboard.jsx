@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import AppShell from "../components/layout/AppShell";
 import HeaderFilters from "../components/HeaderFilters";
-import { currency, formatDate } from "../utils/formatters";
+import { currency } from "../utils/formatters";
 import { isOrgAdmin } from "../services/adminService";
 import { openExport } from "../store/exportStore";
 import { isDemo, getDemoExpiresAt } from "../services/authService";
@@ -43,13 +43,14 @@ function Dashboard() {
     setClientChartRange,
     feeChartRange,
     setFeeChartRange,
-    isDateInRange,
     finance,
     activeCaseCount,
     clientsPerMonth,
     paymentsPerMonth,
     calendarDays,
-    agendaItems
+    agendaItems,
+    addCalendarEvent,
+    deleteCalendarEvent
   } = useDashboardData();
 
   const [filterPanelOpen, setFilterPanelOpen] = useState(false);
@@ -403,6 +404,8 @@ function Dashboard() {
               agendaDate={agendaDate}
               setAgendaDate={setAgendaDate}
               agendaItems={agendaItems}
+              onAddEvent={addCalendarEvent}
+              onDeleteEvent={deleteCalendarEvent}
             />
           </section>
         </>

@@ -6,7 +6,6 @@ import AppShell from "../components/layout/AppShell";
 import { supabasePlatformApi as platformApi } from "../repositories/supabaseRepository";
 import { getPersistentAssetUrl } from "../services/storageService";
 import { formatDate, textOrDash } from "../utils/formatters";
-import ProfileCard from "../components/ui/ProfileCard/ProfileCard";
 import MultiStepClientWizard from "../components/MultiStepClientWizard";
 import { createPortal } from "react-dom";
 import { usePermissions } from "../context/PermissionsContext";
@@ -285,14 +284,16 @@ function ClientDetails() {
             className="magic-bento-card--profile"
           >
             <div className="profile-hero-section">
-              <ProfileCard
-                name={client?.name}
-                title={client?.occupation || "Client"}
-                avatarUrl={photoUrl}
-                behindGlowEnabled={false}
-                enableTilt={false}
-                onImageClick={() => photoUrl && setPreviewImage({ src: photoUrl, alt: client?.name })}
-              />
+              <div className="client-avatar-container">
+                <div className="client-avatar-wrapper" onClick={() => photoUrl && setPreviewImage({ src: photoUrl, alt: client?.name })}>
+                  <img src={photoUrl || "/placeholder-avatar.png"} alt={client?.name} className="client-avatar-img" />
+                  <div className="client-avatar-glow" />
+                </div>
+              </div>
+              <div className="client-hero-details">
+                <h4 className="client-hero-name">{client?.name}</h4>
+                <p className="client-hero-title">{client?.occupation || "Client"}</p>
+              </div>
               <div className="profile-hero-meta">
                 <div className="meta-badge">Verified Records</div>
                 <div className="meta-stats">

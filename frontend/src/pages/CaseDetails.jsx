@@ -5,7 +5,6 @@ import AppShell from "../components/layout/AppShell";
 import { supabasePlatformApi as platformApi } from "../repositories/supabaseRepository";
 import { getPersistentAssetUrl } from "../services/storageService";
 import { currency, formatDate, sentenceCaseStatus } from "../utils/formatters";
-import ProfileCard from "../components/ui/ProfileCard/ProfileCard";
 import MultiStepClientWizard from "../components/MultiStepClientWizard";
 import { createPortal } from "react-dom";
 import { usePermissions } from "../context/PermissionsContext";
@@ -204,7 +203,25 @@ function CaseDetails() {
     >
       <div className="case-details-container">
         <MagicBento className="case-details-grid" enableTilt={false} enableStars={false} enableSpotlight={false} enableBorderGlow={false}>
-          <DetailSection id="case-overview" title="Matter Overview" label="Case Info" className="magic-bento-card--full">
+          {/* ROW 1: Primary Client (span 2) + Matter Overview (span 4) */}
+          {client && (
+            <DetailSection id="client-summary" title="Primary Client" label="Identity" className="magic-bento-card--profile">
+              <div className="client-profile-bento-content">
+                <div className="client-avatar-wrapper client-avatar-wrapper--mini" style={{ cursor: 'pointer' }} onClick={() => navigate(`/clients/${client.id}`)}>
+                  <img src={getPersistentAssetUrl(client.photoUrl) || "/placeholder-avatar.png"} alt={client.name} className="client-avatar-img" />
+                </div>
+                <div className="client-bento-info">
+                  <h4 className="client-bento-name">{client.name}</h4>
+                  <p className="client-bento-title">{client.occupation || "Client"}</p>
+                  <Link to={`/clients/${client.id}`} className="btn-edit-section" style={{ display: 'inline-block', marginTop: '8px', textAlign: 'center' }}>
+                    View Profile
+                  </Link>
+                </div>
+              </div>
+            </DetailSection>
+          )}
+
+          <DetailSection id="case-overview" title="Matter Overview" label="Case Info" className="magic-bento-card--details">
             <div className="info-line-list">
               <div className="info-line-grid-2">
                 <InfoRow label="Case Number" value={legalCase.caseNumber} />
@@ -223,23 +240,9 @@ function CaseDetails() {
             </div>
           </DetailSection>
 
-          {client && (
-            <DetailSection id="client-summary" title="Primary Client" label="Identity" className="magic-bento-card--half">
-              <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                <ProfileCard 
-                  name={client.name} 
-                  title={client.occupation} 
-                  avatarUrl={getPersistentAssetUrl(client.photoUrl)} 
-                  enableTilt={false}
-                  behindGlowEnabled={false}
-                />
-                <Link to={`/clients/${client.id}`} className="btn-neutral">View Full Profile</Link>
-              </div>
-            </DetailSection>
-          )}
-
+          {/* ROW 2: Billing Status (span 2) + Hearings (span 4) */}
           {canViewPayments && (
-            <DetailSection id="case-financials" title="Billing Status" label="Financials" className="magic-bento-card--half">
+            <DetailSection id="case-financials" title="Billing Status" label="Financials" className="magic-bento-card--profile">
               <div className="financial-mini-grid">
                 <div className="mini-stat"><small>TOTAL</small><span>{currency(totals.totalAmount)}</span></div>
                 <div className="mini-stat"><small>PAID</small><span>{currency(totals.paidAmount)}</span></div>
@@ -249,7 +252,7 @@ function CaseDetails() {
           )}
 
           {canViewHearings && (
-            <DetailSection id="hearings-card" title="Timeline & Dates" label="Hearings" className="magic-bento-card--full">
+            <DetailSection id="hearings-card" title="Timeline & Dates" label="Hearings" className="magic-bento-card--details">
               <div className="payment-history-table-wrap">
                 <table className="payment-history-table">
                   <thead>
@@ -263,6 +266,9 @@ function CaseDetails() {
                         <td><span className={`status-tag ${statusClassName(fu.status)}`}>{fu.status}</span></td>
                       </tr>
                     ))}
+                    {(legalCase.hearings || []).length === 0 && (
+                      <tr><td colSpan="3" className="empty-text" style={{ textAlign: 'center', padding: '20px 0' }}>No hearings scheduled for this case.</td></tr>
+                    )}
                   </tbody>
                 </table>
               </div>

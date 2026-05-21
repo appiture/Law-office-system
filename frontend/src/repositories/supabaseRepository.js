@@ -1,11 +1,5 @@
 import { supabase, supabaseBuckets } from "../services/supabaseClient";
 import {
-  assertCasePayload,
-  assertChargePayload,
-  assertClientPayload,
-  assertDocumentPayload,
-  assertHearingPayload,
-  assertPaymentPayload,
   normalizeDigits,
   requiredText,
 } from "../utils/validation";
@@ -1134,6 +1128,28 @@ const supabasePlatformApi = {
       }
       throw err;
     }
+  },
+  addCalendarEvent: async (payload) => {
+    const context = await internalGetWorkspaceContext();
+    if (!context?.organizationId) throw new Error("No organization workspace is available.");
+
+    const { data, error } = await requireSupabase()
+      .from("calendar_events")
+      .insert({
+        organization_id: context.organizationId,
+        created_by: context.userId,
+        title: payload.title?.trim(),
+        description: payload.description?.trim(),
+        event_date: payload.event_date,
+        event_type: payload.event_type || "note",
+        color: payload.color || "#3A5BA0",
+      })
+      .select()
+      .single();
+
+    if (error) throw error;
+    await logObservabilityEvent(context, "calendar", "CREATE_NOTE", { eventId: data.id });
+    return data;
   },
   deleteCalendarEvent: async (eventId) => {
     const context = await internalGetWorkspaceContext();

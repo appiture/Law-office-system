@@ -223,7 +223,6 @@ export const clientRepository = {
       const {
         internalGetWorkspaceContext,
         requireSupabase,
-        single,
         resetWorkspaceDataCache,
       } = getHelpers();
 

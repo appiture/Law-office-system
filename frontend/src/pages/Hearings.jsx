@@ -268,24 +268,10 @@ function Hearings() {
   const [total, setTotal] = useState(0);
   const [showAllMode, setShowAllMode] = useState(false);
   const [initialSearchTriggered, setInitialSearchTriggered] = useState(false);
-  const [contextReady, setContextReady] = useState(false);
 
-  // Wait for workspace context to be ready before loading data
-  useEffect(() => {
-    const checkContext = async () => {
-      try {
-        // Wait for workspace context to be available
-        await platformApi.getWorkspaceContext();
-        setContextReady(true);
-      } catch (err) {
-        setError("Workspace context not available. Please refresh the page.");
-      }
-    };
-    checkContext();
-  }, [platformApi]);
+
 
   const loadData = useCallback(async ({ nextPage = page, showAll = showAllMode, nextFilters = filters } = {}) => {
-    if (!contextReady) return;
     setLoading(true);
     setError("");
     try {
@@ -326,7 +312,7 @@ function Hearings() {
     } finally {
       setLoading(false);
     }
-  }, [contextReady, filters, page, showAllMode]);
+  }, [filters, page, showAllMode]);
 
 
   const ensureModalCases = async () => {
@@ -416,21 +402,30 @@ function Hearings() {
     setShowAllMode(false);
     void loadData({ nextPage: 1, showAll: false, nextFilters });
   }, [filters, loadData]);
-  
+
+  // Auto-load on mount and when filters change
   useEffect(() => {
-    if (!contextReady) return;
-    const hasActiveFilters = Object.values(filters).some(Boolean);
     if (initialSearchCase && !initialSearchTriggered) {
       setInitialSearchTriggered(true);
-      handleSearch({ ...emptyFilters, searchTerm: initialSearchCase });
-    } else if (hasActiveFilters) {
-      handleSearch(filters);
+      void loadData({ nextPage: 1, showAll: false, nextFilters: { ...emptyFilters, searchTerm: initialSearchCase } });
     } else if (!hasLoaded && !showAllMode) {
-      // Auto-load all records on first visit when no filters are set
+      // First visit: load all records
       void loadData({ nextPage: 1, showAll: true });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [contextReady, filters.searchTerm, filters.type, filters.status, filters.fromDate, filters.toDate, initialSearchCase, initialSearchTriggered, handleSearch, hasLoaded, showAllMode]);
+  }, []);  // Run only on mount
+
+  // Re-run search when filters change (after initial load)
+  useEffect(() => {
+    if (!hasLoaded) return;
+    const hasActiveFilters = Object.values(filters).some(Boolean);
+    if (hasActiveFilters) {
+      handleSearch(filters);
+    } else {
+      void loadData({ nextPage: 1, showAll: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filters.searchTerm, filters.type, filters.status, filters.fromDate, filters.toDate]);
 
 
   const handleShowAll = () => {

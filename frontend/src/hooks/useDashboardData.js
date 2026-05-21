@@ -4,7 +4,6 @@ import { getCache, setCache } from "../lib/cache";
 import { getOrganizationId, getUserId } from "../services/authService";
 import { isLawyerFeeLabel } from "../utils/caseDomain";
 import { formatDate } from "../utils/formatters";
-import { getEntityUrl } from "../utils/navigationHelper";
 import logger from "../services/loggerService";
 
 const DATE_ONLY_REGEX = /^\d{4}-\d{2}-\d{2}$/;
@@ -247,7 +246,7 @@ export function useDashboardData() {
           title: item.title || type,
           date: item.scheduledAt || item.postponedTo,
           key: toDateKey(item.scheduledAt || item.postponedTo),
-          to: getEntityUrl(entityType, item.id),
+          to: `/hearings?highlightCase=${legalCase.id}&searchCase=${encodeURIComponent(legalCase.caseNumber)}`,
           client: legalCase.client?.name || "Client",
           caseNumber: legalCase.caseNumber,
           caseId: legalCase.id,
@@ -265,7 +264,7 @@ export function useDashboardData() {
           title: `${item.label} due: ${legalCase.caseNumber}`,
           date: item.dueDate,
           key: toDateKey(item.dueDate),
-          to: getEntityUrl("payment", item.id),
+          to: `/payments?highlightCase=${legalCase.id}&searchCase=${encodeURIComponent(legalCase.caseNumber)}`,
           client: legalCase.client?.name || "Client",
           caseNumber: legalCase.caseNumber,
         });
@@ -287,7 +286,7 @@ export function useDashboardData() {
         isManualEvent: true,
         client: "",
         caseNumber: "",
-        to: getEntityUrl("hearing", evt.id)
+        to: ""
       });
     });
 
@@ -333,6 +332,29 @@ export function useDashboardData() {
 
   const agendaItems = useMemo(() => filteredEvents.filter((event) => event.key === agendaDate), [agendaDate, filteredEvents]);
 
+  const addCalendarEvent = useCallback(async (payload) => {
+    try {
+      const data = await platformApi.addCalendarEvent(payload);
+      const events = await platformApi.getCalendarEvents();
+      setCalendarEvents(events || []);
+      return data;
+    } catch (err) {
+      logger.error("Failed to add calendar event", err);
+      throw err;
+    }
+  }, []);
+
+  const deleteCalendarEvent = useCallback(async (eventId) => {
+    try {
+      await platformApi.deleteCalendarEvent(eventId);
+      const events = await platformApi.getCalendarEvents();
+      setCalendarEvents(events || []);
+    } catch (err) {
+      logger.error("Failed to delete calendar event", err);
+      throw err;
+    }
+  }, []);
+
   return {
     summary,
     clients,
@@ -367,6 +389,8 @@ export function useDashboardData() {
     events,
     filteredEvents,
     calendarDays,
-    agendaItems
+    agendaItems,
+    addCalendarEvent,
+    deleteCalendarEvent
   };
 }
