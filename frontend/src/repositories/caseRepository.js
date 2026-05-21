@@ -369,20 +369,35 @@ export const caseRepository = {
     const client = __internal.requireSupabase();
     const { organizationId } = context;
 
-    // Fetch documents joined with their cases and clients in one pass
+    let visibleCaseIds = null;
+    if (__internal.isLawyerContext(context)) {
+      const { data: lawyerCases, error: casesError } = await client
+        .from("cases")
+        .select("id")
+        .eq("organization_id", organizationId)
+        .eq("assigned_lawyer_id", context.userId)
+        .is("deleted_at", null);
+      if (casesError) throw casesError;
+      visibleCaseIds = (lawyerCases || []).map((c) => c.id);
+      if (visibleCaseIds.length === 0) {
+        return __internal.paginateItems([], page, pageSize);
+      }
+    }
+
+    // Fetch documents joined with their cases and clients in one pass (left join 'cases')
     let docsQuery = client
       .from("documents")
       .select(
         "id, case_id, file_name, file_url, file_path, file_type, file_size, category, description, created_at, uploaded_by, "
-        + "cases!inner(id, case_number, case_type, status, client_id, clients(id, name, phone, email))"
+        + "cases(id, case_number, case_type, status, client_id, assigned_lawyer_id, clients(id, name, phone, email))"
       )
       .eq("organization_id", organizationId)
       .is("deleted_at", null)
       .order("created_at", { ascending: false })
       .range(0, 999);
 
-    if (__internal.isLawyerContext(context)) {
-      docsQuery = docsQuery.eq("cases.assigned_lawyer_id", context.userId);
+    if (visibleCaseIds) {
+      docsQuery = docsQuery.in("case_id", visibleCaseIds);
     }
 
     const { data: rawDocs, error: docsError } = await docsQuery;
@@ -464,20 +479,35 @@ export const caseRepository = {
     const client = __internal.requireSupabase();
     const { organizationId } = context;
 
-    // Fetch hearings joined with their cases and clients in one pass
+    let visibleCaseIds = null;
+    if (__internal.isLawyerContext(context)) {
+      const { data: lawyerCases, error: casesError } = await client
+        .from("cases")
+        .select("id")
+        .eq("organization_id", organizationId)
+        .eq("assigned_lawyer_id", context.userId)
+        .is("deleted_at", null);
+      if (casesError) throw casesError;
+      visibleCaseIds = (lawyerCases || []).map((c) => c.id);
+      if (visibleCaseIds.length === 0) {
+        return __internal.paginateItems([], page, pageSize);
+      }
+    }
+
+    // Fetch hearings joined with their cases and clients in one pass (left join 'cases')
     let hearingsQuery = client
       .from("hearings")
       .select(
         "id, case_id, type, title, date, notes, status, postponed_to, created_at, created_by, "
-        + "cases!inner(id, case_number, case_type, status, client_id, assigned_lawyer_id, clients(id, name, phone, email))"
+        + "cases(id, case_number, case_type, status, client_id, assigned_lawyer_id, clients(id, name, phone, email))"
       )
       .eq("organization_id", organizationId)
       .is("deleted_at", null)
       .order("date", { ascending: true })
       .range(0, 999);
 
-    if (__internal.isLawyerContext(context)) {
-      hearingsQuery = hearingsQuery.eq("cases.assigned_lawyer_id", context.userId);
+    if (visibleCaseIds) {
+      hearingsQuery = hearingsQuery.in("case_id", visibleCaseIds);
     }
 
     const { data: rawHearings, error: hearingsError } = await hearingsQuery;

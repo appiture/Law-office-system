@@ -31,6 +31,17 @@ async function main() {
   console.log('\n--- DOCUMENTS ---');
   if (docsErr) console.error('Error fetching documents:', docsErr);
   else console.log(`Found ${docs.length} documents:`, docs);
+  // 5. Check organizations
+  const { data: orgs, error: orgsErr } = await supabase.from('organizations').select('*');
+  console.log('\n--- ORGANIZATIONS ---');
+  if (orgsErr) console.error('Error fetching organizations:', orgsErr);
+  else console.log(`Found ${orgs.length} organizations:`, orgs);
+
+  // 6. Check clients
+  const { data: clients, error: clientsErr } = await supabase.from('clients').select('*');
+  console.log('\n--- CLIENTS ---');
+  if (clientsErr) console.error('Error fetching clients:', clientsErr);
+  else console.log(`Found ${clients.length} clients:`, clients);
 }
 
 main().catch(console.error);
