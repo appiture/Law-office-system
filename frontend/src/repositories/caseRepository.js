@@ -1,6 +1,6 @@
 import { __internal } from "./supabaseRepository";
 import { assertCasePayload, assertChargePayload, assertDocumentPayload, assertPaymentPayload, assertHearingPayload } from "../utils/validation";
-import { toIsoDate } from "../utils/caseDomain";
+import { toDateOnly, toIsoDate } from "../utils/caseDomain";
 
 const DEFAULT_PAGE_SIZE = 25;
 
@@ -498,7 +498,7 @@ export const caseRepository = {
     let hearingsQuery = client
       .from("hearings")
       .select(
-        "id, case_id, type, title, date, notes, status, postponed_to, created_at, created_by, "
+        "id, case_id, type, title, date, scheduled_at, notes, status, postponed_to, created_at, created_by, "
         + "cases(id, case_number, case_type, status, client_id, assigned_lawyer_id, clients(id, name, phone, email))"
       )
       .eq("organization_id", organizationId)
@@ -529,8 +529,8 @@ export const caseRepository = {
         type: row.type || "HEARING",
         case_title: row.title || row.type || "",
         title: row.title || row.type || "",
-        hearing_date: row.date,
-        scheduledAt: row.date,
+        hearing_date: row.scheduled_at || row.date,
+        scheduledAt: row.scheduled_at || row.date,
         status: row.status || "PENDING",
         notes: row.notes || "",
         postponedTo: row.postponed_to || null,
@@ -538,7 +538,7 @@ export const caseRepository = {
         createdAt: row.created_at,
         alertLevel: deriveHearingAlertLevel({
           status: row.status,
-          scheduledAt: row.date,
+          scheduledAt: row.scheduled_at || row.date,
           postponedTo: row.postponed_to,
         }),
       };
@@ -585,10 +585,11 @@ export const caseRepository = {
         case_id: caseId,
         type: hearing.type,
         title: hearing.title,
-        date: hearing.scheduledAt,
+        date: toDateOnly(hearing.scheduledAt),
+        scheduled_at: toIsoDate(hearing.scheduledAt),
         notes: hearing.notes,
         status: hearing.status,
-        created_by: context.email,
+        created_by: context.userId,
       };
 
       const { error } = await __internal.requireSupabase().from("hearings").insert(record);
@@ -610,10 +611,11 @@ export const caseRepository = {
       const updates = {
         type: hearing.type,
         title: hearing.title,
-        date: hearing.scheduledAt,
+        date: toDateOnly(hearing.scheduledAt),
+        scheduled_at: toIsoDate(hearing.scheduledAt),
         notes: hearing.notes,
         status: hearing.status,
-        postponed_to: hearing.postponedTo,
+        postponed_to: toDateOnly(hearing.postponedTo),
       };
 
       const { error } = await __internal.requireSupabase()

@@ -350,7 +350,7 @@ function Hearings() {
           id: data.id,
           type: data.type,
           title: data.title,
-          scheduledAt: data.date,
+          scheduledAt: data.scheduled_at || data.date,
           status: data.status,
           notes: data.notes,
           postponedTo: data.postponed_to,

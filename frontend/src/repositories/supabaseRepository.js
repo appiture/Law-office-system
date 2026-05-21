@@ -8,6 +8,7 @@ import {
   computeChargeFinancials,
   deriveHearingAlertLevel,
   summarizeCaseTotals,
+  toDateOnly,
   toIsoDate,
 } from "../utils/caseDomain";
 import { createSignedAssetUrl } from "../services/storageService";
@@ -299,7 +300,7 @@ const getWorkspaceData = async ({ refresh = false } = {}) => {
       let chargesQuery = client.from("payment_charges").select("id, payment_id, case_id, organization_id, name, total, paid, balance, due_date, status, display_order, description, is_lawyer_fee, created_at, created_by, updated_by").eq("organization_id", organizationId).is("deleted_at", null);
       let paymentHistoryQuery = client.from("payment_history").select("id, case_id, organization_id, payment_charge_id, charge_name, amount_paid, payment_mode, payment_reference, timestamp, updated_by, created_by").eq("organization_id", organizationId);
       let documentsQuery = client.from("documents").select("id, case_id, organization_id, file_url, file_path, file_name, file_type, file_size, category, description, created_at, uploaded_by").eq("organization_id", organizationId).is("deleted_at", null);
-      let hearingsQuery = client.from("hearings").select("id, case_id, organization_id, type, title, date, notes, status, postponed_to, created_at, created_by").eq("organization_id", organizationId).is("deleted_at", null);
+      let hearingsQuery = client.from("hearings").select("id, case_id, organization_id, type, title, date, scheduled_at, notes, status, postponed_to, created_at, created_by").eq("organization_id", organizationId).is("deleted_at", null);
       let tasksQuery = client.from("tasks").select("*").eq("organization_id", organizationId).is("deleted_at", null);
 
       if (isLawyerContext(context)) {
@@ -531,8 +532,8 @@ const mapCaseRecord = async (
       type: item.type,
       case_title: item.title || item.type,
       title: item.title || item.type,
-      hearing_date: item.date,
-      scheduledAt: item.date,
+      hearing_date: item.scheduled_at || item.date,
+      scheduledAt: item.scheduled_at || item.date,
       status: item.status,
       notes: item.notes || "",
       postponedTo: item.postponed_to || null,
@@ -540,7 +541,7 @@ const mapCaseRecord = async (
       createdAt: item.created_at,
       alertLevel: deriveHearingAlertLevel({
         status: item.status,
-        scheduledAt: item.date,
+        scheduledAt: item.scheduled_at || item.date,
         postponedTo: item.postponed_to,
       }),
     }));
@@ -1058,11 +1059,11 @@ const supabasePlatformApi = {
               case_id: savedCaseId,
               type: hearingPayload.type,
               title: hearingPayload.title,
-              date: toIsoDate(hearingPayload.scheduledAt) || new Date().toISOString(),
+              date: toDateOnly(hearingPayload.scheduledAt) || toDateOnly(new Date().toISOString()),
+              scheduled_at: toIsoDate(hearingPayload.scheduledAt) || new Date().toISOString(),
               status: hearingPayload.status || "PENDING",
               notes: hearingPayload.notes || "",
-              postponed_to: toIsoDate(hearingPayload.postponedTo),
-              updated_by: context.email,
+              postponed_to: toDateOnly(hearingPayload.postponedTo),
             };
             if (hearingPayload.id) {
               await requireSupabase()
@@ -1071,7 +1072,7 @@ const supabasePlatformApi = {
                 .eq("id", hearingPayload.id)
                 .eq("organization_id", context.organizationId);
             } else {
-              hearingRecord.created_by = context.email;
+              hearingRecord.created_by = context.userId;
               await requireSupabase()
                 .from("hearings")
                 .insert(hearingRecord);
@@ -1400,6 +1401,7 @@ export const __internal = {
   list,
   requireSupabase,
   isLawyerContext,
+  mapClientRecord,
   mapCaseRecord,
   getWorkspaceData,
   resetWorkspaceDataCache,
