@@ -319,13 +319,29 @@ const getWorkspaceData = async ({ refresh = false } = {}) => {
         }
       }
 
+      // Safe tasks fetch: a 400/403 on the tasks table must NOT crash the entire
+      // workspace data load — it just means tasks are unavailable for this org.
+      const safeTasksFetch = async () => {
+        try {
+          const { data, error } = await tasksQuery.order("created_at", { ascending: false }).range(0, MAX_SERVER_PAGE - 1);
+          if (error) {
+            console.warn("[getWorkspaceData] tasks query failed (non-fatal):", error.message || error);
+            return [];
+          }
+          return Array.isArray(data) ? data : [];
+        } catch (e) {
+          console.warn("[getWorkspaceData] tasks fetch threw (non-fatal):", e);
+          return [];
+        }
+      };
+
       let [payments, charges, paymentHistory, documents, hearings, tasks] = await Promise.all([
         list(paymentsQuery.order("created_at", { ascending: false }).range(0, MAX_SERVER_PAGE - 1)),
         list(chargesQuery.order("display_order", { ascending: true }).range(0, MAX_SERVER_PAGE - 1)),
         list(paymentHistoryQuery.order("timestamp", { ascending: false }).range(0, MAX_SERVER_PAGE - 1)),
         list(documentsQuery.order("created_at", { ascending: false }).range(0, MAX_SERVER_PAGE - 1)),
         list(hearingsQuery.order("date", { ascending: true }).range(0, MAX_SERVER_PAGE - 1)),
-        list(tasksQuery.order("created_at", { ascending: false }).range(0, MAX_SERVER_PAGE - 1))
+        safeTasksFetch()
       ]);
 
       if (isLawyerContext(context)) {

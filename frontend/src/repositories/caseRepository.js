@@ -352,24 +352,69 @@ export const caseRepository = {
     return __internal.paginateItems(matches, page, pageSize);
   },
   searchDocuments: async ({ filters = {}, page = 1, pageSize = DEFAULT_PAGE_SIZE, showAll = false } = {}) => {
+    // Direct query — does NOT depend on getMappedCases() so it can't be
+    // broken by tasks-table errors, signed-URL timeouts, or empty cache.
+    const context = await __internal.internalGetWorkspaceContext();
+    if (!context?.organizationId || !context?.canAccessWorkspace) {
+      return __internal.paginateItems([], page, pageSize);
+    }
+
     const effectiveFilters = __internal.getEffectiveFilters(filters, showAll);
     const tokens = __internal.getSearchTokens(effectiveFilters.searchTerm);
     const category = __internal.normalizeSearchText(effectiveFilters.category);
-    
-    const cases = await __internal.getMappedCases();
-    let allDocuments = [];
-    cases.forEach((item) => {
-      (item.documents || []).forEach((doc) => {
-        allDocuments.push({
-          ...doc,
-          caseId: item.id,
-          caseNumber: item.caseNumber,
-          caseType: item.caseType,
-          clientName: item.client?.name,
-        });
-      });
+    const { createSignedAssetUrl } = await import("../services/storageService");
+    const { supabaseBuckets } = await import("../services/supabaseClient");
+
+
+    const client = __internal.requireSupabase();
+    const { organizationId } = context;
+
+    // Fetch documents joined with their cases and clients in one pass
+    let docsQuery = client
+      .from("documents")
+      .select(
+        "id, case_id, file_name, file_url, file_path, file_type, file_size, category, description, created_at, uploaded_by, "
+        + "cases!inner(id, case_number, case_type, status, client_id, clients(id, name, phone, email))"
+      )
+      .eq("organization_id", organizationId)
+      .is("deleted_at", null)
+      .order("created_at", { ascending: false })
+      .range(0, 999);
+
+    if (__internal.isLawyerContext(context)) {
+      docsQuery = docsQuery.eq("cases.assigned_lawyer_id", context.userId);
+    }
+
+    const { data: rawDocs, error: docsError } = await docsQuery;
+    if (docsError) throw docsError;
+
+    // Map and filter
+    let allDocuments = (rawDocs || []).map((row) => {
+      const legalCase = row.cases || {};
+      const clientRow = legalCase.clients || {};
+      return {
+        id: row.id,
+        caseId: row.case_id,
+        caseNumber: legalCase.case_number || "",
+        caseType: legalCase.case_type || "",
+        caseStatus: legalCase.status || "",
+        clientName: clientRow.name || "",
+        clientId: legalCase.client_id || "",
+        client: { id: clientRow.id, name: clientRow.name, phone: clientRow.phone, email: clientRow.email },
+        fileName: row.file_name,
+        fileUrl: row.file_url || "",
+        filePath: row.file_path || "",
+        fileType: row.file_type || "",
+        fileSize: row.file_size || 0,
+        category: row.category || "",
+        description: row.description || "",
+        uploadedBy: row.uploaded_by || "",
+        createdAt: row.created_at,
+        _signedUrlPending: Boolean(row.file_path),
+      };
     });
 
+    // Apply filters
     const matches = allDocuments.filter((doc) => {
       const searchMatch = __internal.matchesSearchTokens(tokens, [
         doc.fileName,
@@ -381,33 +426,95 @@ export const caseRepository = {
       ]);
       const categoryMatch = !category || __internal.normalizeSearchText(doc.category) === category;
       const dateRangeMatch = __internal.isDateWithinRange(doc.createdAt, effectiveFilters.fromDate, effectiveFilters.toDate);
-
       return searchMatch && categoryMatch && dateRangeMatch;
     });
 
-    return __internal.paginateItems(matches, page, pageSize);
+    const paginated = __internal.paginateItems(matches, page, pageSize);
+
+    // Resolve signed URLs only for the current page (not all docs)
+    paginated.items = await Promise.all(
+      paginated.items.map(async (doc) => {
+        if (!doc.filePath) return doc;
+        try {
+          const signedUrl = await createSignedAssetUrl({ bucket: supabaseBuckets.documents, path: doc.filePath });
+          return { ...doc, fileUrl: signedUrl || doc.fileUrl };
+        } catch {
+          return doc;
+        }
+      })
+    );
+
+    return paginated;
   },
   getHearings: async () => __internal.getMappedCases(),
   searchHearings: async ({ filters = {}, page = 1, pageSize = DEFAULT_PAGE_SIZE, showAll = false } = {}) => {
+    // Direct query — does NOT depend on getMappedCases() so it can't be
+    // broken by tasks-table errors, signed-URL timeouts, or empty cache.
+    const context = await __internal.internalGetWorkspaceContext();
+    if (!context?.organizationId || !context?.canAccessWorkspace) {
+      return __internal.paginateItems([], page, pageSize);
+    }
+
     const effectiveFilters = __internal.getEffectiveFilters(filters, showAll);
     const tokens = __internal.getSearchTokens(effectiveFilters.searchTerm, effectiveFilters.caseNumber, effectiveFilters.clientName);
     const status = __internal.normalizeSearchText(effectiveFilters.status);
-    const alertLevel = __internal.normalizeSearchText(effectiveFilters.alertLevel);
-    
-    const cases = await __internal.getMappedCases();
-    let allHearings = [];
-    cases.forEach((item) => {
-      (item.hearings || []).forEach((h) => {
-        allHearings.push({
-          ...h,
-          caseId: item.id,
-          caseNumber: item.caseNumber,
-          caseType: item.caseType,
-          clientName: item.client?.name,
-        });
-      });
+    const typeFilter = __internal.normalizeSearchText(effectiveFilters.type);   // was missing before!
+    const { deriveHearingAlertLevel } = await import("../utils/caseDomain");
+
+    const client = __internal.requireSupabase();
+    const { organizationId } = context;
+
+    // Fetch hearings joined with their cases and clients in one pass
+    let hearingsQuery = client
+      .from("hearings")
+      .select(
+        "id, case_id, type, title, date, notes, status, postponed_to, created_at, created_by, "
+        + "cases!inner(id, case_number, case_type, status, client_id, assigned_lawyer_id, clients(id, name, phone, email))"
+      )
+      .eq("organization_id", organizationId)
+      .is("deleted_at", null)
+      .order("date", { ascending: true })
+      .range(0, 999);
+
+    if (__internal.isLawyerContext(context)) {
+      hearingsQuery = hearingsQuery.eq("cases.assigned_lawyer_id", context.userId);
+    }
+
+    const { data: rawHearings, error: hearingsError } = await hearingsQuery;
+    if (hearingsError) throw hearingsError;
+
+    // Map raw rows
+    let allHearings = (rawHearings || []).map((row) => {
+      const legalCase = row.cases || {};
+      const clientRow = legalCase.clients || {};
+      return {
+        id: row.id,
+        caseId: row.case_id,
+        caseNumber: legalCase.case_number || "",
+        caseType: legalCase.case_type || "",
+        caseStatus: legalCase.status || "",
+        clientName: clientRow.name || "",
+        clientId: legalCase.client_id || "",
+        client: { id: clientRow.id, name: clientRow.name, phone: clientRow.phone, email: clientRow.email },
+        type: row.type || "HEARING",
+        case_title: row.title || row.type || "",
+        title: row.title || row.type || "",
+        hearing_date: row.date,
+        scheduledAt: row.date,
+        status: row.status || "PENDING",
+        notes: row.notes || "",
+        postponedTo: row.postponed_to || null,
+        createdBy: row.created_by || "",
+        createdAt: row.created_at,
+        alertLevel: deriveHearingAlertLevel({
+          status: row.status,
+          scheduledAt: row.date,
+          postponedTo: row.postponed_to,
+        }),
+      };
     });
 
+    // Apply filters in-memory
     const matches = allHearings.filter((h) => {
       const searchMatch = __internal.matchesSearchTokens(tokens, [
         h.title,
@@ -419,17 +526,17 @@ export const caseRepository = {
         h.clientName,
       ]);
       const statusMatch = !status || __internal.normalizeSearchText(h.status) === status;
-      const alertLevelMatch = !alertLevel || __internal.normalizeSearchText(h.alertLevel) === alertLevel;
+      const typeMatch = !typeFilter || __internal.normalizeSearchText(h.type) === typeFilter;
+      const alertLevelMatch = !effectiveFilters.alertLevel || __internal.normalizeSearchText(h.alertLevel) === __internal.normalizeSearchText(effectiveFilters.alertLevel);
 
       let monthMatch = true;
       if (effectiveFilters.month) {
-        const monthPrefix = effectiveFilters.month; // "YYYY-MM"
-        monthMatch = String(h.scheduledAt || "").startsWith(monthPrefix);
+        monthMatch = String(h.scheduledAt || "").startsWith(effectiveFilters.month);
       }
 
       const dateRangeMatch = __internal.isDateWithinRange(h.scheduledAt, effectiveFilters.fromDate, effectiveFilters.toDate);
 
-      return searchMatch && statusMatch && alertLevelMatch && monthMatch && dateRangeMatch;
+      return searchMatch && statusMatch && typeMatch && alertLevelMatch && monthMatch && dateRangeMatch;
     });
 
     matches.sort((a, b) => new Date(a.scheduledAt) - new Date(b.scheduledAt));
