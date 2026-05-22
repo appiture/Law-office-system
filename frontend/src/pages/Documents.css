@@ -1,0 +1,94 @@
+.doc-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 12px;
+  background-color: var(--color-bg-secondary);
+  border: 1px solid var(--color-border);
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.doc-card:hover {
+  background-color: var(--color-bg-tertiary);
+  border-color: var(--color-border-light);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+}
+
+.doc-card-focused {
+  border-color: var(--color-gold);
+  background-color: var(--color-gold-bg);
+  box-shadow: 0 0 0 2px var(--color-gold-light);
+}
+
+.doc-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  font-size: 1.25rem;
+  flex-shrink: 0;
+  background-color: rgba(255, 255, 255, 0.1);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.doc-icon.pdf-icon { background: linear-gradient(135deg, #ef4444, #dc2626); color: white; }
+.doc-icon.img-icon { background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; }
+.doc-icon.doc-icon-cls { background: linear-gradient(135deg, #10b981, #059669); color: white; }
+.doc-icon.default-icon { background: linear-gradient(135deg, #6b7280, #4b5563); color: white; }
+
+.doc-info {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.doc-info strong {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.doc-meta {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+  font-size: 0.75rem;
+  color: var(--color-text-secondary);
+}
+
+.doc-category-badge {
+  background-color: rgba(201, 163, 78, 0.15);
+  color: var(--color-gold);
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.7rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  border: 1px solid rgba(201, 163, 78, 0.3);
+}
+
+.doc-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  align-items: flex-end;
+  flex-shrink: 0;
+}
+
+.doc-actions button,
+.doc-actions a {
+  font-size: 0.75rem;
+  padding: 6px 12px;
+}

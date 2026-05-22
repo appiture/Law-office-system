@@ -26,6 +26,7 @@
 .standard-card-scroll,
 .card-content-scroll {
   flex: 1;
+  min-height: 0;
   overflow-y: auto;
   padding-right: 4px;
   scrollbar-width: thin;
@@ -83,7 +84,9 @@
 }
 
 .case-card-premium {
-  height: 520px;
+  min-height: 520px;
+  max-height: 85vh;
+  height: 750px;
   display: flex;
   flex-direction: column;
 }

@@ -1,6 +1,7 @@
 import { __internal } from "./supabaseRepository";
 import { assertCasePayload, assertChargePayload, assertDocumentPayload, assertPaymentPayload, assertHearingPayload } from "../utils/validation";
 import { toDateOnly, toIsoDate } from "../utils/caseDomain";
+import { createSignedAssetUrl } from "../services/storageService";
 
 const DEFAULT_PAGE_SIZE = 25;
 
@@ -389,7 +390,7 @@ export const caseRepository = {
       .from("documents")
       .select(
         "id, case_id, file_name, file_url, file_path, file_type, file_size, category, description, created_at, uploaded_by, "
-        + "cases(id, case_number, case_type, status, client_id, assigned_lawyer_id, clients(id, name, phone, email))"
+        + "cases(id, case_number, case_type, status, client_id, assigned_lawyer_id, clients(id, name, phone, email, photo_url, photo_path))"
       )
       .eq("organization_id", organizationId)
       .is("deleted_at", null)
@@ -415,7 +416,7 @@ export const caseRepository = {
         caseStatus: legalCase.status || "",
         clientName: clientRow.name || "",
         clientId: legalCase.client_id || "",
-        client: { id: clientRow.id, name: clientRow.name, phone: clientRow.phone, email: clientRow.email },
+        client: { id: clientRow.id, name: clientRow.name, phone: clientRow.phone, email: clientRow.email, photoUrl: clientRow.photo_url, photoPath: clientRow.photo_path },
         fileName: row.file_name,
         fileUrl: row.file_url || "",
         filePath: row.file_path || "",
@@ -449,13 +450,23 @@ export const caseRepository = {
     // Resolve signed URLs only for the current page (not all docs)
     paginated.items = await Promise.all(
       paginated.items.map(async (doc) => {
-        if (!doc.filePath) return doc;
-        try {
-          const signedUrl = await createSignedAssetUrl({ bucket: supabaseBuckets.documents, path: doc.filePath });
-          return { ...doc, fileUrl: signedUrl || doc.fileUrl };
-        } catch {
-          return doc;
+        const nextDoc = { ...doc };
+        
+        if (nextDoc.filePath) {
+          try {
+            const signedUrl = await createSignedAssetUrl({ bucket: supabaseBuckets.documents, path: nextDoc.filePath });
+            nextDoc.fileUrl = signedUrl || nextDoc.fileUrl;
+          } catch {}
         }
+
+        if (nextDoc.client?.photoPath) {
+          try {
+            const signedPhotoUrl = await createSignedAssetUrl({ bucket: "clients", path: nextDoc.client.photoPath });
+            nextDoc.client.photoUrl = signedPhotoUrl || nextDoc.client.photoUrl;
+          } catch {}
+        }
+        
+        return nextDoc;
       })
     );
 
@@ -499,7 +510,7 @@ export const caseRepository = {
       .from("hearings")
       .select(
         "id, case_id, type, title, date, scheduled_at, notes, status, postponed_to, created_at, created_by, "
-        + "cases(id, case_number, case_type, status, client_id, assigned_lawyer_id, clients(id, name, phone, email))"
+        + "cases(id, case_number, case_type, status, client_id, assigned_lawyer_id, clients(id, name, phone, email, photo_url, photo_path))"
       )
       .eq("organization_id", organizationId)
       .is("deleted_at", null)
@@ -513,7 +524,7 @@ export const caseRepository = {
     // Fetch cases to extract synthetic nextHearingDate field
     let casesQuery = client
       .from("cases")
-      .select("id, case_number, case_type, status, client_id, details, created_at, clients(id, name, phone, email)")
+      .select("id, case_number, case_type, status, client_id, details, created_at, clients(id, name, phone, email, photo_url)")
       .eq("organization_id", organizationId)
       .is("deleted_at", null);
 
@@ -554,7 +565,7 @@ export const caseRepository = {
         caseStatus: legalCase.status || "",
         clientName: clientRow.name || "",
         clientId: legalCase.client_id || "",
-        client: clientRow.id ? { id: clientRow.id, name: clientRow.name, phone: clientRow.phone, email: clientRow.email } : null,
+        client: clientRow.id ? { id: clientRow.id, name: clientRow.name, phone: clientRow.phone, email: clientRow.email, photoUrl: clientRow.photo_url, photoPath: clientRow.photo_path } : null,
         type: row.type || "HEARING",
         case_title: row.title || row.type || "",
         title: row.title || row.type || "",
@@ -585,7 +596,7 @@ export const caseRepository = {
           caseStatus: c.status || "",
           clientName: c.clients?.name || "",
           clientId: c.client_id || "",
-          client: c.clients ? { id: c.clients.id, name: c.clients.name, phone: c.clients.phone, email: c.clients.email } : null,
+          client: c.clients ? { id: c.clients.id, name: c.clients.name, phone: c.clients.phone, email: c.clients.email, photoUrl: c.clients.photo_url, photoPath: c.clients.photo_path } : null,
           type: "HEARING",
           case_title: `Next hearing: ${c.case_number}`,
           title: `Next hearing: ${c.case_number}`,
@@ -662,7 +673,23 @@ export const caseRepository = {
     });
 
     matches.sort((a, b) => new Date(a.scheduledAt) - new Date(b.scheduledAt));
-    return __internal.paginateItems(matches, page, pageSize);
+    const paginated = __internal.paginateItems(matches, page, pageSize);
+    
+    // Resolve signed URLs for client photos on the current page
+    paginated.items = await Promise.all(
+      paginated.items.map(async (item) => {
+        const nextItem = { ...item };
+        if (nextItem.client?.photoPath) {
+          try {
+            const signedPhotoUrl = await createSignedAssetUrl({ bucket: "clients", path: nextItem.client.photoPath });
+            nextItem.client.photoUrl = signedPhotoUrl || nextItem.client.photoUrl;
+          } catch {}
+        }
+        return nextItem;
+      })
+    );
+
+    return paginated;
   },
   addHearing: async (caseId, payload) => {
     const actionKey = `addHearing:${caseId}`;

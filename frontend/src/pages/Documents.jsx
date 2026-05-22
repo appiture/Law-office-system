@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { useSearchParams, Link } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import AppShell from "../components/layout/AppShell";
 import CaseIdentityCard from "../components/CaseIdentityCard";
 import CaseCombobox from "../components/CaseCombobox";
@@ -14,6 +14,7 @@ import { formatDateTime } from "../utils/formatters";
 import { openExport } from "../store/exportStore";
 import logger from "../services/loggerService";
 import "./formStyles.css";
+import "./Documents.css";
 
 const DOC_CATEGORIES = [
   "Legal File", "Evidence", "Proof", "Petition", "Contract",
@@ -321,14 +322,13 @@ function Documents() {
     }
   }, [focusDocId, cases]);
 
-  // Auto-load on mount
+  // Auto-load on mount only if there is an initial search case
   useEffect(() => {
     if (initialSearchCase && !initialSearchTriggered) {
       setInitialSearchTriggered(true);
       void loadDocuments({ nextPage: 1, showAll: false, nextFilters: { ...emptyFilters, searchTerm: initialSearchCase } });
-    } else if (!hasLoaded && !showAllMode) {
-      void loadDocuments({ nextPage: 1, showAll: true });
     }
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -420,6 +420,10 @@ function Documents() {
         <LoadingState label="Loading documents..." />
       ) : error ? (
         <ErrorState message={error} />
+      ) : !hasLoaded ? (
+        <EmptyState 
+          label="Search for documents or click 'Show All' to view them."
+        />
       ) : cases.length === 0 ? (
         <EmptyState 
           label={showAllMode ? "No documents found." : "No matching documents."}
@@ -437,28 +441,26 @@ function Documents() {
               const docs = legalCase.documents || [];
               return (
                 <div key={legalCase.id}>
-                  <article className="case-card case-card-premium">
-                    <div className="case-card-header" style={{ marginBottom: 0, borderBottom: 'none' }}>
-                       <div className="case-card-heading">
-                         <p className="case-tag">{legalCase.caseNumber || `${docs.length} documents`}</p>
-                         <h3 style={{ margin: 0, fontSize: '1.1rem' }}>{legalCase.clientName || "Unnamed Client"}</h3>
-                       </div>
-                    </div>
-                  <div className="mini-section" style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
-                    <div className="section-heading">
-                      <div>
-                        <h4 style={{ margin:0, fontSize:13, fontWeight:800, color:"var(--color-text)" }}>
-                          📂 Documents ({docs.length})
-                        </h4>
-                        <p className="section-copy">Files attached to this case</p>
+                  <CaseIdentityCard
+                    item={legalCase}
+                    className="case-card-premium"
+                    detailsTarget={`/cases/${legalCase.id}#documents-card`}
+                    pinnedContent={
+                      <div className="section-heading" style={{ padding: "0 16px 12px", borderBottom: "1px solid var(--color-border)", marginBottom: 12 }}>
+                        <div>
+                          <h4 style={{ margin:0, fontSize:13, fontWeight:800, color:"var(--color-text)" }}>
+                            📂 Documents ({docs.length})
+                          </h4>
+                          <p className="section-copy">Files attached to this case</p>
+                        </div>
+                        <button className="btn-gold" style={{ fontSize:12, padding:"7px 12px" }}
+                          onClick={() => openUploadModal(legalCase.id)}>
+                          + Upload
+                        </button>
                       </div>
-                      <button className="btn-gold" style={{ fontSize:12, padding:"7px 12px" }}
-                        onClick={() => openUploadModal(legalCase.id)}>
-                        + Upload
-                      </button>
-                    </div>
-
-                    <div className="card-scroll" style={{ flex: 1, padding: "0 4px", position: "relative" }}>
+                    }
+                  >
+                  <div className="mini-section" style={{ display: 'flex', flexDirection: 'column', flex: 1, padding: "0 4px", position: "relative" }}>
                     {docs.length > 0 ? (
                       <div style={{ display:"flex", flexDirection:"column", gap:10, paddingBottom: 16 }}>
                         {docs.map(doc => {
@@ -503,14 +505,8 @@ function Documents() {
                         No documents yet for this case.
                       </div>
                     )}
-                    </div>
                   </div>
-                  <div className="case-card-footer">
-                    <Link to={`/cases/${legalCase.id}#documents-card`} className="btn-gold-action" style={{ textDecoration: 'none', textAlign: 'center', width: '100%' }}>
-                      👁️ View Full Details
-                    </Link>
-                  </div>
-                </article>
+                </CaseIdentityCard>
                 </div>
               );
             })}

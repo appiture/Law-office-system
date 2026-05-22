@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { useSearchParams, useParams, Link } from "react-router-dom";
+import { useSearchParams, useParams } from "react-router-dom";
 import AppShell from "../components/layout/AppShell";
 import CaseIdentityCard from "../components/CaseIdentityCard";
 import HeaderFilters from "../components/HeaderFilters";
@@ -410,15 +410,13 @@ function Hearings() {
     void loadData({ nextPage: 1, showAll: false, nextFilters });
   }, [filters, loadData]);
 
-  // Auto-load on mount and when filters change
+  // Auto-load on mount only if there is an initial search case
   useEffect(() => {
     if (initialSearchCase && !initialSearchTriggered) {
       setInitialSearchTriggered(true);
       void loadData({ nextPage: 1, showAll: false, nextFilters: { ...emptyFilters, searchTerm: initialSearchCase } });
-    } else if (!hasLoaded && !showAllMode) {
-      // First visit: load all records
-      void loadData({ nextPage: 1, showAll: true });
     }
+
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);  // Run only on mount
 
@@ -525,9 +523,19 @@ function Hearings() {
       )}
 
       <section className="card-grid">
-        {!hasLoaded && <EmptyState label="Use the filters above to load hearings." />}
-        {loading && <LoadingState label="Loading hearings..." />}
-        {hasLoaded && !loading && cases.map(legalCase => (
+        {loading && !hasLoaded ? (
+          <LoadingState label="Loading timeline events..." />
+        ) : error ? (
+          <ErrorState message={error} />
+        ) : !hasLoaded ? (
+          <EmptyState 
+            label="Search for cases or click 'Show All' to view hearings and events."
+          />
+        ) : cases.length === 0 ? (
+          <EmptyState 
+            label={showAllMode ? "No events found." : "No matching timeline events."}
+          />
+        ) : cases.map(legalCase => (
           <div
             key={legalCase.id}
             id={`hearing-case-${legalCase.id}`}
@@ -538,78 +546,68 @@ function Hearings() {
               animation: "highlightPulse 1.8s ease-in-out",
             } : {}}
           >
-            <article className="case-card case-card-premium">
-              <div className="case-card-header" style={{ marginBottom: 0, borderBottom: 'none' }}>
-                 <div className="case-card-heading">
-                   <p className="case-tag">{legalCase.caseNumber || `${legalCase.hearings?.length ?? 0} events`}</p>
-                   <h3 style={{ margin: 0, fontSize: '1.1rem' }}>{legalCase.clientName || "Unnamed Client"}</h3>
-                 </div>
-              </div>
-              <div className="mini-section" style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
-              <div className="section-heading">
-                 <div>
-                   <h4 style={{ margin:0, fontSize:13, fontWeight:800, color:"var(--color-text)" }}>
-                     📌 Timeline Events ({legalCase.hearings?.length ?? 0})
-                   </h4>
-                  <p className="section-copy">Hearings, deadlines, and key milestones</p>
-                </div>
-                {legalCase.id !== "general-events" && (
-                  <button className="btn-gold" style={{ fontSize:12, padding:"7px 12px" }}
-                    onClick={() => void openEventModal({ caseId: legalCase.id })}>
-                    + Add Event
-                  </button>
-                )}
-              </div>
-
-              {/* Alert group legend */}
-              <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
-                {ALERT_GROUPS.map(g => {
-                  const count = legalCase.hearings?.filter(f => f.alertLevel === g.key).length ?? 0;
-                  return count > 0 ? (
-                    <span key={g.key} style={{ fontSize:11, fontWeight:700, color:g.color, background:`${g.color}15`, padding:"3px 9px", borderRadius:999 }}>
-                      {g.label} ({count})
-                    </span>
-                  ) : null;
-                })}
-              </div>
-
-              {/* Timeline */}
-              <div className="card-scroll" style={{ flex: 1, padding: "0 4px", position: "relative" }}>
-                {legalCase.hearings?.length > 0 ? (
-                  <div style={{ position:"relative", paddingLeft:8, paddingBottom: 16 }}>
-                    {/* Vertical line */}
-                     <div style={{ position:"absolute", left:5, top:0, bottom:0, width:2, background:"linear-gradient(180deg,var(--color-gold-light),var(--color-border))", borderRadius:999 }} />
-                    <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
-                    {ALERT_GROUPS.flatMap(g =>
-                      (legalCase.hearings || [])
-                        .filter(f => f.alertLevel === g.key)
-                        .map(item => (
-                          <TimelineNode
-                            key={item.id}
-                            item={item}
-                            onEdit={editItem => void openEventModal({ caseId: legalCase.id, editItem })}
-                            onComplete={i => void markCompleted(legalCase.id, i)}
-                            onDelete={id => void deleteEvent(legalCase.id, id)}
-                          />
-                        ))
-                    )}
+            <CaseIdentityCard
+              item={legalCase}
+              className="case-card-premium"
+              detailsTarget={legalCase.id === "general-events" ? null : `/cases/${legalCase.id}#hearings-card`}
+              pinnedContent={
+                <div style={{ padding: "0 16px 12px", borderBottom: "1px solid var(--color-border)", marginBottom: 12 }}>
+                  <div className="section-heading" style={{ borderBottom: 'none', paddingBottom: 0, marginBottom: 8 }}>
+                     <div>
+                       <h4 style={{ margin:0, fontSize:13, fontWeight:800, color:"var(--color-text)" }}>
+                         📌 Timeline Events ({legalCase.hearings?.length ?? 0})
+                       </h4>
+                      <p className="section-copy">Hearings, deadlines, and key milestones</p>
                     </div>
+                    {legalCase.id !== "general-events" && (
+                      <button className="btn-gold" style={{ fontSize:12, padding:"7px 12px" }}
+                        onClick={() => void openEventModal({ caseId: legalCase.id })}>
+                        + Add Event
+                      </button>
+                    )}
                   </div>
-                ) : (
-                  <div className="empty-box">
-                    No events yet. Add a hearing or deadline to start tracking.
+                  {/* Alert group legend */}
+                  <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
+                    {ALERT_GROUPS.map(g => {
+                      const count = legalCase.hearings?.filter(f => f.alertLevel === g.key).length ?? 0;
+                      return count > 0 ? (
+                        <span key={g.key} style={{ fontSize:11, fontWeight:700, color:g.color, background:`${g.color}15`, padding:"3px 9px", borderRadius:999 }}>
+                          {g.label} ({count})
+                        </span>
+                      ) : null;
+                    })}
                   </div>
-                )}
-              </div>
+                </div>
+              }
+            >
+            <div className="mini-section" style={{ display: 'flex', flexDirection: 'column', flex: 1, padding: "0 4px", position: "relative" }}>
+              {legalCase.hearings?.length > 0 ? (
+                <div style={{ position:"relative", paddingLeft:8, paddingBottom: 16 }}>
+                  {/* Vertical line */}
+                    <div style={{ position:"absolute", left:5, top:0, bottom:0, width:2, background:"linear-gradient(180deg,var(--color-gold-light),var(--color-border))", borderRadius:999 }} />
+                  <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+                  {ALERT_GROUPS.flatMap(g =>
+                    (legalCase.hearings || [])
+                      .filter(f => f.alertLevel === g.key)
+                      .map(item => (
+                        <TimelineNode
+                          key={item.id}
+                          item={item}
+                          onEdit={editItem => void openEventModal({ caseId: legalCase.id, editItem })}
+                          onComplete={i => void markCompleted(legalCase.id, i)}
+                          onDelete={id => void deleteEvent(legalCase.id, id)}
+                        />
+                      ))
+                  )}
+                  </div>
+                </div>
+              ) : (
+                <div className="empty-box">
+                  No events yet. Add a hearing or deadline to start tracking.
+                </div>
+              )}
             </div>
-            {legalCase.id !== "general-events" && (
-              <div className="case-card-footer">
-                <Link to={`/cases/${legalCase.id}#hearings-card`} className="btn-gold-action" style={{ textDecoration: 'none', textAlign: 'center', width: '100%' }}>
-                  👁️ View Full Details
-                </Link>
-              </div>
-            )}
-            </article>
+            </CaseIdentityCard>
           </div>
         ))}
 
