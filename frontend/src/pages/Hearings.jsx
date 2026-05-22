@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { createPortal } from "react-dom";
-import { useSearchParams, useParams } from "react-router-dom";
+import { useSearchParams, useParams, Link } from "react-router-dom";
 import AppShell from "../components/layout/AppShell";
 import CaseIdentityCard from "../components/CaseIdentityCard";
 import HeaderFilters from "../components/HeaderFilters";
@@ -211,6 +211,8 @@ const ALERT_STYLES = {
 
 function TimelineNode({ item, onEdit, onComplete, onDelete }) {
   const st = ALERT_STYLES[item.alertLevel] || ALERT_STYLES.planned;
+  const isReadOnly = item.isSyntheticCaseHearing || item.isManualCalendarEvent;
+
   return (
     <div key={item.id} style={{
       display:"grid", gridTemplateColumns:"14px 1fr", gap:12, position:"relative"
@@ -228,16 +230,21 @@ function TimelineNode({ item, onEdit, onComplete, onDelete }) {
             <span style={{ fontSize:10, fontWeight:800, textTransform:"uppercase", letterSpacing:"0.08em", color:st.color }}>
               {textOrDash(item.type)}
             </span>
+            {isReadOnly && (
+              <span style={{ marginLeft: 8, fontSize:10, fontWeight:700, color:"var(--color-text-tertiary)", background: "rgba(0,0,0,0.05)", padding: "2px 6px", borderRadius: 4 }}>
+                {item.isSyntheticCaseHearing ? "📅 Case Field" : "📝 Calendar Note"}
+              </span>
+            )}
             <div style={{ fontWeight:800, color:"var(--color-text)", fontSize:14, marginTop:2 }}>{item.title}</div>
           </div>
           <div style={{ display:"flex", gap:8, flexWrap:"wrap" }}>
-            {normalizeHearingStatus(item.status) !== HEARING_STATUS.COMPLETED && (
+            {!isReadOnly && normalizeHearingStatus(item.status) !== HEARING_STATUS.COMPLETED && (
               <button className="btn-edit-soft" onClick={() => onComplete(item)} style={{ fontSize:11 }}>
                 ✔ Mark Done
               </button>
             )}
-            <button className="btn-edit-soft" onClick={() => onEdit(item)} style={{ fontSize:11 }}>Edit</button>
-            <button className="btn-danger-soft" onClick={() => onDelete(item.id)} style={{ fontSize:11 }}>Remove</button>
+            {!isReadOnly && <button className="btn-edit-soft" onClick={() => onEdit(item)} style={{ fontSize:11 }}>Edit</button>}
+            {!isReadOnly && <button className="btn-danger-soft" onClick={() => onDelete(item.id)} style={{ fontSize:11 }}>Remove</button>}
           </div>
         </div>
          <div style={{ fontSize:12, color:"var(--color-text-secondary)" }}>
@@ -531,12 +538,14 @@ function Hearings() {
               animation: "highlightPulse 1.8s ease-in-out",
             } : {}}
           >
-            <CaseIdentityCard
-              item={legalCase}
-              className="case-card-premium"
-              detailsTarget={`/cases/${legalCase.id}#hearings-card`}
-            >
-            <div className="mini-section">
+            <article className="case-card case-card-premium">
+              <div className="case-card-header" style={{ marginBottom: 0, borderBottom: 'none' }}>
+                 <div className="case-card-heading">
+                   <p className="case-tag">{legalCase.caseNumber || `${legalCase.hearings?.length ?? 0} events`}</p>
+                   <h3 style={{ margin: 0, fontSize: '1.1rem' }}>{legalCase.clientName || "Unnamed Client"}</h3>
+                 </div>
+              </div>
+              <div className="mini-section" style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
               <div className="section-heading">
                  <div>
                    <h4 style={{ margin:0, fontSize:13, fontWeight:800, color:"var(--color-text)" }}>
@@ -544,10 +553,12 @@ function Hearings() {
                    </h4>
                   <p className="section-copy">Hearings, deadlines, and key milestones</p>
                 </div>
-                <button className="btn-gold" style={{ fontSize:12, padding:"7px 12px" }}
-                  onClick={() => void openEventModal({ caseId: legalCase.id })}>
-                  + Add Event
-                </button>
+                {legalCase.id !== "general-events" && (
+                  <button className="btn-gold" style={{ fontSize:12, padding:"7px 12px" }}
+                    onClick={() => void openEventModal({ caseId: legalCase.id })}>
+                    + Add Event
+                  </button>
+                )}
               </div>
 
               {/* Alert group legend */}
@@ -563,11 +574,12 @@ function Hearings() {
               </div>
 
               {/* Timeline */}
-              {legalCase.hearings?.length > 0 ? (
-                <div style={{ position:"relative", paddingLeft:8 }}>
-                  {/* Vertical line */}
-                   <div style={{ position:"absolute", left:5, top:0, bottom:0, width:2, background:"linear-gradient(180deg,var(--color-gold-light),var(--color-border))", borderRadius:999 }} />
-                  <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
+              <div className="card-scroll" style={{ flex: 1, padding: "0 4px", position: "relative" }}>
+                {legalCase.hearings?.length > 0 ? (
+                  <div style={{ position:"relative", paddingLeft:8, paddingBottom: 16 }}>
+                    {/* Vertical line */}
+                     <div style={{ position:"absolute", left:5, top:0, bottom:0, width:2, background:"linear-gradient(180deg,var(--color-gold-light),var(--color-border))", borderRadius:999 }} />
+                    <div style={{ display:"flex", flexDirection:"column", gap:12 }}>
                     {ALERT_GROUPS.flatMap(g =>
                       (legalCase.hearings || [])
                         .filter(f => f.alertLevel === g.key)
@@ -581,15 +593,23 @@ function Hearings() {
                           />
                         ))
                     )}
+                    </div>
                   </div>
-                </div>
-              ) : (
-                <div className="empty-box">
-                  No events yet. Add a hearing or deadline to start tracking.
-                </div>
-              )}
+                ) : (
+                  <div className="empty-box">
+                    No events yet. Add a hearing or deadline to start tracking.
+                  </div>
+                )}
+              </div>
             </div>
-          </CaseIdentityCard>
+            {legalCase.id !== "general-events" && (
+              <div className="case-card-footer">
+                <Link to={`/cases/${legalCase.id}#hearings-card`} className="btn-gold-action" style={{ textDecoration: 'none', textAlign: 'center', width: '100%' }}>
+                  👁️ View Full Details
+                </Link>
+              </div>
+            )}
+            </article>
           </div>
         ))}
 

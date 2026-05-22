@@ -1248,9 +1248,21 @@ const supabasePlatformApi = {
    * Falls back to localStorage if the table does not exist yet so the
    * UI always works during development / demos.
    */
+
+  // Returns true only for well-formed UUIDs (v4 format).
+  // The assigned_to / created_by columns are UUID FKs — passing a free-text
+  // name or email would cause PostgREST to return HTTP 400 "Invalid data format".
   getTasks: async () => {
     const context = await internalGetWorkspaceContext();
     if (!context?.organizationId) return [];
+
+    const isTasksError = (err) =>
+      err?.code === "42P01" ||
+      err?.code === "PGRST200" ||
+      err?.code === "PGRST106" ||
+      err?.status === 400 ||
+      String(err?.message || "").includes("does not exist") ||
+      String(err?.message || "").includes("schema cache");
 
     try {
       const { data, error } = await requireSupabase()
@@ -1260,15 +1272,16 @@ const supabasePlatformApi = {
         .is("deleted_at", null)
         .order("created_at", { ascending: false });
 
-      if (error && (error.code === "42P01" || error.code === "PGRST200")) {
-        // Table doesn't exist yet — use localStorage fallback
-        return _localTasks(context.organizationId);
+      if (error && isTasksError(error)) {
+        console.warn("[getTasks] tasks query failed (schema/table issue), returning []:", error.message || error);
+        return [];
       }
       if (error) throw error;
       return (data || []).map(_mapTask);
     } catch (err) {
-      if (err?.code === "42P01" || err?.code === "PGRST200" || String(err?.message || "").includes("does not exist")) {
-        return _localTasks(context.organizationId);
+      if (isTasksError(err)) {
+        console.warn("[getTasks] tasks fetch threw (schema/table issue), returning []:", err);
+        return [];
       }
       throw err;
     }
@@ -1278,6 +1291,10 @@ const supabasePlatformApi = {
     const context = await internalGetWorkspaceContext();
     if (!context?.organizationId) throw new Error("No workspace.");
 
+    // UUID guard: assigned_to is a uuid FK — only pass it when the value is a
+    // well-formed UUID (e.g. from a user-picker). Free-text names are dropped.
+    const _isUUID = (v) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(v || ""));
+
     const record = {
       organization_id: context.organizationId,
       title: String(payload.title || "").trim(),
@@ -1285,8 +1302,9 @@ const supabasePlatformApi = {
       priority: payload.priority || "MEDIUM",
       status: payload.status || "PENDING",
       due_date: payload.dueDate || null,
-      assigned_to: payload.assignedTo || "",
-      created_by: context.email || "",
+      // assigned_to / created_by are UUID FK columns — must be null, not ""
+      assigned_to: _isUUID(payload.assignedTo) ? payload.assignedTo : null,
+      created_by: context.userId || null,
     };
 
     try {
@@ -1312,13 +1330,16 @@ const supabasePlatformApi = {
     const context = await internalGetWorkspaceContext();
     if (!context?.organizationId) throw new Error("No workspace.");
 
+    const _isUUID = (v) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(v || ""));
+
     const updates = {
       title: String(payload.title || "").trim(),
       description: payload.description || "",
       priority: payload.priority || "MEDIUM",
       status: payload.status || "PENDING",
       due_date: payload.dueDate || null,
-      assigned_to: payload.assignedTo || "",
+      // assigned_to is a UUID FK column — must be null, not ""
+      assigned_to: _isUUID(payload.assignedTo) ? payload.assignedTo : null,
       updated_at: new Date().toISOString(),
     };
 

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { useSearchParams } from "react-router-dom";
+import { useSearchParams, Link } from "react-router-dom";
 import AppShell from "../components/layout/AppShell";
 import CaseIdentityCard from "../components/CaseIdentityCard";
 import CaseCombobox from "../components/CaseCombobox";
@@ -437,12 +437,14 @@ function Documents() {
               const docs = legalCase.documents || [];
               return (
                 <div key={legalCase.id}>
-                  <CaseIdentityCard
-                    item={legalCase}
-                    className="case-card-premium"
-                    detailsTarget={`/cases/${legalCase.id}#documents-card`}
-                  >
-                  <div className="mini-section">
+                  <article className="case-card case-card-premium">
+                    <div className="case-card-header" style={{ marginBottom: 0, borderBottom: 'none' }}>
+                       <div className="case-card-heading">
+                         <p className="case-tag">{legalCase.caseNumber || `${docs.length} documents`}</p>
+                         <h3 style={{ margin: 0, fontSize: '1.1rem' }}>{legalCase.clientName || "Unnamed Client"}</h3>
+                       </div>
+                    </div>
+                  <div className="mini-section" style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
                     <div className="section-heading">
                       <div>
                         <h4 style={{ margin:0, fontSize:13, fontWeight:800, color:"var(--color-text)" }}>
@@ -456,8 +458,9 @@ function Documents() {
                       </button>
                     </div>
 
+                    <div className="card-scroll" style={{ flex: 1, padding: "0 4px", position: "relative" }}>
                     {docs.length > 0 ? (
-                      <div style={{ display:"flex", flexDirection:"column", gap:10 }}>
+                      <div style={{ display:"flex", flexDirection:"column", gap:10, paddingBottom: 16 }}>
                         {docs.map(doc => {
                           const { emoji, cls } = docIcon(doc.fileType, doc.fileName);
                           const fileUrl = getPersistentAssetUrl(doc.fileUrl);
@@ -500,8 +503,14 @@ function Documents() {
                         No documents yet for this case.
                       </div>
                     )}
+                    </div>
                   </div>
-                </CaseIdentityCard>
+                  <div className="case-card-footer">
+                    <Link to={`/cases/${legalCase.id}#documents-card`} className="btn-gold-action" style={{ textDecoration: 'none', textAlign: 'center', width: '100%' }}>
+                      👁️ View Full Details
+                    </Link>
+                  </div>
+                </article>
                 </div>
               );
             })}

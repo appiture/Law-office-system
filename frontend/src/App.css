@@ -81,3 +81,9 @@
   display: flex;
   gap: 8px;
 }
+
+.case-card-premium {
+  height: 520px;
+  display: flex;
+  flex-direction: column;
+}

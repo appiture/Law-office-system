@@ -510,11 +510,40 @@ export const caseRepository = {
       hearingsQuery = hearingsQuery.in("case_id", visibleCaseIds);
     }
 
-    const { data: rawHearings, error: hearingsError } = await hearingsQuery;
-    if (hearingsError) throw hearingsError;
+    // Fetch cases to extract synthetic nextHearingDate field
+    let casesQuery = client
+      .from("cases")
+      .select("id, case_number, case_type, status, client_id, details, created_at, clients(id, name, phone, email)")
+      .eq("organization_id", organizationId)
+      .is("deleted_at", null);
 
-    // Map raw rows
-    let allHearings = (rawHearings || []).map((row) => {
+    if (visibleCaseIds) {
+      casesQuery = casesQuery.in("id", visibleCaseIds);
+    }
+
+    // Fetch calendar events of type hearing
+    let eventsQuery = client
+      .from("calendar_events")
+      .select("*")
+      .eq("organization_id", organizationId)
+      .eq("event_type", "hearing");
+
+    const [hearingsRes, casesRes, eventsRes] = await Promise.all([
+      hearingsQuery,
+      casesQuery,
+      eventsQuery,
+    ]);
+
+    if (hearingsRes.error) throw hearingsRes.error;
+    if (casesRes.error) throw casesRes.error;
+    if (eventsRes.error) throw eventsRes.error;
+
+    const rawHearings = hearingsRes.data || [];
+    const rawCases = casesRes.data || [];
+    const rawEvents = eventsRes.data || [];
+
+    // Map raw hearings
+    let allHearings = rawHearings.map((row) => {
       const legalCase = row.cases || {};
       const clientRow = legalCase.clients || {};
       return {
@@ -525,7 +554,7 @@ export const caseRepository = {
         caseStatus: legalCase.status || "",
         clientName: clientRow.name || "",
         clientId: legalCase.client_id || "",
-        client: { id: clientRow.id, name: clientRow.name, phone: clientRow.phone, email: clientRow.email },
+        client: clientRow.id ? { id: clientRow.id, name: clientRow.name, phone: clientRow.phone, email: clientRow.email } : null,
         type: row.type || "HEARING",
         case_title: row.title || row.type || "",
         title: row.title || row.type || "",
@@ -542,6 +571,69 @@ export const caseRepository = {
           postponedTo: row.postponed_to,
         }),
       };
+    });
+
+    // Add synthetic hearings from case detail nextHearingDate field
+    rawCases.forEach((c) => {
+      const nextHearingDate = c.details?.nextHearingDate;
+      if (nextHearingDate) {
+        allHearings.push({
+          id: `case-hearing-${c.id}`,
+          caseId: c.id,
+          caseNumber: c.case_number || "",
+          caseType: c.case_type || "",
+          caseStatus: c.status || "",
+          clientName: c.clients?.name || "",
+          clientId: c.client_id || "",
+          client: c.clients ? { id: c.clients.id, name: c.clients.name, phone: c.clients.phone, email: c.clients.email } : null,
+          type: "HEARING",
+          case_title: `Next hearing: ${c.case_number}`,
+          title: `Next hearing: ${c.case_number}`,
+          hearing_date: nextHearingDate,
+          scheduledAt: nextHearingDate,
+          status: "PENDING",
+          notes: "Case detail next hearing date field",
+          postponedTo: null,
+          createdBy: "system",
+          createdAt: c.created_at || new Date().toISOString(),
+          isSyntheticCaseHearing: true,
+          alertLevel: deriveHearingAlertLevel({
+            status: "PENDING",
+            scheduledAt: nextHearingDate,
+            postponedTo: null,
+          }),
+        });
+      }
+    });
+
+    // Add synthetic hearings from manual calendar events of type hearing
+    rawEvents.forEach((evt) => {
+      allHearings.push({
+        id: evt.id,
+        caseId: "general-events",
+        caseNumber: "General",
+        caseType: "Calendar Event",
+        caseStatus: "ACTIVE",
+        clientName: "General Event",
+        clientId: "general-events",
+        client: { id: "general-events", name: "General Event" },
+        type: "HEARING",
+        case_title: evt.title || "Hearing",
+        title: evt.title || "Hearing",
+        hearing_date: evt.event_date,
+        scheduledAt: evt.event_date,
+        status: "PENDING",
+        notes: evt.description || "",
+        postponedTo: null,
+        createdBy: evt.created_by || "system",
+        createdAt: evt.created_at || new Date().toISOString(),
+        isManualCalendarEvent: true,
+        alertLevel: deriveHearingAlertLevel({
+          status: "PENDING",
+          scheduledAt: evt.event_date,
+          postponedTo: null,
+        }),
+      });
     });
 
     // Apply filters in-memory
