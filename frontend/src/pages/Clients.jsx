@@ -23,17 +23,26 @@ function Clients() {
   const [previewImage, setPreviewImage] = useState(null);
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const initialSearchName = searchParams.get("searchName") || "";
-  
-  const [filters, setFilters] = useState({ ...emptyFilters, searchTerm: initialSearchName });
-  const [hasLoaded, setHasLoaded] = useState(false);
+  const initialSearchName = searchParams.get("search");
+  const [initialSearchTriggered, setInitialSearchTriggered] = useState(false);
+
+  const savedStateStr = sessionStorage.getItem("clients_page_state");
+  const savedState = savedStateStr ? JSON.parse(savedStateStr) : null;
+
+  const [filters, setFilters] = useState(() => savedState?.filters || { ...emptyFilters, searchTerm: initialSearchName || "" });
+  const [hasLoaded, setHasLoaded] = useState(() => savedState?.hasLoaded || Boolean(initialSearchName));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useState(() => savedState?.page || 1);
   const [total, setTotal] = useState(0);
-  const [showAllMode, setShowAllMode] = useState(false);
-  const [initialSearchTriggered, setInitialSearchTriggered] = useState(false);
+  const [showAllMode, setShowAllMode] = useState(() => savedState?.showAllMode || false);
   const [deletingClientId, setDeletingClientId] = useState(null);
+
+  useEffect(() => {
+    sessionStorage.setItem("clients_page_state", JSON.stringify({
+      filters, hasLoaded, page, showAllMode
+    }));
+  }, [filters, hasLoaded, page, showAllMode]);
 
   const loadClients = useCallback(async ({ nextPage = page, showAll = showAllMode, nextFilters = filters } = {}) => {
     setLoading(true);
@@ -68,11 +77,12 @@ function Clients() {
 
   const openEdit = useCallback((client) => {
     if (client?.id) {
-      navigate(`/clients/${client.id}?edit=true&step=0`);
+      setActiveClient(client);
+      setShowWizard(true);
     } else {
       openCreate();
     }
-  }, [navigate, openCreate]);
+  }, [openCreate]);
 
   const saveClient = async (payload) => {
     await platformApi.saveWizardStep(payload, activeClient?.id || payload.client?.id || null);
@@ -117,12 +127,23 @@ function Clients() {
   const initialEditId = searchParams.get("editId");
   const [initialEditTriggered, setInitialEditTriggered] = useState(false);
 
+  // Mount and filter change effect
+  useEffect(() => {
+    if (!hasLoaded) {
+      if (initialSearchName && !initialSearchTriggered) {
+        setInitialSearchTriggered(true);
+        void loadClients({ nextPage: 1, showAll: false, nextFilters: { ...emptyFilters, searchTerm: initialSearchName } });
+      }
+    } else {
+      // Restore from saved state
+      void loadClients({ nextPage: page, showAll: showAllMode, nextFilters: filters });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run once on mount
+
   useEffect(() => {
     const hasActiveFilters = Object.values(filters).some(Boolean);
-    if (initialSearchName && !initialSearchTriggered) {
-      setInitialSearchTriggered(true);
-      handleSearch({ ...emptyFilters, searchTerm: initialSearchName });
-    } else if (hasActiveFilters) {
+    if (hasActiveFilters) {
       handleSearch(filters);
     } else if (hasLoaded && !showAllMode) {
       setClients([]);
@@ -131,7 +152,7 @@ function Clients() {
       setError("");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters.searchTerm, filters.fromDate, filters.toDate, filters.phone, filters.email, initialSearchName, initialSearchTriggered, handleSearch, hasLoaded, showAllMode]);
+  }, [filters.searchTerm, filters.phone, filters.email, filters.fromDate, filters.toDate, hasLoaded, showAllMode]);
 
   useEffect(() => {
     if (initialEditId && !initialEditTriggered && clients.length > 0) {
@@ -204,7 +225,7 @@ function Clients() {
         {hasLoaded && !loading && clients.map((client) => {
           const photoUrl = getPersistentAssetUrl(client.photoUrl, "https://placehold.co/120x120/png?text=Client");
           return (
-            <div key={client.id} className="premium-client-card-wrapper" style={{ position: 'relative' }}>
+            <div key={client.id} className="premium-client-card-wrapper" style={{ position: 'relative', width: '100%', maxWidth: '320px', margin: '0 auto' }}>
               <div className="premium-card-quick-actions" style={{
                 position: 'absolute',
                 top: '15px',
@@ -217,7 +238,7 @@ function Clients() {
                   type="button" 
                   className="btn-glass-action" 
                   style={{ padding: '6px 10px', fontSize: '12px', minHeight: '30px', width: '32px' }}
-                  onClick={() => navigate(`/clients/${client.id}?edit=true&step=0`)}
+                  onClick={() => openEdit(client)}
                   title="Edit Client"
                 >
                   ✏️

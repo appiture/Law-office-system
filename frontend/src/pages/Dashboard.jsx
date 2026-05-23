@@ -340,7 +340,7 @@ function Dashboard() {
           query={dashboardSearch}
           cases={cases}
           tasks={tasks}
-          timelineEvents={hearings}
+          timelineEvents={[...hearings, ...calendarEvents]}
           onResultClick={() => setDashboardSearch("")}
         />
       ) : (

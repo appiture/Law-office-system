@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { useSearchParams } from "react-router-dom";
 import AppShell from "../components/layout/AppShell";
@@ -391,7 +391,7 @@ export default function Tasks() {
   const completedCount  = tasks.filter(t => t && t.status === TASK_STATUS.COMPLETED).length;
   const overdueCount    = tasks.filter(t => t && (t.status === TASK_STATUS.PENDING || t.status === TASK_STATUS.IN_PROGRESS) && isOverdue(t.dueDate)).length;
 
-  const searchTokens = buildSearchTokens(searchQuery);
+  const searchTokens = useMemo(() => buildSearchTokens(searchQuery), [searchQuery]);
   const filteredTasks = tasks.filter(task => {
     if (filterStatus !== "ALL" && task.status !== filterStatus) return false;
     if (filterPriority !== "ALL" && task.priority !== filterPriority) return false;

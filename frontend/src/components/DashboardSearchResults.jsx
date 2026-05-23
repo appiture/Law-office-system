@@ -22,12 +22,12 @@ function getEventTitle(item) {
 }
 
 function getEventDate(item) {
-  return item?.scheduledAt || item?.postponedTo || item?.putUpDateTime || item?.date;
+  return item?.scheduledAt || item?.postponedTo || item?.putUpDateTime || item?.date || item?.event_date;
 }
 
 function getEventLink(item) {
   const caseId = getEventCaseId(item);
-  if (!caseId) return ROUTES.HEARINGS;
+  if (!caseId) return ROUTES.DASHBOARD;
   return `${getCaseDetailsRoute(caseId)}?focus=hearing&hearingId=${encodeURIComponent(item.id)}#hearing-${item.id}`;
 }
 
@@ -97,8 +97,8 @@ function DashboardSearchResults({ query, cases, tasks, timelineEvents, onResultC
     return (timelineEvents || []).filter((e) => {
       return (
         String(getEventTitle(e)).toLowerCase().includes(normalizedQuery) ||
-        String(e.notes || "").toLowerCase().includes(normalizedQuery) ||
-        String(e.type || "").toLowerCase().includes(normalizedQuery) ||
+        String(e.notes || e.description || "").toLowerCase().includes(normalizedQuery) ||
+        String(e.type || e.event_type || "").toLowerCase().includes(normalizedQuery) ||
         String(e.legalCase?.caseNumber || "").toLowerCase().includes(normalizedQuery) ||
         String(e.legalCase?.client?.name || "").toLowerCase().includes(normalizedQuery)
       );
@@ -243,7 +243,7 @@ function DashboardSearchResults({ query, cases, tasks, timelineEvents, onResultC
                 <Link key={e.id} to={getEventLink(e)} className="result-card premium-glass" onClick={onResultClick}>
                   <div className="result-main">
                     <strong>{getEventTitle(e)}</strong>
-                    <p className="result-sub cutoff-text">{e.notes || e.legalCase?.caseNumber || "Timeline Event"}</p>
+                    <p className="result-sub cutoff-text">{e.notes || e.description || e.legalCase?.caseNumber || e.event_type || e.type || "Timeline Event"}</p>
                   </div>
                   <div className="result-side">
                     <span className={`status-badge hearing`}>{formatDate(getEventDate(e))}</span>

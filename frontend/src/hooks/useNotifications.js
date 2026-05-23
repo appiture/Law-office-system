@@ -13,10 +13,12 @@ function classifyHearing(h) {
   const now = new Date();
   const todayStart = new Date(now); todayStart.setHours(0, 0, 0, 0);
   const todayEnd   = new Date(now); todayEnd.setHours(23, 59, 59, 999);
-  const d = h.date ? new Date(h.date) : null;
+  const dateStr = h.scheduled_at || h.date;
+  const d = dateStr ? new Date(dateStr) : null;
   if (!d || isNaN(d)) return null;
 
-  const isPending = h.status !== "COMPLETED" && h.status !== "CANCELLED";
+  const status = h.status || "PENDING";
+  const isPending = status !== "COMPLETED" && status !== "CANCELLED";
   if (!isPending) return null;
 
   if (d < todayStart) {
@@ -62,16 +64,15 @@ export function useNotifications() {
       const sevenAhead = new Date(now);
       sevenAhead.setDate(sevenAhead.getDate() + 7);
 
-      const [hearingRes, chargeRes] = await Promise.all([
+      const [hearingRes, chargeRes, eventsRes, casesRes] = await Promise.all([
         supabase
           .from("hearings")
-          .select("id, case_id, type, title, date, status, cases(case_number, case_type, clients(name))")
+          .select("id, case_id, type, title, date, scheduled_at, status, cases(case_number, case_type, clients(name))")
           .eq("organization_id", orgId)
           .is("deleted_at", null)
-          .not("status", "in", '("COMPLETED","CANCELLED")')
           .lte("date", sevenAhead.toISOString())
           .order("date", { ascending: true })
-          .limit(50),
+          .limit(150),
 
         supabase
           .from("payment_charges")
@@ -81,16 +82,67 @@ export function useNotifications() {
           .gt("balance", 0)
           .order("due_date", { ascending: true })
           .limit(50),
+
+        supabase
+          .from("calendar_events")
+          .select("*")
+          .eq("organization_id", orgId)
+          .eq("event_type", "hearing")
+          .lte("event_date", sevenAhead.toISOString())
+          .order("event_date", { ascending: true })
+          .limit(50),
+
+        supabase
+          .from("cases")
+          .select("id, case_number, case_type, status, details, clients(name)")
+          .eq("organization_id", orgId)
+          .is("deleted_at", null)
       ]);
 
       const notifications = [];
 
+      const allHearings = [...(hearingRes.data || [])];
+      
+      // Map manual calendar events
+      for (const evt of (eventsRes.data || [])) {
+        allHearings.push({
+          id: evt.id,
+          case_id: null,
+          type: "HEARING",
+          title: evt.title || "Hearing",
+          date: evt.event_date,
+          scheduled_at: evt.event_date,
+          status: "PENDING",
+        });
+      }
+
+      // Map synthetic hearings from cases
+      for (const c of (casesRes.data || [])) {
+        const nextHearingDate = c.details?.nextHearingDate;
+        if (nextHearingDate) {
+          allHearings.push({
+            id: `case-hearing-${c.id}`,
+            case_id: c.id,
+            type: "HEARING",
+            title: `Next hearing: ${c.case_number}`,
+            date: nextHearingDate,
+            scheduled_at: nextHearingDate,
+            status: "PENDING",
+            cases: {
+              case_number: c.case_number,
+              case_type: c.case_type,
+              clients: c.clients
+            }
+          });
+        }
+      }
+
       // ── Hearing alerts ──────────────────────────────────────────
-      for (const h of (hearingRes.data || [])) {
+      for (const h of allHearings) {
         const cls = classifyHearing(h);
         if (!cls) continue;
-        const dateStr = h.date
-          ? new Date(h.date).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })
+        const dateStr = h.scheduled_at || h.date
+          ? new Date(h.scheduled_at || h.date).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })
           : "—";
         notifications.push({
           id:          `hearing-${h.id}`,
@@ -101,11 +153,11 @@ export function useNotifications() {
           color:       cls.color,
           title:       h.title || h.type || "Court Event",
           body:        dateStr,
-          link:        `${ROUTES.HEARINGS}?highlightCase=${h.case_id}`,
+          link:        h.case_id ? `${ROUTES.HEARINGS}?searchCase=${encodeURIComponent(h.cases?.case_number || '')}&highlightCase=${h.case_id}` : ROUTES.DASHBOARD,
           // RICH DETAILS:
           caseNumber:  h.cases?.case_number || "—",
           caseType:    h.cases?.case_type || "—",
-          clientName:  h.cases?.clients?.name || "—",
+          clientName:  h.cases?.clients?.name || (Array.isArray(h.cases?.clients) ? h.cases?.clients[0]?.name : undefined) || "—",
           hearingType: h.type || "—",
           hearingDate: dateStr,
         });

@@ -80,9 +80,8 @@ function CaseDetails() {
         throw new Error("You do not have permission to view case details.");
       }
 
-      const allCases = await platformApi.getCases();
+      const matchedCase = await platformApi.getCase(caseId);
       if (isCancelled()) return;
-      const matchedCase = allCases.find((item) => idsEqual(item.id, caseId));
       if (!matchedCase) throw new Error("Case not found.");
 
       if (canViewClients && matchedCase.client?.id) {
@@ -194,7 +193,6 @@ function CaseDetails() {
       }
       actions={
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-          <button onClick={() => navigate(ROUTES.CASES)} className="btn-neutral header-action-btn">Back</button>
           {canViewCases && (
             <button onClick={() => openWizard(client, 1, legalCase)} className="btn-gold header-action-btn">✏️ Edit Case</button>
           )}

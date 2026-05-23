@@ -3,7 +3,7 @@ import { supabase } from "../services/supabaseClient";
 import AppShell from "../components/layout/AppShell";
 import HeaderFilters from "../components/HeaderFilters";
 import { isPlatformAdmin } from "../services/adminService";
-import dayjs from "dayjs";
+
 import "./SystemAuditLogs.css";
 
 function SystemAuditLogs() {
@@ -158,7 +158,7 @@ function SystemAuditLogs() {
               <tbody>
                 {logs.map(log => (
                   <tr key={log.id}>
-                    <td style={{ whiteSpace: "nowrap" }}>{dayjs(log.created_at).format("DD MMM YYYY, HH:mm")}</td>
+                    <td style={{ whiteSpace: "nowrap" }}>{new Date(log.created_at).toLocaleString("en-GB", {day:"2-digit", month:"short", year:"numeric", hour:"2-digit", minute:"2-digit"}).replace(',', '')}</td>
                     {superAdmin && <td>{log.organizations?.name || "System"}</td>}
                     <td>
                       <div>{log.actor_email || "System"}</div>

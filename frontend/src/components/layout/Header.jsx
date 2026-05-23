@@ -15,8 +15,7 @@ function Header({
   theme, 
   toggleTheme, 
   actions,
-  sidebarOpen,
-  pendingTaskCount
+  sidebarOpen
 }) {
   const location = useLocation();
   const isDashboard = location.pathname === "/dashboard" || location.pathname === "/platform-admin";
@@ -49,7 +48,7 @@ function Header({
       </div>
 
       <div className="page-actions">
-        {isDashboard && !superAdmin && <NotificationBell pendingTaskCount={pendingTaskCount} />}
+        {isDashboard && !superAdmin && <NotificationBell />}
         {actions}
       </div>
     </header>

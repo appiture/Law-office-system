@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Link, useParams, useLocation } from "react-router-dom";
+import { Link, useParams, useLocation, useNavigate } from "react-router-dom";
 import { ROUTES } from "../constants/routes";
 import { EXPORT_FORMATS } from "../constants/exportFormats";
 import AppShell from "../components/layout/AppShell";
@@ -9,35 +9,7 @@ import { formatDate, textOrDash } from "../utils/formatters";
 import MultiStepClientWizard from "../components/MultiStepClientWizard";
 import { createPortal } from "react-dom";
 import { usePermissions } from "../context/PermissionsContext";
-import MagicBento, { ParticleCard } from "../components/ui/MagicBento/MagicBento";
-import "./sharedDetailsLayout.css";
-
-function DetailSection({ id, title, label, actions, children, className = "", style = {} }) {
-  return (
-    <ParticleCard 
-      id={id}
-      className={`magic-bento-card ${className}`}
-      style={style}
-      disableAnimations={true}
-      enableTilt={false}
-      clickEffect={false}
-      enableMagnetism={false}
-    >
-      <div className="case-card-header">
-        <div className="case-tag">{label || title}</div>
-        <div className="section-actions" style={{ marginLeft: 'auto' }}>{actions}</div>
-      </div>
-      <div className="card-scroll">
-        <div className="case-card-heading">
-          <h3>{title}</h3>
-        </div>
-        <div className="section-body-inner">
-          {children}
-        </div>
-      </div>
-    </ParticleCard>
-  );
-}
+import "./ClientDetails.css";
 
 const idsEqual = (left, right) => String(left ?? "") === String(right ?? "");
 
@@ -51,29 +23,10 @@ const formatAddress = (client) => {
   return textOrDash(parts.join(" | "), "No address");
 };
 
-function DetailNav({ items }) {
-  return (
-    <nav className="detail-section-nav" aria-label="Details sections">
-      {items.map((item) => (
-        <a key={item.id} href={`#${item.id}`}>{item.label}</a>
-      ))}
-    </nav>
-  );
-}
-
-function InfoRow({ label, value }) {
-  return (
-    <div className="info-row">
-      <span className="info-row-label">{label}</span>
-      <span className="info-row-value" title={typeof value === "string" ? value : undefined}>{value}</span>
-    </div>
-  );
-}
-
 function ClientDetails() {
-
   const { clientId } = useParams();
   const location = useLocation();
+  const navigate = useNavigate();
   const [client, setClient] = useState(null);
   const [clientCases, setClientCases] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -87,7 +40,6 @@ function ClientDetails() {
   const { canAccess } = usePermissions();
   const canViewClients = canAccess("clients");
   const canViewCases = canAccess("cases");
-
 
   const loadData = useCallback(async (isCancelled = () => false) => {
     try {
@@ -228,35 +180,10 @@ function ClientDetails() {
   const photoUrl = getPersistentAssetUrl(client?.photoUrl);
   const canEditClient = canViewClients && Boolean(client);
 
-  const detailNavItems = [
-    { id: "client-profile", label: "Identity" },
-    { id: "client-info", label: "KYC & Details" },
-    { id: "cases-list", label: "Associated Matters" },
-  ];
-
   return (
     <AppShell
       title="Client Profile"
-      subtitle={
-         <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", fontSize: "13px", marginTop: "4px" }}>
-            <span style={{ fontWeight: "800", color: "var(--color-primary)" }}>{client?.name}</span>
-            {client?.occupation && (
-              <>
-                <span style={{ color: "var(--text-secondary)", opacity: 0.5 }}>|</span>
-                <span style={{ fontWeight: "500", color: "var(--text-secondary)" }}>{client.occupation}</span>
-              </>
-            )}
-            
-            {(client?.email || client?.phone) && (
-              <>
-                <span style={{ color: "var(--text-secondary)", opacity: 0.5 }}>•</span>
-                <span style={{ color: "var(--text-secondary)" }}>
-                  {[client.email, client.phone].filter(Boolean).join(" - ")}
-                </span>
-              </>
-            )}
-         </div>
-      }
+      subtitle="View complete client information, KYC details, and associated matters."
       actions={
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
           <div className="download-dropdown-wrap">
@@ -273,113 +200,151 @@ function ClientDetails() {
         </div>
       }
     >
-      <DetailNav items={detailNavItems} />
+      <div className="client-details-page-wrapper">
+        <div className="client-details-top-row">
+        
+        {/* LEFT SIDEBAR */}
+        <aside className="client-sidebar">
+          <div className="client-profile-card">
+            <div className="client-photo-wrapper" onClick={() => photoUrl && setPreviewImage({ src: photoUrl, alt: client?.name })}>
+              {photoUrl ? (
+                <img src={photoUrl} alt={client?.name} className="client-photo" />
+              ) : (
+                <div className="client-photo-placeholder">👤</div>
+              )}
+            </div>
+            
+            <div className="client-sidebar-info">
+              <h2 className="client-sidebar-name">{client?.name}</h2>
+              <p className="client-sidebar-occupation">{client?.occupation || "Client"}</p>
+              
+              <div className="client-sidebar-actions">
+                {client?.phone && (
+                  <a href={`https://wa.me/${client.phone.replace(/[^0-9]/g, '')}`} target="_blank" rel="noreferrer" className="client-sidebar-btn whatsapp">
+                    📞 WhatsApp
+                  </a>
+                )}
+                {client?.email && (
+                  <a href={`mailto:${client.email}`} className="client-sidebar-btn email">
+                    📧 Email Client
+                  </a>
+                )}
+              </div>
+            </div>
+          </div>
 
-      <div className="case-details-container">
-        <MagicBento className="case-details-grid" enableTilt={false} enableStars={false} enableSpotlight={false} enableBorderGlow={false}>
-          <DetailSection 
-            id="client-profile" 
-            title="Identity Summary" 
-            label="Profile"
-            className="magic-bento-card--profile"
-          >
-            <div className="profile-hero-section">
-              <div className="client-avatar-container">
-                <div className="client-avatar-wrapper" onClick={() => photoUrl && setPreviewImage({ src: photoUrl, alt: client?.name })}>
-                  <img src={photoUrl || "/placeholder-avatar.png"} alt={client?.name} className="client-avatar-img" />
-                  <div className="client-avatar-glow" />
+          <div className="client-stats-card">
+            <div className="client-stat-item">
+              <span className="client-stat-value">{clientCases.length}</span>
+              <span className="client-stat-label">Total Cases</span>
+            </div>
+            <div className="client-stat-item">
+              <span className="client-stat-value">{activeCasesCount}</span>
+              <span className="client-stat-label">Active Cases</span>
+            </div>
+          </div>
+        </aside>
+
+        {/* MAIN CONTENT */}
+        <main className="client-main-content">
+          
+          {/* Section 1: Personal Information */}
+          <section className="client-section">
+            <div className="client-section-header">
+              <h3>👤 Personal Information</h3>
+            </div>
+            <div className="client-section-body">
+              <div className="client-info-grid">
+                <div className="client-info-item">
+                  <span className="client-info-label">Full Name</span>
+                  <span className="client-info-value">{textOrDash(client?.name)}</span>
                 </div>
-              </div>
-              <div className="client-hero-details">
-                <h4 className="client-hero-name">{client?.name}</h4>
-                <p className="client-hero-title">{client?.occupation || "Client"}</p>
-                <div className="client-hero-actions">
-                  {client?.phone && (
-                    <a href={`https://wa.me/${client.phone.replace(/[^0-9]/g, '')}`} target="_blank" rel="noreferrer" className="hero-action-link">
-                      📞 WhatsApp
-                    </a>
-                  )}
-                  {client?.email && (
-                    <a href={`mailto:${client.email}`} className="hero-action-link">
-                      📧 Email
-                    </a>
-                  )}
+                <div className="client-info-item">
+                  <span className="client-info-label">Gender</span>
+                  <span className="client-info-value">{textOrDash(client?.gender)}</span>
                 </div>
-              </div>
-              <div className="profile-hero-meta">
-                <div className="meta-badge">Verified Client</div>
-                <div className="meta-stats">
-                  <div className="stat"><strong>{clientCases.length}</strong><small>Total Cases</small></div>
-                  <div className="stat"><strong>{activeCasesCount}</strong><small>Active Cases</small></div>
+                <div className="client-info-item">
+                  <span className="client-info-label">Date of Birth</span>
+                  <span className="client-info-value">{client?.dateOfBirth ? formatDate(client.dateOfBirth) : "-"}</span>
+                </div>
+                <div className="client-info-item">
+                  <span className="client-info-label">Occupation</span>
+                  <span className="client-info-value">{textOrDash(client?.occupation)}</span>
                 </div>
               </div>
             </div>
-          </DetailSection>
+          </section>
 
-          <DetailSection id="client-info" title="Core Details & KYC" label="KYC Records" className="magic-bento-card--details">
-            <div className="kyc-details-grid">
-              <div className="kyc-card">
-                <div className="kyc-card-icon">📧</div>
-                <div className="kyc-card-content">
-                  <span className="kyc-label">Email Address</span>
-                  <span className="kyc-value">{client?.email || "-"}</span>
+          {/* Section 2: Contact & KYC Details */}
+          <section className="client-section">
+            <div className="client-section-header">
+              <h3>🪪 Contact & KYC Details</h3>
+            </div>
+            <div className="client-section-body">
+              <div className="client-info-grid">
+                <div className="client-info-item">
+                  <span className="client-info-label">Primary Phone</span>
+                  <span className="client-info-value">{textOrDash(client?.phone)}</span>
                 </div>
-              </div>
-              <div className="kyc-card">
-                <div className="kyc-card-icon">📞</div>
-                <div className="kyc-card-content">
-                  <span className="kyc-label">Phone Number</span>
-                  <span className="kyc-value">{client?.phone || "-"}</span>
+                <div className="client-info-item">
+                  <span className="client-info-label">Alternative Phone</span>
+                  <span className="client-info-value">{textOrDash(client?.altPhone)}</span>
                 </div>
-              </div>
-              <div className="kyc-card kyc-card-full">
-                <div className="kyc-card-icon">📍</div>
-                <div className="kyc-card-content">
-                  <span className="kyc-label">Residential / Billing Address</span>
-                  <span className="kyc-value">{formatAddress(client)}</span>
+                <div className="client-info-item">
+                  <span className="client-info-label">Email Address</span>
+                  <span className="client-info-value">{textOrDash(client?.email)}</span>
                 </div>
-              </div>
-              <div className="kyc-card">
-                <div className="kyc-card-icon">🪪</div>
-                <div className="kyc-card-content">
-                  <span className="kyc-label">ID Proof Type</span>
-                  <span className="kyc-value">{client?.idProofType || "-"}</span>
+                <div className="client-info-item">
+                  <span className="client-info-label">ID Proof Type</span>
+                  <span className="client-info-value">{textOrDash(client?.idProofType)}</span>
                 </div>
-              </div>
-              <div className="kyc-card">
-                <div className="kyc-card-icon">🔢</div>
-                <div className="kyc-card-content">
-                  <span className="kyc-label">Reference Number</span>
-                  <span className="kyc-value">{client?.idProofNumber || "-"}</span>
+                <div className="client-info-item">
+                  <span className="client-info-label">ID Proof Number</span>
+                  <span className="client-info-value">{textOrDash(client?.idProofNumber)}</span>
+                </div>
+                <div className="client-info-item full-width">
+                  <span className="client-info-label">Full Address</span>
+                  <span className="client-info-value">{formatAddress(client)}</span>
                 </div>
               </div>
             </div>
-          </DetailSection>
+          </section>
 
-          <DetailSection id="cases-list" title="Associated Matters" label="Case History" className="magic-bento-card--full">
-            <div className="client-cases-grid">
-              {clientCases.map(c => (
-                <div key={c.id} className="client-case-card-bento">
-                  <div className="case-mini-header">
-                    <span className="case-number-badge">{c.caseNumber}</span>
-                    <span className={`status-tag ${statusClassName(c.status)}`}>{c.status}</span>
-                  </div>
-                  <h4 className="case-type-title">{c.caseType}</h4>
-                  <div className="case-mini-footer">
-                    <span className="case-date">Filed: {formatDate(c.filingDate)}</span>
-                    <Link to={`/cases/${c.id}`} className="btn-text">View Case →</Link>
-                  </div>
-                </div>
-              ))}
-              {clientCases.length === 0 && (
-                <div className="empty-state-bento">
-                  <div className="empty-icon">📁</div>
+        </main>
+        </div>
+
+        {/* Section 3: Associated Matters (FULL ROW) */}
+        <section className="client-section full-width-section">
+          <div className="client-section-header">
+            <h3>⚖️ Associated Matters</h3>
+          </div>
+          <div className="client-section-body">
+            <div className="client-cases-list grid-list">
+              {clientCases.length > 0 ? (
+                clientCases.map(c => (
+                  <Link to={`/cases/${c.id}`} key={c.id} className="client-case-card">
+                    <div className="client-case-left">
+                      <div className="client-case-header">
+                        <span className="client-case-number">{c.caseNumber}</span>
+                        <span className={`client-case-status ${statusClassName(c.status)}`}>{c.status}</span>
+                      </div>
+                      <span className="client-case-type">{c.caseType}</span>
+                    </div>
+                    <div className="client-case-right">
+                      <span className="client-case-date">Filed: {formatDate(c.filingDate)}</span>
+                      <span className="client-case-arrow">View Case →</span>
+                    </div>
+                  </Link>
+                ))
+              ) : (
+                <div className="client-empty-state">
+                  <div className="client-empty-state-icon">📁</div>
                   <p>No cases linked to this client yet.</p>
                 </div>
               )}
             </div>
-          </DetailSection>
-        </MagicBento>
+          </div>
+        </section>
       </div>
 
       {showWizard && createPortal(

@@ -84,9 +84,9 @@ function DashboardCalendar({
             </button>
           </div>
           <div className="dashboard-calendar-filters">
-            {["all", "hearing", "deadline"].map((type) => (
+            {["all", "hearing", "deadline", "task"].map((type) => (
               <button key={type} type="button" className={calendarType === type ? "active" : ""} onClick={() => setCalendarType(type)}>
-                {type === "all" ? "All" : type}
+                {type === "all" ? "All" : type.charAt(0).toUpperCase() + type.slice(1)}
               </button>
             ))}
           </div>
@@ -101,6 +101,7 @@ function DashboardCalendar({
 
               const caseEventsCount = cell.events.filter(e => e.type === "Hearing").length;
               const feeEventsCount = cell.events.filter(e => e.type === "Deadline").length;
+              const taskEventsCount = cell.events.filter(e => e.type === "Task").length;
               const calendarEventCount = calendarEvents.filter(e => e.event_date === cell.key).length;
 
               return (
@@ -114,6 +115,7 @@ function DashboardCalendar({
                   <div className="dashboard-calendar-badges">
                     {caseEventsCount > 0 && <em className="badge-case" title="Case Events">{caseEventsCount}</em>}
                     {feeEventsCount > 0 && <em className="badge-fee" title="Fee Deadlines">{feeEventsCount}</em>}
+                    {taskEventsCount > 0 && <em className="badge-task" title="Tasks">{taskEventsCount}</em>}
                     {calendarEventCount > 0 && <em className="badge-note" title="Notes">{calendarEventCount}</em>}
                   </div>
                 </button>
@@ -126,6 +128,9 @@ function DashboardCalendar({
             </div>
             <div className="legend-item">
               <div className="legend-dot fee-dot" /> Fee Deadlines
+            </div>
+            <div className="legend-item">
+              <div className="legend-dot task-dot" /> Tasks
             </div>
             <div className="legend-item">
               <div className="legend-dot note-dot" /> Notes
@@ -183,7 +188,7 @@ function DashboardCalendar({
                             </div>
                           ) : (
                             <Link to={item.to} className="dashboard-agenda-link" onClick={() => setAgendaDate(null)}>
-                              <span className={item.type === "Hearing" ? "badge-case-type" : ""}>{item.type}</span>
+                              <span className={item.type === "Hearing" ? "badge-case-type" : item.type === "Task" ? "badge-task-type" : ""}>{item.type}</span>
                               <strong>{item.title}</strong>
                               <small>{formatDate(item.date)}</small>
                             </Link>

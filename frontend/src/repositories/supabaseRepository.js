@@ -470,19 +470,34 @@ const buildDatasetIndexes = (dataset) => {
   return { clientsById, chargesById, chargesByCase, documentsByCase, hearingsByCase, historyByCase, tasksByCase };
 };
 
-const _mapTask = (row) => ({
-  id: row.id || row._id,
-  title: row.title || "",
-  description: row.description || "",
-  priority: row.priority || "MEDIUM",
-  status: row.status || "PENDING",
-  dueDate: row.due_date || row.dueDate || null,
-  assignedTo: row.assigned_to || row.assignedTo || "",
-  createdBy: row.created_by || row.createdBy || "",
-  createdAt: row.created_at || row.createdAt || new Date().toISOString(),
-  updatedAt: row.updated_at || row.updatedAt || null,
-  caseId: row.case_id || row.caseId || null,
-});
+const _mapTask = (row) => {
+  let assignedTo = row.assigned_to || row.assignedTo || "";
+  let description = row.description || "";
+  
+  const _isUUID = (v) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(v || ""));
+  
+  if (!assignedTo || _isUUID(assignedTo)) {
+    const match = description.match(/Assigned to:\s*(.+)$/);
+    if (match) {
+      if (!assignedTo) assignedTo = match[1].trim();
+      description = description.replace(/(?:\n\n)?Assigned to:\s*.+$/, "").trim();
+    }
+  }
+
+  return {
+    id: row.id || row._id,
+    title: row.title || "",
+    description: description,
+    priority: row.priority || "MEDIUM",
+    status: row.status || "PENDING",
+    dueDate: row.due_date || row.dueDate || null,
+    assignedTo: assignedTo,
+    createdBy: row.created_by || row.createdBy || "",
+    createdAt: row.created_at || row.createdAt || new Date().toISOString(),
+    updatedAt: row.updated_at || row.updatedAt || null,
+    caseId: row.case_id || row.caseId || null,
+  };
+};
 
 const mapCaseRecord = async (
   legalCase,
@@ -1111,10 +1126,15 @@ const supabasePlatformApi = {
     // well-formed UUID (e.g. from a user-picker). Free-text names are dropped.
     const _isUUID = (v) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(v || ""));
 
+    let description = payload.description || "";
+    if (payload.assignedTo && !_isUUID(payload.assignedTo)) {
+      description += (description ? "\n\n" : "") + `Assigned to: ${payload.assignedTo}`;
+    }
+
     const record = {
       organization_id: context.organizationId,
       title: String(payload.title || "").trim(),
-      description: payload.description || "",
+      description: description,
       priority: payload.priority || "MEDIUM",
       status: payload.status || "PENDING",
       due_date: payload.dueDate || null,
@@ -1148,9 +1168,14 @@ const supabasePlatformApi = {
 
     const _isUUID = (v) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(String(v || ""));
 
+    let description = payload.description || "";
+    if (payload.assignedTo && !_isUUID(payload.assignedTo)) {
+      description += (description ? "\n\n" : "") + `Assigned to: ${payload.assignedTo}`;
+    }
+
     const updates = {
       title: String(payload.title || "").trim(),
-      description: payload.description || "",
+      description: description,
       priority: payload.priority || "MEDIUM",
       status: payload.status || "PENDING",
       due_date: payload.dueDate || null,

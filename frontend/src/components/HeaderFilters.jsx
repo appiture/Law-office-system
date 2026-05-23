@@ -60,9 +60,19 @@ function HeaderFilters({
             onChange={(event) => onSearchChange?.(event.target.value)}
             placeholder={searchPlaceholder}
           />
-          {searchTerm && (
-            <button type="button" className="search-clear-btn" onClick={handleClearAll} aria-label="Clear search and filters">
+          {searchTerm && !onClearFilters && (
+            <button type="button" className="search-clear-btn" onClick={handleClearAll} aria-label="Clear search">
               <X size={12} />
+            </button>
+          )}
+          {onClearFilters && (
+            <button 
+              type="button" 
+              className="search-clear-text-btn" 
+              onClick={handleClearAll} 
+              title="Clear all results and filters"
+            >
+              Clear
             </button>
           )}
         </div>

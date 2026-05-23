@@ -380,10 +380,13 @@ function Hearings() {
   // Scroll to and highlight a specific case card when arriving from a notification
   useEffect(() => {
     if (!highlightCaseId || cases.length === 0) return;
-    const el = document.getElementById(`hearing-case-${highlightCaseId}`);
-    if (el) {
-      el.scrollIntoView({ behavior: "smooth", block: "center" });
-    }
+    const timer = setTimeout(() => {
+      const el = document.getElementById(`hearing-case-${highlightCaseId}`);
+      if (el) {
+        el.scrollIntoView({ behavior: "smooth", block: "center" });
+      }
+    }, 100);
+    return () => clearTimeout(timer);
   }, [highlightCaseId, cases]);
 
   const markCompleted = async (caseId, item) => {
@@ -410,15 +413,14 @@ function Hearings() {
     void loadData({ nextPage: 1, showAll: false, nextFilters });
   }, [filters, loadData]);
 
-  // Auto-load on mount only if there is an initial search case
+  // Auto-load if searchCase or highlightCase changes via URL (e.g. clicking a notification)
   useEffect(() => {
-    if (initialSearchCase && !initialSearchTriggered) {
-      setInitialSearchTriggered(true);
-      void loadData({ nextPage: 1, showAll: false, nextFilters: { ...emptyFilters, searchTerm: initialSearchCase } });
+    if (initialSearchCase || highlightCaseId) {
+      setFilters(p => ({ ...p, searchTerm: initialSearchCase || "" }));
+      void loadData({ nextPage: 1, showAll: !initialSearchCase, nextFilters: { ...emptyFilters, searchTerm: initialSearchCase || "" } });
     }
-
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);  // Run only on mount
+  }, [initialSearchCase, highlightCaseId]);
 
   // Re-run search when filters change
   useEffect(() => {

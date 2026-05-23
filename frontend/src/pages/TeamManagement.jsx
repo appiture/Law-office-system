@@ -13,7 +13,7 @@ import HeaderFilters from "../components/HeaderFilters";
 import { openExport } from "../store/exportStore";
 import "./formStyles.css";
 
-const SECTIONS = ["dashboard", "clients", "cases", "payments", "documents", "hearings", "settings", "team"];
+const SECTIONS = ["dashboard", "clients", "cases", "payments", "documents", "hearings", "tasks", "settings", "team"];
 const STAFF_INVITE_SECTIONS = [
   { key: "dashboard", label: "Dashboard" },
   { key: "clients", label: "Clients" },
@@ -21,7 +21,9 @@ const STAFF_INVITE_SECTIONS = [
   { key: "payments", label: "Fees" },
   { key: "documents", label: "Documents" },
   { key: "hearings", label: "Hearings" },
+  { key: "tasks", label: "Tasks" },
   { key: "settings", label: "Settings" },
+  { key: "team", label: "Team" },
 ];
 
 const defaultStaffPermissions = {
@@ -31,6 +33,7 @@ const defaultStaffPermissions = {
   payments: false,
   documents: false,
   hearings: true,
+  tasks: true,
   settings: false,
   team: false,
 };
@@ -404,51 +407,7 @@ function InviteForm({ onInvited }) {
             </button>
           </div>
 
-          {(role === "STAFF" || role === "LAWYER") && (
-            <div style={{
-              marginTop: 18,
-              background: "var(--color-bg)",
-              border: "1px solid var(--color-border)",
-              borderRadius: 12,
-              padding: "14px 16px",
-            }}>
-              <div style={{ marginBottom: 12 }}>
-                <p style={{ margin: 0, fontSize: 13, fontWeight: 800, color: "var(--color-text)" }}>Staff page access</p>
-                <p style={{ margin: "3px 0 0", fontSize: 11, color: "var(--color-text-secondary)" }}>
-                  Controls page visibility and full-detail sections only. Entry and edit actions stay unchanged inside allowed pages.
-                </p>
-              </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(145px, 1fr))", gap: 10 }}>
-                {STAFF_INVITE_SECTIONS.map((section) => (
-                  <label key={section.key} style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 8,
-                    padding: "9px 10px",
-                    borderRadius: 10,
-                    background: staffPermissions[section.key] ? "var(--color-gold-light)" : "var(--color-bg-secondary)",
-                    border: staffPermissions[section.key] ? "1px solid var(--color-gold)" : "1px solid var(--color-border)",
-                    fontSize: 12,
-                    fontWeight: 700,
-                    color: staffPermissions[section.key] ? "var(--color-gold)" : "var(--color-text-secondary)",
-                    cursor: "pointer",
-                  }}>
-                    <input
-                      type="checkbox"
-                      checked={Boolean(staffPermissions[section.key])}
-                      onChange={() => setStaffPermissions((current) => ({
-                        ...current,
-                        [section.key]: !current[section.key],
-                      }))}
-                      disabled={loading}
-                    />
-                    {section.label}
-                  </label>
-                ))}
-              </div>
-            </div>
-          )}
 
           {/* Info hint */}
           <div style={{

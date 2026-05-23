@@ -570,6 +570,20 @@
   background: var(--color-success) !important;
 }
 
+.dashboard-calendar-cell em.badge-task,
+.badge-task-type,
+.legend-dot.task-dot {
+  background: #EC4899 !important;
+  color: white !important;
+}
+
+.dark .dashboard-calendar-cell em.badge-task,
+.dark .badge-task-type,
+.dark .legend-dot.task-dot {
+  background: #F472B6 !important;
+  color: white !important;
+}
+
 .dashboard-calendar-cell em.badge-note,
 .legend-dot.note-dot {
   background: #A855F7 !important;

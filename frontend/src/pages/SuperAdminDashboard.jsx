@@ -334,29 +334,30 @@ function TabDashboard({ orgs, users, platformAdmins }) {
 /* ── TAB: Organizations ── */
 function TabOrganizations({ orgs, onRefresh, showToast }) {
   const [filter, setFilter] = useState("ALL");
-  const [actioning, setActioning] = useState(null);
+  const [modalState, setModalState] = useState(null);
+  const [isProcessing, setIsProcessing] = useState(null);
 
   const filtered = filter === "ALL" ? orgs : orgs.filter(o => o.status === filter);
 
   const handleAction = async (org, action) => {
     if (!window.confirm(`${action} "${org.name}"?`)) return;
-    setActioning({ org });
+    setIsProcessing(org.id);
     try {
       const res = await adminReviewOrganization(org.id, action, org.requested_owner_email);
       if (!res.success) throw new Error(res.message);
       showToast(res.message || "Done");
       onRefresh();
     } catch (e) { showToast(e.message, "error"); }
-    finally { setActioning(null); }
+    finally { setIsProcessing(null); }
   };
 
   const handleSubscriptionSave = async (updates) => {
-    const orgId = actioning.org.id;
+    const orgId = modalState.org.id;
     try {
       const res = await adminUpdateOrganization(orgId, updates);
       if (!res.success) throw new Error(res.message);
       showToast(res.message || "Subscription details updated");
-      setActioning(null);
+      setModalState(null);
       onRefresh();
     } catch (e) { showToast(e.message, "error"); }
   };
@@ -407,7 +408,7 @@ function TabOrganizations({ orgs, onRefresh, showToast }) {
             <span style={{ fontSize: 12, opacity: .5 }}>{fmtDate(org.created_at)}</span>
             <div style={{ display: "flex", gap: 6, justifyContent: "flex-end" }}>
               <button
-                onClick={() => setActioning({ type: "SUBSCRIPTION", org })}
+                onClick={() => setModalState({ type: "SUBSCRIPTION", org })}
                 title="Manage Subscription"
                 style={{
                   background: "rgba(139, 92, 246, 0.18)", color: "#8B5CF6",
@@ -418,7 +419,7 @@ function TabOrganizations({ orgs, onRefresh, showToast }) {
                 💳
               </button>
               <button
-                onClick={() => setActioning({ type: "PERMS", org })}
+                onClick={() => setModalState({ type: "PERMS", org })}
                 style={{
                   background: "rgba(201,163,78,0.18)", color: "#C9A34E",
                   border: "1px solid rgba(201,163,78,0.4)", borderRadius: 10,
@@ -432,37 +433,37 @@ function TabOrganizations({ orgs, onRefresh, showToast }) {
                 🔐 Perms
               </button>
               {org.status === "PENDING_APPROVAL" && <>
-                <button disabled={actioning?.org?.id === org.id} onClick={() => handleAction(org, "APPROVE")}
+                <button disabled={isProcessing === org.id} onClick={() => handleAction(org, "APPROVE")}
                   style={{ background: "rgba(52,211,153,.18)", color: "#34D399", border: "1px solid rgba(52,211,153,.35)", borderRadius: 8, padding: "5px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
-                  {actioning?.org?.id === org.id ? "…" : "Approve"}
+                  {isProcessing === org.id ? "…" : "Approve"}
                 </button>
-                <button disabled={actioning?.org?.id === org.id} onClick={() => handleAction(org, "REJECT")}
+                <button disabled={isProcessing === org.id} onClick={() => handleAction(org, "REJECT")}
                   style={{ background: "rgba(248,113,113,.15)", color: "#F87171", border: "1px solid rgba(248,113,113,.3)", borderRadius: 8, padding: "5px 12px", fontSize: 12, fontWeight: 700, cursor: "pointer" }}>
                   Reject
                 </button>
               </>}
               <button
-                disabled={actioning?.org?.id === org.id}
+                disabled={isProcessing === org.id}
                 onClick={async () => {
                   if (!window.confirm(`Permanently delete "${org.name}" and ALL its users, cases, clients, payments and documents? This cannot be undone.`)) return;
-                  setActioning({ org });
+                  setIsProcessing(org.id);
                   try {
                     await adminDeleteOrganization(org.id);
                     showToast("Organization deleted");
                     onRefresh();
                   } catch (e) { showToast(e.message, "error"); }
-                  finally { setActioning(null); }
+                  finally { setIsProcessing(null); }
                 }}
                 style={{ background: "rgba(248,113,113,.15)", color: "#F87171", border: "1px solid rgba(248,113,113,.3)", borderRadius: 8, padding: "5px 12px", fontSize: 0, fontWeight: 700, cursor: "pointer" }}>
-                <span style={{ fontSize: 12 }}>{actioning?.org?.id === org.id ? "Deleting..." : "Delete"}</span>
+                <span style={{ fontSize: 12 }}>{isProcessing === org.id ? "Deleting..." : "Delete"}</span>
                 🗑️
               </button>
             </div>
           </div>
         ))}
       </Card>
-      {actioning?.type === "PERMS" && <OrgPermissionsModal org={actioning.org} onClose={() => setActioning(null)} showToast={showToast} />}
-      {actioning?.type === "SUBSCRIPTION" && <SubscriptionModal org={actioning.org} onSave={handleSubscriptionSave} onClose={() => setActioning(null)} />}
+      {modalState?.type === "PERMS" && <OrgPermissionsModal org={modalState.org} onClose={() => setModalState(null)} showToast={showToast} />}
+      {modalState?.type === "SUBSCRIPTION" && <SubscriptionModal org={modalState.org} onSave={handleSubscriptionSave} onClose={() => setModalState(null)} />}
     </div>
   );
 }
@@ -473,7 +474,8 @@ function TabUsers({ users, orgs, onRefresh, showToast }) {
   const [search, setSearch] = useState("");
   const [filterOrg, setFilterOrg] = useState("ALL");
   const [filterStatus, setFilterStatus] = useState("ALL");
-  const [actioning, setActioning] = useState(null);
+  const [modalState, setModalState] = useState(null);
+  const [isProcessing, setIsProcessing] = useState(null);
 
   const filtered = users.filter(u => {
     const matchSearch = !search || u.email.toLowerCase().includes(search.toLowerCase()) || (u.full_name || "").toLowerCase().includes(search.toLowerCase());
@@ -483,14 +485,14 @@ function TabUsers({ users, orgs, onRefresh, showToast }) {
   });
 
   const handleUpdate = async (userId, role, status) => {
-    setActioning(userId);
+    setIsProcessing(userId);
     try {
       const res = await adminUpdateUser(userId, role, status);
       if (!res.success) throw new Error(res.message);
       showToast(res.message || "User updated");
       onRefresh();
     } catch (e) { showToast(e.message, "error"); }
-    finally { setActioning(null); }
+    finally { setIsProcessing(null); }
   };
 
   return (
@@ -521,7 +523,7 @@ function TabUsers({ users, orgs, onRefresh, showToast }) {
           <div key={u.id} style={{
             display: "grid", gridTemplateColumns: "1fr 120px 120px 160px 150px",
             gap: 8, padding: "13px 20px", borderBottom: "1px solid var(--color-border)", alignItems: "center",
-            opacity: actioning === u.id ? .5 : 1,
+            opacity: isProcessing === u.id ? .5 : 1,
           }}>
             <div>
               <p style={{ margin: 0, fontWeight: 700, fontSize: 13 }}>{u.full_name || "—"}</p>
@@ -530,7 +532,7 @@ function TabUsers({ users, orgs, onRefresh, showToast }) {
               </p>
             </div>
             <select value={u.role} onChange={e => handleUpdate(u.id, e.target.value, null)}
-              disabled={actioning === u.id}
+              disabled={isProcessing === u.id}
               style={{ fontSize: 12, padding: "4px 8px", borderRadius: 8, border: "1px solid var(--color-border)", background: "var(--color-surface)", color: "var(--color-text)" }}>
               <option value="ADMIN">Admin</option>
               <option value="LAWYER">Lawyer</option>
@@ -538,7 +540,7 @@ function TabUsers({ users, orgs, onRefresh, showToast }) {
               <option value="USER">User</option>
             </select>
             <select value={u.status} onChange={e => handleUpdate(u.id, null, e.target.value)}
-              disabled={actioning === u.id}
+              disabled={isProcessing === u.id}
               style={{ fontSize: 12, padding: "4px 8px", borderRadius: 8, border: "1px solid var(--color-border)", background: "var(--color-surface)", color: "var(--color-text)" }}>
               <option value="ACTIVE">Active</option>
               <option value="INACTIVE">Inactive</option>
@@ -547,7 +549,7 @@ function TabUsers({ users, orgs, onRefresh, showToast }) {
             <span style={{ fontSize: 12, opacity: .6, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{u.organization_name || "—"}</span>
             <div style={{ textAlign: "right", display: "flex", gap: 6, justifyContent: "flex-end", alignItems: "center" }}>
               <button
-                onClick={() => setActioning({ type: "PERMS", user: u })}
+                onClick={() => setModalState({ type: "PERMS", user: u })}
                 style={{
                   background: "rgba(201,163,78,0.18)", color: "#C9A34E",
                   border: "1px solid rgba(201,163,78,0.4)", borderRadius: 10,
@@ -562,26 +564,26 @@ function TabUsers({ users, orgs, onRefresh, showToast }) {
               </button>
               <span style={{ fontSize: 11, opacity: .35 }}>{fmtDate(u.created_at)}</span>
               <button
-                disabled={actioning?.user?.id === u.id}
+                disabled={isProcessing === u.id}
                 onClick={async () => {
                   if (!window.confirm(`Permanently delete user "${u.email}"? This removes their auth account and cannot be undone.`)) return;
-                  setActioning({ user: u });
+                  setIsProcessing(u.id);
                   try {
                     await adminDeleteUser(u.id);
                     showToast("User deleted");
                     onRefresh();
                   } catch (e) { showToast(e.message, "error"); }
-                  finally { setActioning(null); }
+                  finally { setIsProcessing(null); }
                 }}
                 style={{ background: "rgba(248,113,113,.15)", color: "#F87171", border: "1px solid rgba(248,113,113,.3)", borderRadius: 8, padding: "4px 10px", fontSize: 0, fontWeight: 700, cursor: "pointer" }}>
-                <span style={{ fontSize: 11 }}>{actioning?.user?.id === u.id ? "Deleting..." : "Delete"}</span>
+                <span style={{ fontSize: 11 }}>{isProcessing === u.id ? "Deleting..." : "Delete"}</span>
                 🗑️
               </button>
             </div>
           </div>
         ))}
       </Card>
-      {actioning?.type === "PERMS" && <UserPermissionsModal user={actioning.user} onClose={() => setActioning(null)} showToast={showToast} />}
+      {modalState?.type === "PERMS" && <UserPermissionsModal user={modalState.user} onClose={() => setModalState(null)} showToast={showToast} />}
     </div>
   );
 }

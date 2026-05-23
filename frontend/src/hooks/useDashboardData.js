@@ -290,8 +290,24 @@ export function useDashboardData() {
       });
     });
 
+    (tasks || []).forEach((item) => {
+      if (!item.dueDate) return;
+      collection.push({
+        id: `task-${item.id}`,
+        type: "Task",
+        entityType: "task",
+        entityId: item.id,
+        title: item.title,
+        date: item.dueDate,
+        key: toDateKey(item.dueDate),
+        to: "/tasks",
+        client: item.case?.client?.name || "",
+        caseNumber: item.case?.caseNumber || "",
+      });
+    });
+
     return collection.filter((event) => event.key).sort((left, right) => new Date(left.date) - new Date(right.date));
-  }, [cases, calendarEvents]);
+  }, [cases, calendarEvents, tasks]);
 
   const searchMatches = useCallback(
     (...values) => {

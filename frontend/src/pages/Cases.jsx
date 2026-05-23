@@ -278,14 +278,23 @@ function Cases() {
   const [cases,   setCases]   = useState([]);
   const [showModal,    setShowModal]    = useState(false);
   const [editingCase,  setEditingCase]  = useState(null);
-  const [filters, setFilters] = useState(() => ({ ...emptyFilters, searchTerm: searchParams.get("search") || "" }));
-  const [hasLoaded, setHasLoaded] = useState(Boolean(searchParams.get("search")));
+  const savedStateStr = sessionStorage.getItem("cases_page_state");
+  const savedState = savedStateStr ? JSON.parse(savedStateStr) : null;
+
+  const [filters, setFilters] = useState(() => savedState?.filters || { ...emptyFilters, searchTerm: searchParams.get("search") || "" });
+  const [hasLoaded, setHasLoaded] = useState(() => savedState?.hasLoaded || Boolean(searchParams.get("search")));
   const [loading, setLoading] = useState(false);
   const [modalLoading, setModalLoading] = useState(false);
   const [error, setError] = useState("");
-  const [page, setPage] = useState(1);
+  const [page, setPage] = useState(() => savedState?.page || 1);
   const [total, setTotal] = useState(0);
-  const [showAllMode, setShowAllMode] = useState(false);
+  const [showAllMode, setShowAllMode] = useState(() => savedState?.showAllMode || false);
+
+  useEffect(() => {
+    sessionStorage.setItem("cases_page_state", JSON.stringify({
+      filters, hasLoaded, page, showAllMode
+    }));
+  }, [filters, hasLoaded, page, showAllMode]);
 
   const loadData = useCallback(async ({ nextPage = page, showAll = showAllMode, nextFilters = filters } = {}) => {
     setLoading(true);
@@ -337,11 +346,18 @@ function Cases() {
   const openEdit   = useCallback(async (c)  => { setEditingCase(c);   await ensureClientsForModal(); setShowModal(true); }, [ensureClientsForModal]);
   const closeModal = ()   => { setShowModal(false); setEditingCase(null); };
 
+  // Mount and filter change effect
   useEffect(() => {
-    if (searchParams.get("search")) {
-      void loadData({ nextPage: 1, showAll: false });
+    if (!hasLoaded) {
+      if (searchParams.get("search")) {
+        void loadData({ nextPage: 1, showAll: false });
+      }
+    } else {
+      // If we restored state from sessionStorage (hasLoaded is true), trigger a load to fetch the actual data
+      void loadData({ nextPage: page, showAll: showAllMode, nextFilters: filters });
     }
-  }, [loadData, searchParams]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []); // Only run once on mount to handle initial load or state restoration
 
   useEffect(() => {
     if (initialEditId && !initialEditTriggered && cases.length > 0) {

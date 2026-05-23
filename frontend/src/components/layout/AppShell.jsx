@@ -71,7 +71,6 @@ function AppShell({ title, subtitle, actions, children }) {
           toggleTheme={toggleTheme}
           actions={actions}
           sidebarOpen={sidebarOpen}
-          pendingTaskCount={pendingTaskCount}
         />
 
         <div className="app-content" onClick={() => sidebarOpen && setSidebarOpen(false)}>

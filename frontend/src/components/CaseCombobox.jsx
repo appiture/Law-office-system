@@ -104,10 +104,11 @@ function CaseCombobox({ value, onChange, cases, placeholder = "Search and select
         style={{
           width: "100%",
           padding: "8px 12px",
-          border: "1px solid #d1d5db",
+          border: "1px solid var(--color-border)",
           borderRadius: "6px",
           fontSize: "14px",
-          backgroundColor: disabled ? "#f9fafb" : "white",
+          backgroundColor: disabled ? "var(--color-bg-secondary)" : "var(--color-card)",
+          color: "var(--color-text)",
           cursor: disabled ? "not-allowed" : "text"
         }}
       />
@@ -119,8 +120,8 @@ function CaseCombobox({ value, onChange, cases, placeholder = "Search and select
             top: "100%",
             left: 0,
             right: 0,
-            background: "white",
-            border: "1px solid #d1d5db",
+            background: "var(--color-card)",
+            border: "1px solid var(--color-border)",
             borderRadius: "6px",
             boxShadow: "0 4px 6px -1px rgba(0, 0, 0, 0.1)",
             maxHeight: "200px",
@@ -135,15 +136,15 @@ function CaseCombobox({ value, onChange, cases, placeholder = "Search and select
               style={{
                 padding: "8px 12px",
                 cursor: "pointer",
-                backgroundColor: highlightedIndex === index ? "#f3f4f6" : "white",
-                borderBottom: index < filteredCases.length - 1 ? "1px solid #e5e7eb" : "none"
+                backgroundColor: highlightedIndex === index ? "var(--color-bg-secondary)" : "var(--color-card)",
+                borderBottom: index < filteredCases.length - 1 ? "1px solid var(--color-border)" : "none"
               }}
               onMouseEnter={() => setHighlightedIndex(index)}
             >
               <div style={{ fontWeight: "600", color: "var(--color-text)" }}>
                 {c.caseNumber} - {c.client?.name || "Unknown Client"}
               </div>
-              <div style={{ fontSize: "12px", color: "var(--color-text-tertiary)" }}>
+              <div style={{ fontSize: "12px", color: "var(--color-text)", opacity: 0.7 }}>
                 {c.caseType}
               </div>
             </div>
@@ -157,11 +158,12 @@ function CaseCombobox({ value, onChange, cases, placeholder = "Search and select
             top: "100%",
             left: 0,
             right: 0,
-            background: "white",
-            border: "1px solid #d1d5db",
+            background: "var(--color-card)",
+            border: "1px solid var(--color-border)",
             borderRadius: "6px",
             padding: "8px 12px",
-            color: "#6b7280",
+            color: "var(--color-text)",
+            opacity: 0.8,
             fontSize: "14px"
           }}
         >

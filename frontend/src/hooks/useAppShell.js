@@ -138,7 +138,7 @@ export function useAppShell() {
       ]
     : [
         ...filteredBaseNavItems,
-        ...(getUserRole() === "ADMIN" && canAccess("team")
+        ...(canAccess("team")
           ? [{ to: ROUTES.TEAM, label: "Team", shortLabel: "TM", detail: "Manage organization members" }]
           : []),
       ];
