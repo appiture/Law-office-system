@@ -332,17 +332,19 @@ function Documents() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Re-run search when filters change (after initial load)
+  // Re-run search when filters change
   useEffect(() => {
-    if (!hasLoaded) return;
     const hasActiveFilters = Object.values(filters).some(Boolean);
     if (hasActiveFilters || focusDocId) {
       handleSearch(filters);
-    } else {
-      void loadDocuments({ nextPage: 1, showAll: true });
+    } else if (hasLoaded && !showAllMode) {
+      setCases([]);
+      setTotal(0);
+      setHasLoaded(false);
+      setError("");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters.searchTerm, filters.category, filters.fromDate, filters.toDate, focusDocId]);
+  }, [filters.searchTerm, filters.category, filters.fromDate, filters.toDate, focusDocId, hasLoaded, showAllMode]);
 
 
   const deleteDocument = async (caseId, doc) => {
@@ -446,12 +448,10 @@ function Documents() {
                     className="case-card-premium"
                     detailsTarget={`/cases/${legalCase.id}#documents-card`}
                     pinnedContent={
-                      <div className="section-heading" style={{ padding: "0 16px 12px", borderBottom: "1px solid var(--color-border)", marginBottom: 12 }}>
+                      <div className="section-heading" style={{ padding: "16px 16px 12px", borderBottom: "1px solid var(--color-border)" }}>
                         <div>
-                          <h4 style={{ margin:0, fontSize:13, fontWeight:800, color:"var(--color-text)" }}>
-                            📂 Documents ({docs.length})
-                          </h4>
-                          <p className="section-copy">Files attached to this case</p>
+                          <h4 style={{ margin: 0, fontSize: 13, color: "var(--color-text-secondary)", textTransform: "uppercase", letterSpacing: "0.5px" }}>Documents</h4>
+                          <p className="section-copy" style={{ margin: 0, marginTop: 4 }}>Files and attachments for this case</p>
                         </div>
                         <button className="btn-gold" style={{ fontSize:12, padding:"7px 12px" }}
                           onClick={() => openUploadModal(legalCase.id)}>

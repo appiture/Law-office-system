@@ -76,8 +76,7 @@ export const clientRepository = {
     return mapClientRecord(data);
   },
   saveClient: async (payload, clientId) => {
-    const actionKey = `saveClient:${clientId || "new"}`;
-    return ((_k, _f) => _f())(actionKey, async () => {
+    return await (async () => {
       const {
         internalGetWorkspaceContext,
         requireSupabase,
@@ -143,8 +142,7 @@ export const clientRepository = {
     });
   },
   deleteClient: async (clientId) => {
-    const actionKey = `deleteClient:${clientId}`;
-    return ((_k, _f) => _f())(actionKey, async () => {
+    return await (async () => {
       const {
         internalGetWorkspaceContext,
         requireSupabase,
@@ -218,12 +216,12 @@ export const clientRepository = {
   },
   
   saveWizardStep: async (payload, clientId) => {
-    const actionKey = `saveWizard:${clientId || "new"}`;
-    return ((_k, _f) => _f())(actionKey, async () => {
+    return await (async () => {
       const {
         internalGetWorkspaceContext,
         requireSupabase,
         resetWorkspaceDataCache,
+        isLawyerContext,
       } = getHelpers();
 
       const context = await internalGetWorkspaceContext();
@@ -283,6 +281,7 @@ export const clientRepository = {
       let savedCaseId = null;
       const casePayload = payload.caseData;
       if (casePayload) {
+        const isLawyer = isLawyerContext(context);
         const caseRecord = {
           organization_id: context.organizationId,
           client_id: savedClientId,
@@ -290,9 +289,9 @@ export const clientRepository = {
           case_type: casePayload.caseType?.trim(),
           court_name: casePayload.courtName || "",
           lawyer_name: casePayload.assignedLawyer || "",
-          assigned_lawyer_id: casePayload.assigned_lawyer_id || null,
-          assigned_by: casePayload.assigned_lawyer_id ? context.userId : null,
-          assigned_at: casePayload.assigned_lawyer_id ? new Date().toISOString() : null,
+          assigned_lawyer_id: isLawyer ? context.userId : (casePayload.assigned_lawyer_id || null),
+          assigned_by: (isLawyer || casePayload.assigned_lawyer_id) ? context.userId : null,
+          assigned_at: (isLawyer || casePayload.assigned_lawyer_id) ? new Date().toISOString() : null,
           status: casePayload.status || "DRAFT",
           updated_by: context.email,
           details: {

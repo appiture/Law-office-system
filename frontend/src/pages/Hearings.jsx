@@ -420,18 +420,19 @@ function Hearings() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);  // Run only on mount
 
-  // Re-run search when filters change (after initial load)
+  // Re-run search when filters change
   useEffect(() => {
-    if (!hasLoaded) return;
     const hasActiveFilters = Object.values(filters).some(Boolean);
     if (hasActiveFilters) {
       handleSearch(filters);
-    } else {
-      void loadData({ nextPage: 1, showAll: true });
+    } else if (hasLoaded && !showAllMode) {
+      setCases([]);
+      setTotal(0);
+      setHasLoaded(false);
+      setError("");
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [filters.searchTerm, filters.type, filters.status, filters.fromDate, filters.toDate]);
-
+  }, [filters.searchTerm, filters.type, filters.status, filters.fromDate, filters.toDate, hasLoaded, showAllMode]);
 
   const handleShowAll = () => {
     setShowAllMode(true);
@@ -551,14 +552,8 @@ function Hearings() {
               className="case-card-premium"
               detailsTarget={legalCase.id === "general-events" ? null : `/cases/${legalCase.id}#hearings-card`}
               pinnedContent={
-                <div style={{ padding: "0 16px 12px", borderBottom: "1px solid var(--color-border)", marginBottom: 12 }}>
-                  <div className="section-heading" style={{ borderBottom: 'none', paddingBottom: 0, marginBottom: 8 }}>
-                     <div>
-                       <h4 style={{ margin:0, fontSize:13, fontWeight:800, color:"var(--color-text)" }}>
-                         📌 Timeline Events ({legalCase.hearings?.length ?? 0})
-                       </h4>
-                      <p className="section-copy">Hearings, deadlines, and key milestones</p>
-                    </div>
+                <div style={{ padding: "16px 16px 12px", borderBottom: "1px solid var(--color-border)" }}>
+                  <div className="section-heading" style={{ borderBottom: 'none', paddingBottom: 0, marginBottom: 8, justifyContent: 'flex-end' }}>
                     {legalCase.id !== "general-events" && (
                       <button className="btn-gold" style={{ fontSize:12, padding:"7px 12px" }}
                         onClick={() => void openEventModal({ caseId: legalCase.id })}>

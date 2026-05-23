@@ -166,13 +166,15 @@ function DashboardCalendar({
                                 className="btn-delete-event"
                                 style={{ background: "none", border: "none", cursor: "pointer", color: "#EF4444", fontSize: "1.1rem", padding: "4px" }}
                                 title="Delete note"
-                                onClick={async () => {
+                                onClick={() => {
                                   if (confirm("Are you sure you want to delete this calendar note?")) {
-                                    try {
-                                      await onDeleteEvent(item.id);
-                                    } catch (err) {
-                                      alert("Failed to delete note: " + err.message);
-                                    }
+                                    (async () => {
+                                      try {
+                                        await onDeleteEvent(item.id);
+                                      } catch (err) {
+                                        alert("Failed to delete note: " + err.message);
+                                      }
+                                    })();
                                   }
                                 }}
                               >

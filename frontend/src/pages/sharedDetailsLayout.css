@@ -217,30 +217,152 @@
   opacity: 1;
 }
 
-/* Client Cases Grid inside Bento */
-.client-cases-grid {
+/* KYC Details Grid */
+.kyc-details-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+  grid-template-columns: repeat(2, 1fr);
   gap: 1rem;
+  padding-top: 0.5rem;
 }
 
-.client-case-card-bento {
+.kyc-card-full {
+  grid-column: 1 / -1;
+}
+
+.kyc-card {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
   padding: 1rem;
   background: var(--color-bg-tertiary);
   border-radius: 12px;
   border: 1px solid var(--color-border);
+  transition: all 0.2s ease;
+}
+
+.kyc-card:hover {
+  border-color: rgba(201, 163, 78, 0.3);
+  transform: translateY(-1px);
+}
+
+.kyc-card-icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  background: rgba(201, 163, 78, 0.1);
+  border-radius: 10px;
+  font-size: 1.2rem;
+  color: var(--color-gold);
+}
+
+.kyc-card-content {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.kyc-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  color: var(--color-text-tertiary);
+  font-weight: 800;
+  letter-spacing: 0.05em;
+}
+
+.kyc-value {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text);
+  word-break: break-word;
+}
+
+/* Client Cases Grid inside Bento */
+.client-cases-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 1.25rem;
+  padding-top: 0.5rem;
+}
+
+.client-case-card-bento {
+  padding: 1.25rem;
+  background: var(--color-bg-tertiary);
+  border-radius: 12px;
+  border: 1px solid var(--color-border);
+  display: flex;
+  flex-direction: column;
+  transition: all 0.2s ease;
+}
+
+.client-case-card-bento:hover {
+  border-color: rgba(201, 163, 78, 0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
 }
 
 .case-mini-header {
   display: flex;
   justify-content: space-between;
-  margin-bottom: 0.5rem;
+  align-items: center;
+  margin-bottom: 1rem;
 }
 
-.client-case-card-bento p {
-  font-size: 12px;
+.case-number-badge {
+  font-size: 11px;
+  font-weight: 800;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 4px 10px;
+  border-radius: 6px;
+  color: var(--color-text);
+  border: 1px solid var(--color-border);
+}
+
+.case-type-title {
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--color-text);
+  margin: 0 0 1.5rem 0;
+  line-height: 1.4;
+}
+
+.case-mini-footer {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: auto;
+  padding-top: 1rem;
+  border-top: 1px dashed var(--color-border);
+}
+
+.case-date {
+  font-size: 11px;
+  color: var(--color-text-tertiary);
+  font-weight: 500;
+}
+
+.empty-state-bento {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 3rem 1rem;
+  background: rgba(255, 255, 255, 0.01);
+  border-radius: 12px;
+  border: 1px dashed var(--color-border);
+}
+
+.empty-icon {
+  font-size: 2.5rem;
+  margin-bottom: 1rem;
+  opacity: 0.5;
+}
+
+.empty-state-bento p {
   color: var(--color-text-secondary);
-  margin-bottom: 0.75rem;
+  font-size: 14px;
 }
 
 .btn-text {
@@ -464,22 +586,61 @@
 
 .client-hero-details {
   text-align: center;
-  margin-bottom: 1.25rem;
+  margin-bottom: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
 }
 
 .client-hero-name {
-  font-size: 1.25rem;
-  font-weight: 800;
+  font-size: 1.5rem;
+  font-weight: 900;
   color: var(--color-text);
   margin: 0;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.02em;
+  background: linear-gradient(135deg, var(--color-text) 0%, var(--color-gold) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
 }
 
 .client-hero-title {
-  font-size: 0.85rem;
+  font-size: 0.9rem;
   color: var(--color-text-secondary);
-  margin: 4px 0 0 0;
-  font-weight: 500;
+  margin: 0;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  opacity: 0.8;
+}
+
+.client-hero-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.hero-action-link {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--color-text);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 6px 12px;
+  border-radius: 8px;
+  text-decoration: none;
+  transition: all 0.2s ease;
+}
+
+.dark .hero-action-link {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.hero-action-link:hover {
+  background: rgba(201, 163, 78, 0.1);
+  border-color: var(--color-gold);
+  color: var(--color-gold);
+  transform: translateY(-2px);
 }
 
 /* Bento Grid Side-by-Side Flex Layout (for CaseDetails Client Card) */
@@ -553,53 +714,62 @@
 }
 
 .profile-hero-meta {
-  margin-top: 12px;
-  padding: 0.9rem;
+  margin-top: auto;
+  padding: 1.2rem;
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 12px;
+  flex-direction: column;
+  gap: 16px;
   border-top: 1px solid var(--color-border);
-  background: rgba(255, 255, 255, 0.02);
-  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.01);
+  border-radius: 0 0 12px 12px;
   min-width: 0;
 }
 
 .meta-badge {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 800;
   text-transform: uppercase;
   color: var(--color-gold);
-  background: rgba(201, 163, 78, 0.1);
-  padding: 4px 10px;
-  border-radius: 99px;
-  border: 1px solid rgba(201, 163, 78, 0.2);
+  background: rgba(201, 163, 78, 0.08);
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid rgba(201, 163, 78, 0.15);
+  text-align: center;
+  letter-spacing: 0.05em;
 }
 
 .meta-stats {
   display: flex;
   gap: 1rem;
-  flex-wrap: wrap;
+  justify-content: space-between;
+  width: 100%;
 }
 
 .meta-stats .stat {
   display: flex;
   flex-direction: column;
-  align-items: flex-end;
+  align-items: center;
+  flex: 1;
+  background: var(--color-bg-tertiary);
+  padding: 12px;
+  border-radius: 8px;
+  border: 1px solid var(--color-border);
 }
 
 .meta-stats .stat strong {
-  font-size: 1.2rem;
+  font-size: 1.5rem;
   color: var(--color-gold);
   line-height: 1;
+  font-weight: 900;
+  margin-bottom: 4px;
 }
 
 .meta-stats .stat small {
-  font-size: 9px;
+  font-size: 10px;
   text-transform: uppercase;
-  opacity: 0.6;
-  font-weight: 700;
-  margin-top: 2px;
+  color: var(--color-text-tertiary);
+  font-weight: 800;
+  letter-spacing: 0.02em;
 }
 /* Payment History Table (Bottom Row) */
 .payment-history-table-wrap {

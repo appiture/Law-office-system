@@ -62,6 +62,8 @@ function App() {
       deferredAuthTasks.add(taskId);
     };
 
+    let userChannel = null;
+
     // Keep this callback synchronous. Supabase holds an auth lock while
     // emitting events, so API calls are deferred until after the lock exits.
     const {
@@ -70,10 +72,28 @@ function App() {
       if (session?.user) {
         setUser(session.user);
         deferAuthTask(() => syncSupabaseSession(session));
+        
+        // Listen to role changes in realtime
+        if (!userChannel || userChannel.topic !== `realtime:user_${session.user.id}`) {
+          if (userChannel) supabase.removeChannel(userChannel);
+          userChannel = supabase.channel(`user_${session.user.id}`)
+            .on(
+              "postgres_changes",
+              { event: "UPDATE", schema: "public", table: "users", filter: `id=eq.${session.user.id}` },
+              () => {
+                syncSupabaseSession(null, { force: true });
+              }
+            )
+            .subscribe();
+        }
         return;
       }
 
       if (event === "SIGNED_OUT") {
+        if (userChannel) {
+          supabase.removeChannel(userChannel);
+          userChannel = null;
+        }
         // Read admin flag BEFORE caches are cleared so redirect is correct
         const wasPlatformAdmin = isPlatformAdmin();
         clearUser();
@@ -90,6 +110,7 @@ function App() {
     return () => {
       deferredAuthTasks.forEach((taskId) => window.clearTimeout(taskId));
       subscription.unsubscribe();
+      if (userChannel) supabase.removeChannel(userChannel);
     };
   }, []);
 
@@ -116,7 +137,7 @@ function App() {
 
   return (
     <ErrorBoundary>
-      <BrowserRouter>
+      <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
         <Suspense
           fallback={
             <div className="premium-loader" style={{ height: "100vh", display: "grid", placeItems: "center", background: "var(--color-bg)", color: "var(--color-text)" }}>

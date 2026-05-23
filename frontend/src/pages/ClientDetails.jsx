@@ -293,62 +293,90 @@ function ClientDetails() {
               <div className="client-hero-details">
                 <h4 className="client-hero-name">{client?.name}</h4>
                 <p className="client-hero-title">{client?.occupation || "Client"}</p>
+                <div className="client-hero-actions">
+                  {client?.phone && (
+                    <a href={`https://wa.me/${client.phone.replace(/[^0-9]/g, '')}`} target="_blank" rel="noreferrer" className="hero-action-link">
+                      📞 WhatsApp
+                    </a>
+                  )}
+                  {client?.email && (
+                    <a href={`mailto:${client.email}`} className="hero-action-link">
+                      📧 Email
+                    </a>
+                  )}
+                </div>
               </div>
               <div className="profile-hero-meta">
-                <div className="meta-badge">Verified Records</div>
+                <div className="meta-badge">Verified Client</div>
                 <div className="meta-stats">
-                  <div className="stat"><strong>{clientCases.length}</strong><small>Cases</small></div>
-                  <div className="stat"><strong>{activeCasesCount}</strong><small>Active</small></div>
+                  <div className="stat"><strong>{clientCases.length}</strong><small>Total Cases</small></div>
+                  <div className="stat"><strong>{activeCasesCount}</strong><small>Active Cases</small></div>
                 </div>
               </div>
             </div>
           </DetailSection>
 
           <DetailSection id="client-info" title="Core Details & KYC" label="KYC Records" className="magic-bento-card--details">
-            <div className="info-line-list">
-              <div className="info-line-grid-2">
-                <InfoRow label="Email" value={client?.email || "-"} />
-                <InfoRow label="Phone" value={client?.phone || "-"} />
+            <div className="kyc-details-grid">
+              <div className="kyc-card">
+                <div className="kyc-card-icon">📧</div>
+                <div className="kyc-card-content">
+                  <span className="kyc-label">Email Address</span>
+                  <span className="kyc-value">{client?.email || "-"}</span>
+                </div>
               </div>
-              <div className="info-divider" />
-              <InfoRow label="Address" value={formatAddress(client)} />
-              <div className="info-divider" />
-              <div className="info-line-grid-2">
-                <InfoRow label="ID Proof" value={client?.idProofType || "-"} />
-                <InfoRow label="Reference" value={client?.idProofNumber || "-"} />
+              <div className="kyc-card">
+                <div className="kyc-card-icon">📞</div>
+                <div className="kyc-card-content">
+                  <span className="kyc-label">Phone Number</span>
+                  <span className="kyc-value">{client?.phone || "-"}</span>
+                </div>
+              </div>
+              <div className="kyc-card kyc-card-full">
+                <div className="kyc-card-icon">📍</div>
+                <div className="kyc-card-content">
+                  <span className="kyc-label">Residential / Billing Address</span>
+                  <span className="kyc-value">{formatAddress(client)}</span>
+                </div>
+              </div>
+              <div className="kyc-card">
+                <div className="kyc-card-icon">🪪</div>
+                <div className="kyc-card-content">
+                  <span className="kyc-label">ID Proof Type</span>
+                  <span className="kyc-value">{client?.idProofType || "-"}</span>
+                </div>
+              </div>
+              <div className="kyc-card">
+                <div className="kyc-card-icon">🔢</div>
+                <div className="kyc-card-content">
+                  <span className="kyc-label">Reference Number</span>
+                  <span className="kyc-value">{client?.idProofNumber || "-"}</span>
+                </div>
               </div>
             </div>
           </DetailSection>
 
           <DetailSection id="cases-list" title="Associated Matters" label="Case History" className="magic-bento-card--full">
-            <div className="payment-history-table-wrap">
-              <table className="payment-history-table">
-                <thead>
-                  <tr>
-                    <th>Case Number</th>
-                    <th>Type</th>
-                    <th>Status</th>
-                    <th>Filing Date</th>
-                    <th>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {clientCases.map(c => (
-                    <tr key={c.id}>
-                      <td><strong>{c.caseNumber}</strong></td>
-                      <td>{c.caseType}</td>
-                      <td><span className={`status-tag ${statusClassName(c.status)}`}>{c.status}</span></td>
-                      <td>{formatDate(c.filingDate)}</td>
-                      <td>
-                        <Link to={`/cases/${c.id}`} className="btn-icon">👁️ View</Link>
-                      </td>
-                    </tr>
-                  ))}
-                  {clientCases.length === 0 && (
-                    <tr><td colSpan="5" className="empty-text">No cases linked to this client.</td></tr>
-                  )}
-                </tbody>
-              </table>
+            <div className="client-cases-grid">
+              {clientCases.map(c => (
+                <div key={c.id} className="client-case-card-bento">
+                  <div className="case-mini-header">
+                    <span className="case-number-badge">{c.caseNumber}</span>
+                    <span className={`status-tag ${statusClassName(c.status)}`}>{c.status}</span>
+                  </div>
+                  <h4 className="case-type-title">{c.caseType}</h4>
+                  <div className="case-mini-footer">
+                    <span className="case-date">Filed: {formatDate(c.filingDate)}</span>
+                    <Link to={`/cases/${c.id}`} className="btn-text">View Case →</Link>
+                  </div>
+                </div>
+              ))}
+              {clientCases.length === 0 && (
+                <div className="empty-state-bento">
+                  <div className="empty-icon">📁</div>
+                  <p>No cases linked to this client yet.</p>
+                </div>
+              )}
             </div>
           </DetailSection>
         </MagicBento>

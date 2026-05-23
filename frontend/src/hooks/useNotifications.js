@@ -116,7 +116,7 @@ export function useNotifications() {
         const dueStr = c.due_date
           ? new Date(c.due_date).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
           : "—";
-        const balance = Number(c.balance || (Number(c.total || 0) - Number(c.paid || 0)));
+        const balance = c.balance != null ? Number(c.balance) : Number(c.total || 0) - Number(c.paid || 0);
         const isOverdue = c.due_date && c.due_date < today;
         notifications.push({
           id:            `charge-${c.id}`,

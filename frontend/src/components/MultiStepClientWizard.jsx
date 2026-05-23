@@ -176,18 +176,21 @@ function CaseStep({ form, onChange, lawyers = [], userRole = "" }) {
           <input value={form.courtName} onChange={(event) => onChange("courtName", event.target.value)} placeholder="Court name" />
         </FG>
         <FG label="Assigned Lawyer" hint={userRole === "LAWYER" ? "Only admins can reassign cases." : ""}>
-          <input
-            value={form.assignedLawyer}
-            onChange={(event) => onChange("assignedLawyer", event.target.value)}
-            list="wizard-assigned-lawyers"
-            placeholder="Select or type assigned lawyer"
+          <select
+            value={form.assigned_lawyer_id || ""}
+            onChange={(event) => {
+              const selectedId = event.target.value;
+              const selectedLawyer = lawyers.find((l) => l.id === selectedId);
+              onChange("assigned_lawyer_id", selectedId);
+              onChange("assignedLawyer", selectedLawyer ? selectedLawyer.value : "");
+            }}
             disabled={userRole === "LAWYER"}
-          />
-          <datalist id="wizard-assigned-lawyers">
+          >
+            <option value="">Unassigned</option>
             {lawyers.map((lawyer) => (
-              <option key={lawyer.id} value={lawyer.value}>{lawyer.label}</option>
+              <option key={lawyer.id} value={lawyer.id}>{lawyer.label}</option>
             ))}
-          </datalist>
+          </select>
         </FG>
         <FG label="Judge">
           <input value={form.judgeName} onChange={(event) => onChange("judgeName", event.target.value)} placeholder="Judge name" />

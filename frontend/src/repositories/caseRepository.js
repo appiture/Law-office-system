@@ -66,13 +66,14 @@ export const caseRepository = {
     return __internal.mapCaseRecord(data, dataset);
   },
   saveCase: async (payload, caseId) => {
-    const actionKey = `saveCase:${caseId || "new"}`;
-    return ((_k, _f) => _f())(actionKey, async () => {
+    return await (async () => {
       const context = await __internal.internalGetWorkspaceContext();
       if (!context?.organizationId) throw new Error("No organization workspace is available.");
       await __internal.assertClientBelongsToWorkspace(payload.clientId);
 
       assertCasePayload(payload);
+
+      const isLawyer = __internal.isLawyerContext(context);
 
       const record = {
         organization_id: context.organizationId,
@@ -81,9 +82,9 @@ export const caseRepository = {
         case_type: payload.caseType?.trim(),
         court_name: payload.courtName || "",
         lawyer_name: payload.assignedLawyer || "",
-        assigned_lawyer_id: payload.assigned_lawyer_id || null,
-        assigned_by: payload.assigned_lawyer_id ? context.userId : null,
-        assigned_at: payload.assigned_lawyer_id ? new Date().toISOString() : null,
+        assigned_lawyer_id: isLawyer ? context.userId : (payload.assigned_lawyer_id || null),
+        assigned_by: (isLawyer || payload.assigned_lawyer_id) ? context.userId : null,
+        assigned_at: (isLawyer || payload.assigned_lawyer_id) ? new Date().toISOString() : null,
         status: payload.status || "OPEN",
         updated_by: context.email,
         details: {
@@ -121,8 +122,7 @@ export const caseRepository = {
     });
   },
   addDocument: async (caseId, payload) => {
-    const actionKey = `addDocument:${caseId}`;
-    return ((_k, _f) => _f())(actionKey, async () => {
+    return await (async () => {
       const context = await __internal.internalGetWorkspaceContext();
       await caseRepository.getCase(caseId);
       __internal.validateCaseScopedPath(payload.filePath, context.organizationId, caseId);
@@ -158,8 +158,7 @@ export const caseRepository = {
     return caseRepository.getCase(caseId);
   },
   addChargeItem: async (caseId, payload) => {
-    const actionKey = `addCharge:${caseId}`;
-    return ((_k, _f) => _f())(actionKey, async () => {
+    return await (async () => {
       const context = await __internal.internalGetWorkspaceContext();
       await caseRepository.getCase(caseId);
       assertChargePayload(payload);
@@ -205,8 +204,7 @@ export const caseRepository = {
     });
   },
   updateChargeItem: async (caseId, chargeItemId, payload) => {
-    const actionKey = `updateCharge:${chargeItemId}`;
-    return ((_k, _f) => _f())(actionKey, async () => {
+    return await (async () => {
       const context = await __internal.internalGetWorkspaceContext();
       await caseRepository.getCase(caseId);
       assertChargePayload(payload);
@@ -242,8 +240,7 @@ export const caseRepository = {
     });
   },
   addPayment: async (caseId, payload) => {
-    const actionKey = `addPayment:${payload.chargeItemId}`;
-    return ((_k, _f) => _f())(actionKey, async () => {
+    return await (async () => {
       const context = await __internal.internalGetWorkspaceContext();
       const legalCase = await caseRepository.getCase(caseId);
       const selectedChargeItem = __internal.assertChargeBelongsToCase(payload.chargeItemId, legalCase);
@@ -461,7 +458,7 @@ export const caseRepository = {
 
         if (nextDoc.client?.photoPath) {
           try {
-            const signedPhotoUrl = await createSignedAssetUrl({ bucket: "clients", path: nextDoc.client.photoPath });
+            const signedPhotoUrl = await createSignedAssetUrl({ bucket: "client-assets", path: nextDoc.client.photoPath });
             nextDoc.client.photoUrl = signedPhotoUrl || nextDoc.client.photoUrl;
           } catch {}
         }
@@ -486,6 +483,7 @@ export const caseRepository = {
     const status = __internal.normalizeSearchText(effectiveFilters.status);
     const typeFilter = __internal.normalizeSearchText(effectiveFilters.type);   // was missing before!
     const { deriveHearingAlertLevel } = await import("../utils/caseDomain");
+    const { createSignedAssetUrl } = await import("../services/storageService");
 
     const client = __internal.requireSupabase();
     const { organizationId } = context;
@@ -524,7 +522,7 @@ export const caseRepository = {
     // Fetch cases to extract synthetic nextHearingDate field
     let casesQuery = client
       .from("cases")
-      .select("id, case_number, case_type, status, client_id, details, created_at, clients(id, name, phone, email, photo_url)")
+      .select("id, case_number, case_type, status, client_id, details, created_at, clients(id, name, phone, email, photo_url, photo_path)")
       .eq("organization_id", organizationId)
       .is("deleted_at", null);
 
@@ -681,7 +679,7 @@ export const caseRepository = {
         const nextItem = { ...item };
         if (nextItem.client?.photoPath) {
           try {
-            const signedPhotoUrl = await createSignedAssetUrl({ bucket: "clients", path: nextItem.client.photoPath });
+            const signedPhotoUrl = await createSignedAssetUrl({ bucket: "client-assets", path: nextItem.client.photoPath });
             nextItem.client.photoUrl = signedPhotoUrl || nextItem.client.photoUrl;
           } catch {}
         }
@@ -692,8 +690,7 @@ export const caseRepository = {
     return paginated;
   },
   addHearing: async (caseId, payload) => {
-    const actionKey = `addHearing:${caseId}`;
-    return ((_k, _f) => _f())(actionKey, async () => {
+    return await (async () => {
       const context = await __internal.internalGetWorkspaceContext();
       await caseRepository.getCase(caseId);
       assertHearingPayload(payload);
@@ -720,8 +717,7 @@ export const caseRepository = {
     });
   },
   updateHearing: async (caseId, hearingId, payload) => {
-    const actionKey = `updateHearing:${hearingId}`;
-    return ((_k, _f) => _f())(actionKey, async () => {
+    return await (async () => {
       const context = await __internal.internalGetWorkspaceContext();
       await caseRepository.getCase(caseId);
       assertHearingPayload(payload);

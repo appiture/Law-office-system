@@ -16,6 +16,7 @@ import { formatDateTime } from "../utils/formatters";
 import { getUserRole } from "../services/authService";
 import { openExport } from "../store/exportStore";
 import { CASE_STATUS } from "../constants/statuses";
+import { usePermissions } from "../context/PermissionsContext";
 import "./formStyles.css";
 
 const CASE_TYPES = [
@@ -269,7 +270,8 @@ function StatusBadge({ status }) {
 function Cases() {
   const [searchParams] = useSearchParams();
   const userRole = getUserRole();
-  const isAdmin = userRole === "ADMIN" || userRole === "SUPER_ADMIN" || userRole === "OWNER";
+  const { canAccess } = usePermissions();
+  const isAdmin = canAccess("team");
 
   const [clients, setClients] = useState([]);
   const [lawyers, setLawyers] = useState([]);
