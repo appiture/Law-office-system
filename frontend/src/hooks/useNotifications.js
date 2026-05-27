@@ -169,14 +169,38 @@ export function useNotifications() {
           ? new Date(c.due_date).toLocaleDateString("en-IN", { day: "2-digit", month: "short", year: "numeric" })
           : "—";
         const balance = c.balance != null ? Number(c.balance) : Number(c.total || 0) - Number(c.paid || 0);
+        const paid = Number(c.paid || 0);
         const isOverdue = c.due_date && c.due_date < today;
+        
+        let label = "Pending Payment";
+        let level = "upcoming";
+        let color = "var(--color-primary)";
+
+        if (isOverdue) {
+          label = "Payment Overdue";
+          level = "overdue";
+          color = "var(--color-error)";
+        } else if (paid > 0) {
+          label = "Partial Payment Due";
+          color = "var(--color-warning)";
+        }
+
+        // Only show upcoming notifications if they have a due date within the next 30 days or are overdue
+        const thirtyDays = new Date(now);
+        thirtyDays.setDate(thirtyDays.getDate() + 30);
+        const thirtyDaysStr = thirtyDays.toISOString().split("T")[0];
+        
+        if (!isOverdue && (!c.due_date || c.due_date > thirtyDaysStr)) {
+          continue; // skip payments due way in the future
+        }
+
         notifications.push({
           id:            `charge-${c.id}`,
           type:          "payment",
-          level:         isOverdue ? "overdue" : "upcoming",
+          level:         level,
           emoji:         "💸",
-          label:         isOverdue ? "Payment Overdue" : "Upcoming Payment",
-          color:         isOverdue ? "var(--color-error)" : "var(--color-warning)",
+          label:         label,
+          color:         color,
           title:         c.name || "Fee Charge",
           body:          `Due: ${dueStr} · ₹${balance.toLocaleString("en-IN")} pending`,
           link:          ROUTES.PAYMENTS,

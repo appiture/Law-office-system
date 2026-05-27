@@ -2,7 +2,7 @@ const statusPriority = {
   OVERDUE: 3,
   PARTIAL: 2,
   PAID: 1,
-  UNPAID: 0,
+  PENDING: 0,
 };
 
 export const UPCOMING_HEARING_WINDOW_DAYS = 7;
@@ -29,7 +29,7 @@ export const computeChargeFinancials = (charge) => {
   const due = dueDate ? new Date(dueDate) : null;
   const now = new Date();
 
-  let status = "UNPAID";
+  let status = "PENDING";
   if (balance <= 0) {
     status = "PAID";
   } else if (paid > 0) {
@@ -85,7 +85,7 @@ export const summarizeCaseTotals = (chargeItems = []) =>
             : summary.dominantStatus,
       };
     },
-    { totalAmount: 0, paidAmount: 0, balanceAmount: 0, dominantStatus: "UNPAID" }
+    { totalAmount: 0, paidAmount: 0, balanceAmount: 0, dominantStatus: "PENDING" }
   );
 
 export const isLawyerFeeLabel = (label) => {

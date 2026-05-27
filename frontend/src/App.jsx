@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect } from "react";
-import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes, useLocation } from "react-router-dom";
 import { supabase } from "./services/supabaseClient";
 import { clearAuthData, syncSupabaseSession } from "./services/authService";
 import { isPlatformAdmin } from "./services/adminService";
@@ -48,6 +48,14 @@ const ResetPassword = lazy(routePreloaders[12]);
 const SuperAdminLogin = lazy(routePreloaders[13]);
 const SystemAuditLogs = lazy(routePreloaders[14]);
 const Tasks = lazy(routePreloaders[15]);
+
+function ScrollToTop() {
+  const location = useLocation();
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
+  return null;
+}
 
 function App() {
   useEffect(() => {
@@ -138,6 +146,7 @@ function App() {
   return (
     <ErrorBoundary>
       <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
+        <ScrollToTop />
         <Suspense
           fallback={
             <div className="premium-loader" style={{ height: "100vh", display: "grid", placeItems: "center", background: "var(--color-bg)", color: "var(--color-text)" }}>

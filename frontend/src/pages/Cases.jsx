@@ -278,23 +278,14 @@ function Cases() {
   const [cases,   setCases]   = useState([]);
   const [showModal,    setShowModal]    = useState(false);
   const [editingCase,  setEditingCase]  = useState(null);
-  const savedStateStr = sessionStorage.getItem("cases_page_state");
-  const savedState = savedStateStr ? JSON.parse(savedStateStr) : null;
-
-  const [filters, setFilters] = useState(() => savedState?.filters || { ...emptyFilters, searchTerm: searchParams.get("search") || "" });
-  const [hasLoaded, setHasLoaded] = useState(() => savedState?.hasLoaded || Boolean(searchParams.get("search")));
+  const [filters, setFilters] = useState(() => ({ ...emptyFilters, searchTerm: searchParams.get("search") || "" }));
+  const [hasLoaded, setHasLoaded] = useState(() => Boolean(searchParams.get("search")));
   const [loading, setLoading] = useState(false);
   const [modalLoading, setModalLoading] = useState(false);
   const [error, setError] = useState("");
-  const [page, setPage] = useState(() => savedState?.page || 1);
+  const [page, setPage] = useState(1);
   const [total, setTotal] = useState(0);
-  const [showAllMode, setShowAllMode] = useState(() => savedState?.showAllMode || false);
-
-  useEffect(() => {
-    sessionStorage.setItem("cases_page_state", JSON.stringify({
-      filters, hasLoaded, page, showAllMode
-    }));
-  }, [filters, hasLoaded, page, showAllMode]);
+  const [showAllMode, setShowAllMode] = useState(false);
 
   const loadData = useCallback(async ({ nextPage = page, showAll = showAllMode, nextFilters = filters } = {}) => {
     setLoading(true);
@@ -346,18 +337,13 @@ function Cases() {
   const openEdit   = useCallback(async (c)  => { setEditingCase(c);   await ensureClientsForModal(); setShowModal(true); }, [ensureClientsForModal]);
   const closeModal = ()   => { setShowModal(false); setEditingCase(null); };
 
-  // Mount and filter change effect
+  // Mount effect
   useEffect(() => {
-    if (!hasLoaded) {
-      if (searchParams.get("search")) {
-        void loadData({ nextPage: 1, showAll: false });
-      }
-    } else {
-      // If we restored state from sessionStorage (hasLoaded is true), trigger a load to fetch the actual data
-      void loadData({ nextPage: page, showAll: showAllMode, nextFilters: filters });
+    if (searchParams.get("search")) {
+      void loadData({ nextPage: 1, showAll: false });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Only run once on mount to handle initial load or state restoration
+  }, []);
 
   useEffect(() => {
     if (initialEditId && !initialEditTriggered && cases.length > 0) {
@@ -466,31 +452,70 @@ function Cases() {
             <CaseIdentityCard
               item={legalCase}
               className="case-card-premium"
-              detailsTarget={`/cases/${legalCase.id}#case-card`}
+              hideStatus={true}
+              detailsTarget={`/cases/${legalCase.id}`}
               footer={
-                <button type="button" className="btn-glass-action" onClick={() => void openEdit(legalCase)}>
-                  ✏️ Edit Details
+                <button type="button" className="btn-neutral" style={{ 
+                  padding: '6px 16px', 
+                  borderRadius: '6px', 
+                  fontWeight: 600, 
+                  fontSize: '0.8125rem', 
+                  border: '1px solid var(--color-border)', 
+                  background: 'var(--color-bg-primary)', 
+                  color: 'var(--color-text)', 
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 1px 2px rgba(0,0,0,0.02)',
+                  transition: 'all 0.2s ease',
+                  margin: 0
+                }} onClick={() => void openEdit(legalCase)}>
+                  Edit
                 </button>
               }
             >
-            <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap", marginBottom:4 }}>
-              <StatusBadge status={legalCase.status} />
-               {legalCase.caseType && (
-                 <span style={{ fontSize:12, fontWeight:700, color:"var(--color-gold)", background:"var(--color-gold-bg)", padding:"2px 8px", borderRadius:6 }}>
-                   {legalCase.caseType}
-                 </span>
-               )}
-            </div>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', paddingBottom: '12px', borderBottom: '1px solid var(--color-border)' }}>
+                  <StatusBadge status={legalCase.status} />
+                  {legalCase.caseType && (
+                    <span style={{ fontSize: '0.8125rem', fontWeight: 600, color: 'var(--color-primary)', background: 'var(--color-bg-secondary)', padding: '4px 8px', borderRadius: '4px' }}>
+                      {legalCase.caseType} Case
+                    </span>
+                  )}
+                </div>
 
-            <div className="client-info-list" style={{ marginTop: 8 }}>
-              <p><strong>⚖️ Court</strong> {legalCase.courtName || "—"}</p>
-              <p><strong>👤 Lawyer</strong> {legalCase.assignedLawyer || "—"}</p>
-            </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                  <div style={{ background: 'var(--color-bg-secondary)', padding: '12px', borderRadius: '8px', border: '1px solid var(--color-border)' }}>
+                    <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-text-secondary)', marginBottom: '6px', fontWeight: 700 }}>
+                      Court
+                    </div>
+                    <div style={{ fontSize: '0.875rem', color: 'var(--color-text)', fontWeight: 600 }}>{legalCase.courtName || "Not assigned"}</div>
+                  </div>
+                  
+                  <div style={{ background: 'var(--color-bg-secondary)', padding: '12px', borderRadius: '8px', border: '1px solid var(--color-border)' }}>
+                    <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-text-secondary)', marginBottom: '6px', fontWeight: 700 }}>
+                      Assigned Lawyer
+                    </div>
+                    <div style={{ fontSize: '0.875rem', color: 'var(--color-text)', fontWeight: 600 }}>{legalCase.assignedLawyer || "Not assigned"}</div>
+                  </div>
+                </div>
 
-            <div style={{ fontSize:10, color:"var(--color-text-tertiary)", textAlign: 'right' }}>
-              Last Sync: {formatDateTime(legalCase.updatedAt)}
-            </div>
-          </CaseIdentityCard>
+                {(legalCase.opponentName || legalCase.opponentLawyer) && (
+                  <div style={{ background: 'rgba(239, 68, 68, 0.05)', border: '1px solid rgba(239, 68, 68, 0.1)', padding: '12px', borderRadius: '8px' }}>
+                    <div style={{ fontSize: '0.7rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--color-error)', fontWeight: 700, marginBottom: '6px' }}>Opposing Party</div>
+                    <div style={{ fontSize: '0.875rem', color: 'var(--color-text)', fontWeight: 600 }}>
+                      {legalCase.opponentName || "Unknown"}
+                      {legalCase.opponentLawyer && (
+                        <span style={{ fontWeight: 400, color: 'var(--color-text-secondary)', marginLeft: '8px' }}>
+                          (Adv. {legalCase.opponentLawyer})
+                        </span>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            </CaseIdentityCard>
           </div>
         ))}
 

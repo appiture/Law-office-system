@@ -16,6 +16,7 @@ import {
 } from "../utils/validation";
 import { currency, formatDate, sentenceCaseStatus, textOrDash } from "../utils/formatters";
 import { openExport } from "../store/exportStore";
+import { getPersistentAssetUrl } from "../services/storageService";
 import logger from "../services/loggerService";
 import "./formStyles.css";
 
@@ -623,85 +624,102 @@ function Payments() {
               animation: "highlightPulse 1.8s ease-in-out",
               marginBottom: "16px",
               background: "var(--color-card)",
-              border: "1px solid var(--border-color, rgba(0,0,0,0.05))",
+              border: "1px solid var(--color-border)",
               padding: "16px"
             } : {
               marginBottom: "16px",
               background: "var(--color-card)",
               borderRadius: "14px",
-              border: "1px solid var(--border-color, rgba(0,0,0,0.05))",
+              border: "1px solid var(--color-border)",
               padding: "16px"
             }}
           >
-             {/* 1. Single line name and contact info */}
-             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "12px", borderBottom: "1px solid var(--border-color, rgba(0,0,0,0.05))", paddingBottom: "8px" }}>
-                 <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", fontSize: "13px" }}>
-                    <span style={{ fontWeight: "800" }}>#{legalCase.caseNumber || legalCase.case_number}</span>
-                    {legalCase.title && (
-                      <>
-                        <span style={{ color: "var(--text-secondary)", opacity: 0.5 }}>|</span>
-                        <span style={{ fontWeight: "500", color: "var(--text-secondary)" }}>{legalCase.title}</span>
-                      </>
-                    )}
-                    <span style={{ color: "var(--text-secondary)", opacity: 0.5 }}>•</span>
-                    <span style={{ fontWeight: "700" }}>{legalCase.clientName || legalCase.client?.name}</span>
-                    
-                    {(legalCase.clientEmail || legalCase.client?.email) && (
-                      <>
-                        <span style={{ color: "var(--text-secondary)", opacity: 0.5 }}>•</span>
-                        <span style={{ color: "var(--text-secondary)" }}>{legalCase.clientEmail || legalCase.client?.email}</span>
-                      </>
-                    )}
+             {/* 1 & 2. Image, Header, and Stats */}
+             <div style={{ display: "flex", gap: "16px", marginBottom: "12px" }}>
+               {/* Left: Client Image */}
+               <div style={{ flexShrink: 0, display: "flex", flexDirection: "column", justifyContent: "center" }}>
+                  {(legalCase.client?.photoUrl || legalCase.clientPhotoUrl) ? (
+                    <img 
+                      src={getPersistentAssetUrl(legalCase.client?.photoUrl || legalCase.clientPhotoUrl)} 
+                      alt="Client" 
+                      style={{ width: "72px", height: "72px", borderRadius: "12px", objectFit: "cover", border: "1px solid var(--color-border)" }}
+                    />
+                  ) : (
+                    <div style={{ width: "72px", height: "72px", borderRadius: "12px", background: "var(--color-bg)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "28px", border: "1px solid var(--color-border)" }}>👤</div>
+                  )}
+               </div>
 
-                    {(legalCase.clientPhone || legalCase.client?.phone) && (
-                      <>
-                        <span style={{ color: "var(--text-secondary)", opacity: 0.5 }}>•</span>
-                        <span style={{ color: "var(--text-secondary)" }}>{legalCase.clientPhone || legalCase.client?.phone}</span>
-                      </>
-                    )}
+               {/* Right: Info and KPIs */}
+               <div style={{ flexGrow: 1, display: "flex", flexDirection: "column", justifyContent: "space-between" }}>
+                 <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "10px", borderBottom: "1px solid var(--color-border)", paddingBottom: "8px" }}>
+                     <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", fontSize: "13px" }}>
+                        <span style={{ fontWeight: "800" }}>#{legalCase.caseNumber || legalCase.case_number}</span>
+                        {legalCase.title && (
+                          <>
+                            <span style={{ color: "var(--color-text-secondary)", opacity: 0.5 }}>|</span>
+                            <span style={{ fontWeight: "500", color: "var(--color-text-secondary)" }}>{legalCase.title}</span>
+                          </>
+                        )}
+                        <span style={{ color: "var(--color-text-secondary)", opacity: 0.5 }}>•</span>
+                        <span style={{ fontWeight: "700" }}>{legalCase.clientName || legalCase.client?.name}</span>
+                        
+                        {(legalCase.clientEmail || legalCase.client?.email) && (
+                          <>
+                            <span style={{ color: "var(--color-text-secondary)", opacity: 0.5 }}>•</span>
+                            <span style={{ color: "var(--color-text-secondary)" }}>{legalCase.clientEmail || legalCase.client?.email}</span>
+                          </>
+                        )}
+
+                        {(legalCase.clientPhone || legalCase.client?.phone) && (
+                          <>
+                            <span style={{ color: "var(--color-text-secondary)", opacity: 0.5 }}>•</span>
+                            <span style={{ color: "var(--color-text-secondary)" }}>{legalCase.clientPhone || legalCase.client?.phone}</span>
+                          </>
+                        )}
+                     </div>
+                     <Link to={`/cases/${legalCase.id}#payment-card`} style={{ fontSize: "12px", fontWeight: "bold", color: "var(--color-primary)", textDecoration: "none" }}>View Case →</Link>
                  </div>
-                 <Link to={`/cases/${legalCase.id}#payment-card`} style={{ fontSize: "12px", fontWeight: "bold", color: "var(--color-primary)", textDecoration: "none" }}>View Case →</Link>
-             </div>
 
-             {/* 2. KPI Cards */}
-             <div className="payment-stats-grid" style={{ marginBottom: "12px", gap: "8px" }}>
-               <div className="payment-stat-box psb-billed" style={{ padding: "8px 12px" }}><span className="payment-stat-label" style={{ fontSize: "11px" }}>Total Billed</span><span className="payment-stat-value" style={{ fontSize: "14px" }}>{currency(legalCase.totalAmount)}</span></div>
-               <div className="payment-stat-box psb-received" style={{ padding: "8px 12px" }}><span className="payment-stat-label" style={{ fontSize: "11px" }}>Received</span><span className="payment-stat-value" style={{ fontSize: "14px" }}>{currency(legalCase.paidAmount)}</span></div>
-               <div className="payment-stat-box psb-outstanding" style={{ padding: "8px 12px" }}><span className="payment-stat-label" style={{ fontSize: "11px" }}>Outstanding</span><span className="payment-stat-value" style={{ fontSize: "14px" }}>{currency(legalCase.balanceAmount)}</span></div>
+                 <div className="payment-stats-grid" style={{ gap: "8px" }}>
+                   <div className="payment-stat-box psb-billed" style={{ padding: "8px 12px" }}><span className="payment-stat-label" style={{ fontSize: "11px" }}>Total Billed</span><span className="payment-stat-value" style={{ fontSize: "14px" }}>{currency(legalCase.totalAmount)}</span></div>
+                   <div className="payment-stat-box psb-received" style={{ padding: "8px 12px" }}><span className="payment-stat-label" style={{ fontSize: "11px" }}>Received</span><span className="payment-stat-value" style={{ fontSize: "14px" }}>{currency(legalCase.paidAmount)}</span></div>
+                   <div className="payment-stat-box psb-outstanding" style={{ padding: "8px 12px" }}><span className="payment-stat-label" style={{ fontSize: "11px" }}>Outstanding</span><span className="payment-stat-value" style={{ fontSize: "14px" }}>{currency(legalCase.balanceAmount)}</span></div>
+                 </div>
+               </div>
              </div>
 
              {/* 3 & 4. Fee Categories and History Stacked */}
              <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
                   {/* Fee Categories Row */}
-                  <div className="mini-section" style={{ margin: 0, background: "var(--color-bg)", borderRadius: "10px", border: "1px solid var(--border-color, rgba(0,0,0,0.05))", padding: "12px" }}>
-                    <div className="section-heading" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px", borderBottom: "1px solid var(--border-color, rgba(0,0,0,0.05))", paddingBottom: "6px" }}>
+                  <div className="mini-section" style={{ margin: 0, background: "var(--color-bg)", borderRadius: "10px", border: "1px solid var(--color-border)", padding: "12px" }}>
+                    <div className="section-heading" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px", borderBottom: "1px solid var(--color-border)", paddingBottom: "6px" }}>
                       <h4 style={{ margin: 0, fontSize: "13px" }}>💼 Fee Categories</h4>
                       <button className="btn-gold" style={{ fontSize: 10, padding: "4px 8px" }} onClick={() => void openFeeModal(legalCase.id)}>+ Category</button>
                     </div>
                     {legalCase.chargeItems?.length > 0 ? (
                       <div style={{ overflowX:"auto" }}>
                         <table className="fee-table" style={{ width: "100%", textAlign: "left", borderCollapse: "collapse" }}>
-                          <thead><tr style={{ borderBottom: "1px solid var(--border-color, rgba(0,0,0,0.05))" }}><th style={{ padding: "4px", fontSize: "11px", opacity: 0.7 }}>Category</th><th style={{ padding: "4px", fontSize: "11px", opacity: 0.7 }}>Total</th><th style={{ padding: "4px", fontSize: "11px", opacity: 0.7 }}>Paid</th><th style={{ padding: "4px", fontSize: "11px", opacity: 0.7 }}>Bal</th><th style={{ padding: "4px", fontSize: "11px", opacity: 0.7 }}>Status</th><th></th></tr></thead>
+                          <thead><tr style={{ borderBottom: "1px solid var(--color-border)" }}><th style={{ padding: "4px", fontSize: "11px", opacity: 0.7 }}>Category</th><th style={{ padding: "4px", fontSize: "11px", opacity: 0.7 }}>Total</th><th style={{ padding: "4px", fontSize: "11px", opacity: 0.7 }}>Paid</th><th style={{ padding: "4px", fontSize: "11px", opacity: 0.7 }}>Bal</th><th style={{ padding: "4px", fontSize: "11px", opacity: 0.7 }}>Status</th><th></th></tr></thead>
                           <tbody>
                             {legalCase.chargeItems.map(item => (
-                              <tr key={item.id} style={{ borderBottom: "1px solid var(--border-color, rgba(0,0,0,0.05))" }}>
+                              <tr key={item.id} style={{ borderBottom: "1px solid var(--color-border)" }}>
                                 <td style={{ padding: "6px 4px", fontSize: "12px" }}><strong>{item.label}</strong></td>
                                 <td style={{ padding: "6px 4px", fontSize: "12px" }}>{currency(item.totalAmount)}</td>
                                 <td style={{ padding: "6px 4px", fontSize: "12px" }}>{currency(item.paidAmount)}</td>
                                 <td style={{ padding: "6px 4px", fontSize: "12px", color:"#b91c1c", fontWeight: "bold" }}>{currency(item.balanceAmount)}</td>
                                 <td style={{ padding: "6px 4px" }}><FeeStatusBadge status={item.status} /></td>
-                                <td style={{ padding: "6px 4px", textAlign: "right" }}><button className="btn-edit-soft" style={{ fontSize: "10px", padding: "2px 6px" }} onClick={() => void openFeeModal(legalCase.id, item)}>Edit</button></td>
+                                <td style={{ padding: "6px 4px", textAlign: "right" }}><button className="btn-edit-section" style={{ fontSize: "10px", padding: "2px 6px", display: "inline-flex", width: "auto" }} onClick={() => void openFeeModal(legalCase.id, item)}>✏️ Edit</button></td>
                               </tr>
                             ))}
                           </tbody>
                         </table>
                       </div>
-                    ) : <div className="empty-box" style={{ background: "transparent", border: "1px dashed var(--border-color, rgba(0,0,0,0.1))", padding: "12px", fontSize: "12px" }}>No fees yet.</div>}
+                    ) : <div className="empty-box" style={{ background: "transparent", border: "1px dashed var(--color-border)", padding: "12px", fontSize: "12px" }}>No fees yet.</div>}
                   </div>
 
                   {/* Payment History Row */}
-                  <div className="mini-section" style={{ margin: 0, background: "var(--color-bg)", borderRadius: "10px", border: "1px solid var(--border-color, rgba(0,0,0,0.05))", padding: "12px" }}>
-                     <div className="section-heading" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px", borderBottom: expandedHistories[legalCase.id] ? "1px solid var(--border-color, rgba(0,0,0,0.05))" : "none", paddingBottom: expandedHistories[legalCase.id] ? "6px" : "0" }}>
+                  <div className="mini-section" style={{ margin: 0, background: "var(--color-bg)", borderRadius: "10px", border: "1px solid var(--color-border)", padding: "12px" }}>
+                     <div className="section-heading" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "8px", borderBottom: expandedHistories[legalCase.id] ? "1px solid var(--color-border)" : "none", paddingBottom: expandedHistories[legalCase.id] ? "6px" : "0" }}>
                         <h4 style={{ margin: 0, fontSize: "13px" }}>💳 Payment History</h4>
                         <div style={{ display: "flex", gap: "8px" }}>
                           <button className="btn-neutral" style={{ fontSize: 10, padding: "4px 8px" }} onClick={() => setExpandedHistories(p => ({ ...p, [legalCase.id]: !p[legalCase.id] }))}>
@@ -713,7 +731,7 @@ function Payments() {
                      {expandedHistories[legalCase.id] && (
                        <div className="ledger-list" style={{ maxHeight: "200px", overflowY: "auto", paddingRight: "4px", marginTop: "8px" }}>
                          {legalCase.paymentHistory?.length > 0 ? legalCase.paymentHistory.map(entry => (
-                           <div key={entry.id} className="ledger-item ledger-item-clickable" onClick={() => setDetailEntry(entry)} style={{ background: "var(--color-card)", border: "1px solid var(--border-color, rgba(0,0,0,0.05))", borderRadius: "8px", padding: "8px 12px", marginBottom: "6px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+                           <div key={entry.id} className="ledger-item ledger-item-clickable" onClick={() => setDetailEntry(entry)} style={{ background: "var(--color-card)", border: "1px solid var(--color-border)", borderRadius: "8px", padding: "8px 12px", marginBottom: "6px", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
                               <div className="ledger-item-info">
                                 <strong style={{ fontSize: "12px" }}>{textOrDash(entry.chargeLabel, "Charge item")}</strong>
                                 <p style={{ margin: "2px 0 0", fontSize: "10px", opacity: 0.7 }}>{formatDate(entry.paymentDate || entry.createdAt)} · {textOrDash(entry.paymentMode, "Unspecified")} · By: {textOrDash(entry.recordedBy, "System")}</p>
@@ -721,7 +739,7 @@ function Payments() {
                               <span className="ledger-item-amount" style={{ fontSize: "13px", fontWeight: "900", color: "var(--color-success)" }}>{currency(entry.amount)}</span>
                            </div>
                          )) : (
-                           <div className="empty-box" style={{ background: "transparent", border: "1px dashed var(--border-color, rgba(0,0,0,0.1))", padding: "12px", fontSize: "12px" }}>No payment history yet.</div>
+                           <div className="empty-box" style={{ background: "transparent", border: "1px dashed var(--color-border)", padding: "12px", fontSize: "12px" }}>No payment history yet.</div>
                          )}
                        </div>
                      )}
